@@ -3,6 +3,7 @@
 import { dailySeed } from './seed.js'
 import { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT, levelBoard, seedBoard } from './levels.js'
 import { THEMES, themeForWorld } from './art/index.js'
+import { SKINS, loadSkin, saveSkin } from './skins.js'
 import { createGame } from './game.js'
 import { sound } from './sounds.js'
 import { wireInstall } from './install.js'
@@ -57,6 +58,7 @@ function show(screen) {
 
 let board = null   // the board being played, from levels.js
 let theme = null
+let skin = loadSkin()
 
 const game = createGame({
   boardEl: $('board'),
@@ -94,7 +96,7 @@ function play(b, label) {
   $('board-label').textContent = label
   $('board').style.background = theme.tint
   show(gameScreen)
-  game.start(board, theme)
+  game.start(board, theme, skin)
 }
 
 const startLevel = n => play(levelBoard(n), `level ${n}`)
@@ -208,6 +210,34 @@ $('hint').addEventListener('click', () => {
     setTimeout(() => { hintChip.textContent = hintLabel }, 1800)
   }
 })
+
+// ---------------------------------------------------------------- looks
+
+const looks = $('looks')
+
+function renderLooks() {
+  const grid = $('looks-grid')
+  grid.replaceChildren()
+  for (const candidate of SKINS) {
+    const el = document.createElement('button')
+    el.type = 'button'
+    el.className = 'look'
+    el.setAttribute('aria-pressed', String(candidate.key === skin.key))
+    el.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true">${candidate.preview}</svg><span>${candidate.title}</span>`
+    el.addEventListener('click', () => {
+      skin = candidate
+      saveSkin(skin)
+      game.setSkin(skin) // applies live, even mid-game; board state untouched
+      renderLooks()
+    })
+    grid.append(el)
+  }
+}
+
+for (const id of ['looks-open', 'looks-game']) {
+  $(id).addEventListener('click', () => { renderLooks(); looks.showModal() })
+}
+$('looks-close').addEventListener('click', () => looks.close())
 
 const soundChip = $('sound')
 function paintSound(muted) {

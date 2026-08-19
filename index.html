@@ -26,6 +26,7 @@
   <button id="levels-open" class="big secondary">PICK A LEVEL</button>
   <button id="friends" class="big secondary">PLAY WITH A FRIEND</button>
   <button id="howto-open" class="big secondary">HOW TO PLAY</button>
+  <button id="looks-open" class="big secondary">LOOKS</button>
   <!-- install stays hidden until the browser says the app is actually installable -->
   <button id="install" class="big secondary" hidden>ADD TO HOME SCREEN</button>
 
@@ -61,6 +62,7 @@
     <button id="sound" class="chip" aria-label="sound on or off">&#9834; SOUND</button>
     <button id="hint" class="chip">&#10024; HINT</button>
     <button id="undo" class="chip">&#8630; UNDO</button>
+    <button id="looks-game" class="chip" aria-label="change the look">&#9673; LOOKS</button>
   </div>
 
   <div id="stuck" class="stuck" hidden>
@@ -90,6 +92,14 @@
   </ol>
   <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows you a good move. Some pieces hide as a <b>?</b> &mdash; move the piece on top of them to peek! Take as long as you want.</p>
   <button id="howto-close" class="big">GOT IT</button>
+</dialog>
+
+<!-- ============ looks: pick a skin, applies instantly, remembered ============ -->
+<dialog id="looks">
+  <h2>Pick a look</h2>
+  <div id="looks-grid" class="looks-grid"></div>
+  <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
+  <button id="looks-close" class="big">DONE</button>
 </dialog>
 
 <!-- ============ update banner ============ -->

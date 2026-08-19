@@ -7,13 +7,14 @@
 //   3. only ok responses get cached, and the write is wrapped in waitUntil.
 //
 // bump CACHE when the shell list changes.
-const CACHE = 'sortit-v1'
+const CACHE = 'sortit-v2'
 const SHELL = [
   './',
   './index.html',
   './app.css',
   './app.js',
   './game.js',
+  './skins.js',
   './levels.js',
   './solver.js',
   './seed.js',
