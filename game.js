@@ -13,6 +13,7 @@ const HINT_BUDGET = { maxNodes: 60000 }
 export function createGame({ boardEl, movesEl, onWin, onMove }) {
   let capacity = 4
   let theme = null
+  let skin = null
   let tubes = []          // item-layer state
   let history = []        // snapshots for unlimited undo
   let selected = null
@@ -152,6 +153,9 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
   }
 
   // FLIP: re-render moved items from their old screen position to the new one.
+  // the skin's motion verb only changes the transform an item STARTS from and
+  // the easing that brings it home: pour slides, flip somersaults in and snaps,
+  // screw spins down onto the thread. same mechanism, different feel.
   function animateMove(uids) {
     const before = new Map()
     for (const uid of uids) {
@@ -160,6 +164,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     }
     render()
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const motion = skin?.motion ?? { rotate: 0, ease: 'cubic-bezier(.3,1.2,.5,1)', seconds: .22 }
     for (const uid of uids) {
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
       const from = before.get(uid)
@@ -168,9 +173,9 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       const dx = from.left - to.left
       const dy = from.top - to.top
       node.style.transition = 'none'
-      node.style.transform = `translate(${dx}px, ${dy}px)`
+      node.style.transform = `translate(${dx}px, ${dy}px) rotate(${motion.rotate}deg)`
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        node.style.transition = 'transform .22s cubic-bezier(.3,1.2,.5,1)'
+        node.style.transition = `transform ${motion.seconds}s ${motion.ease}`
         node.style.transform = ''
       }))
     }
@@ -274,9 +279,10 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
   // ------------------------------------------------------------- public api
 
   return {
-    start(board, boardTheme) {
+    start(board, boardTheme, boardSkin) {
       capacity = board.params.capacity
       theme = boardTheme
+      if (boardSkin) { skin = boardSkin; boardEl.dataset.skin = skin.key }
       let uid = 0
       tubes = board.tubes.map(t => t.map((c, slot) => ({
         uid: uid++,
@@ -320,5 +326,10 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     },
     canUndo: () => history.length > 0,
     measure() { if (tubes.length) render() }, // a resize can change the best row count
+    setSkin(next) {
+      skin = next
+      boardEl.dataset.skin = skin.key
+      if (tubes.length) render() // mid-game switch repaints in place, state untouched
+    },
   }
 }

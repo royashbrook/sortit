@@ -199,12 +199,123 @@ h1 {
 .item.lift { transform: translateY(-10px) scale(1.06); }
 .item.hid svg { opacity: .9; }
 
+/* ===== skins: the container + the item backing, picked in LOOKS =====
+   the default rules above ARE the tubes skin; each skin below overrides only
+   what its metaphor changes. items keep the theme's art as the face. */
+
+/* nuts & bolts: no glass, a threaded shaft up the middle, hex-nut backings */
+[data-skin="bolts"] .tube {
+  border-color: transparent;
+  border-bottom: .3rem solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+[data-skin="bolts"] .tube::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 5px 50%;
+  width: 10px;
+  translate: -50% 0;
+  background: repeating-linear-gradient(0deg, #B9AFA6 0 4px, #8F857C 4px 8px);
+  border: 2px solid var(--line);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+}
+[data-skin="bolts"] .item { position: relative; z-index: 1; padding: 1px; }
+[data-skin="bolts"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(25% 3%, 75% 3%, 98% 50%, 75% 97%, 25% 97%, 2% 50%);
+  background: #D8CFC6;
+  box-shadow: inset 0 -4px 0 #B0A599;
+}
+[data-skin="bolts"] .item svg { position: relative; scale: .74; }
+[data-skin="bolts"] .tube.sel { box-shadow: none; }
+
+/* beads & sticks: a slim wooden stick, round bead backings */
+[data-skin="beads"] .tube {
+  border-color: transparent;
+  border-bottom: .3rem solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+[data-skin="beads"] .tube::before {
+  content: '';
+  position: absolute;
+  inset: 4px auto 5px 50%;
+  width: 6px;
+  translate: -50% 0;
+  background: #A98F71;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+}
+[data-skin="beads"] .item { position: relative; z-index: 1; }
+[data-skin="beads"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #FFF9F0;
+  border: 2.5px solid var(--line);
+  box-shadow: inset 0 -4px 0 rgb(61 50 48 / .12);
+}
+[data-skin="beads"] .item svg { position: relative; scale: .72; }
+[data-skin="beads"] .tube.sel { box-shadow: none; }
+
+/* block stacks: no container at all, chunky voxel blocks on a baseplate */
+[data-skin="blocks"] .tube {
+  border-color: transparent;
+  border-bottom: .35rem solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 2px 5px;
+}
+[data-skin="blocks"] .item { position: relative; padding: 1px; }
+[data-skin="blocks"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 4px;
+  background: #EDE3D4;
+  border: 3px solid var(--line);
+  box-shadow: inset -4px -5px 0 rgb(61 50 48 / .18), inset 3px 3px 0 rgb(255 255 255 / .55);
+}
+[data-skin="blocks"] .item svg { position: relative; scale: .7; }
+
+/* the selected lift and done cues stay identical across skins on purpose:
+   the READING of the board never changes, only its costume */
+
 .tube.shake { animation: shake .3s ease; }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
 }
+
+/* the LOOKS picker: one card per skin, current one pressed */
+.looks-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+  margin: 0 0 .8rem;
+}
+.look {
+  display: grid;
+  place-items: center;
+  gap: .2rem;
+  padding: .7rem .4rem .5rem;
+  border: .16rem solid var(--line);
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  font-size: .8rem;
+  cursor: pointer;
+}
+.look svg { width: 3.4rem; height: 3.4rem; }
+.look[aria-pressed="true"] { background: var(--accent); box-shadow: 0 .25rem 0 var(--line); }
 
 .tube.hint { animation: hintpulse 1s ease 2; }
 @keyframes hintpulse {
