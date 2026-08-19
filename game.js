@@ -4,7 +4,7 @@
 // stable across re-renders (that is what the pour animation keys on), c is the
 // colour slot into the theme's 12 items, hid marks a mystery-level item still
 // face-down. the solver only ever sees the numeric colour layer.
-import { legalMoves, isComplete, isWin, solve } from './solver.js'
+import { isComplete, isWin, solve } from './solver.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
 
@@ -18,7 +18,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
   let selected = null
   let moves = 0
   let over = false
-  let rows = []           // tube index -> row number, for layout
+  let seen = new Set()    // uids the player has already seen the face of
 
   // ---------------------------------------------------------------- helpers
 
@@ -39,6 +39,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
         for (const item of t) { if (item.hid) { item.hid = false; revealed = true } }
       }
     }
+    for (const t of tubes) for (const item of t) { if (!item.hid) seen.add(item.uid) }
     if (revealed && changed) sound.reveal()
   }
 
@@ -63,9 +64,12 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
   // ----------------------------------------------------------------- layout
 
   // rows of tubes sized in JS: both dimensions depend on capacity, row count
-  // and viewport, and CSS cannot minimise over all three at once.
-  function rowsFor(count) {
-    const rowCount = count <= 5 ? 1 : count <= 10 ? 2 : 3
+  // and viewport, and CSS cannot minimise over all three at once. the row
+  // count itself is part of the optimisation: a narrow-but-tall phone often
+  // fits bigger tubes with 2 rows of 7 than 3 rows of 5.
+  const GAP = 8, PAD = 5, LIP = 10
+
+  function rowsFor(count, rowCount) {
     const base = Math.floor(count / rowCount)
     const extra = count % rowCount
     const sizes = Array.from({ length: rowCount }, (_, r) => base + (r < extra ? 1 : 0))
@@ -75,19 +79,22 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     return { rowCount, sizes, assignment }
   }
 
-  function measure() {
-    const { rowCount, sizes } = rowsFor(tubes.length)
-    const gap = 8
-    const pad = 5                  // tube inner padding
-    const lip = 10                 // extra height above the top item
-    const availW = boardEl.clientWidth
-    const availH = boardEl.clientHeight - (rowCount - 1) * gap
-    const widest = Math.max(...sizes)
-    const bySide = (availH / rowCount - lip - pad) / capacity
-    const byWidth = (availW - (widest - 1) * gap) / widest - pad * 2
-    const side = Math.max(24, Math.min(64, bySide, byWidth))
-    boardEl.style.setProperty('--side', `${side}px`)
-    boardEl.style.setProperty('--tube-h', `${side * capacity + lip + pad}px`)
+  function bestLayout(count) {
+    // clientWidth/Height include padding, which is not usable space
+    const cs = getComputedStyle(boardEl)
+    const availW = boardEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    const availHTotal = boardEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+    let best = null
+    for (let rowCount = 1; rowCount <= Math.min(4, count); rowCount++) {
+      const widest = Math.ceil(count / rowCount)
+      const availH = availHTotal - (rowCount - 1) * GAP
+      const bySide = (availH / rowCount - LIP - PAD) / capacity
+      const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
+      const side = Math.min(64, bySide, byWidth)
+      if (!best || side > best.side) best = { rowCount, side }
+    }
+    best.side = Math.max(20, best.side)
+    return best
   }
 
   // ----------------------------------------------------------------- render
@@ -104,8 +111,11 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
   }
 
   function render() {
-    const { rowCount, assignment } = rowsFor(tubes.length)
-    rows = assignment
+    const layout = bestLayout(tubes.length)
+    boardEl.style.setProperty('--side', `${layout.side}px`)
+    boardEl.style.setProperty('--tube-h', `${layout.side * capacity + LIP + PAD}px`)
+    const { rowCount, assignment } = rowsFor(tubes.length, layout.rowCount)
+    const focused = document.activeElement?.dataset?.t // keyboard focus survives re-render
     const rowEls = Array.from({ length: rowCount }, () => {
       const el = document.createElement('div')
       el.className = 'row'
@@ -120,11 +130,11 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       el.setAttribute('aria-label', `tube ${index + 1}: ${named.join(', ') || 'empty'}`)
       if (isComplete(colorsOf(tube), capacity) && !tube.some(i => i.hid)) el.classList.add('done')
       tube.forEach(item => el.append(itemNode(item)))
-      el.addEventListener('pointerdown', () => tap(index))
+      el.addEventListener('click', () => tap(index)) // click: mouse, touch AND keyboard
       rowEls[assignment[index]].append(el)
     })
     boardEl.replaceChildren(...rowEls)
-    measure()
+    if (focused != null) boardEl.querySelector(`[data-t="${focused}"]`)?.focus({ preventScroll: true })
     paintSelection()
   }
 
@@ -171,13 +181,36 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     el?.classList.remove('shake')
     void el?.offsetWidth
     el?.classList.add('shake')
+    setTimeout(() => el?.classList.remove('shake'), 450) // clears the reduced-motion static cue too
     sound.no()
   }
 
   // ------------------------------------------------------------ interaction
 
-  function legalTargets(from) {
-    return legalMoves(numeric(), capacity).filter(m => m.from === from)
+  // player legality is DELIBERATELY more permissive than the solver's move
+  // list: the solver prunes "pointless" moves (second empty tube, uniform
+  // tube into an empty) as a search optimisation, but the printed rule is
+  // "same kind on top, or an empty tube" and the game must honour exactly
+  // that — especially on mystery boards, where a refusal based on hidden
+  // colours would leak what's under the "?" faces.
+  function playerMove(from, to) {
+    const src = tubes[from]
+    const dst = tubes[to]
+    if (!src.length || from === to) return null
+    const space = capacity - dst.length
+    if (space === 0) return null
+    if (dst.length && dst[dst.length - 1].c !== src[src.length - 1].c) return null
+    return { from, to, count: Math.min(visibleRun(from), space) }
+  }
+
+  function anyPlayerMove() {
+    for (let from = 0; from < tubes.length; from++) {
+      if (!tubes[from].length || isComplete(colorsOf(tubes[from]), capacity)) continue
+      for (let to = 0; to < tubes.length; to++) {
+        if (from !== to && playerMove(from, to)) return true
+      }
+    }
+    return false
   }
 
   function tap(index) {
@@ -198,7 +231,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       return
     }
 
-    const move = legalTargets(selected).find(m => m.to === index)
+    const move = playerMove(selected, index)
     if (!move) {
       // kid-friendly: an illegal tap on another pickable tube just switches
       // the selection instead of scolding, a tap into a bad drop wiggles.
@@ -213,7 +246,6 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     }
 
     checkpoint()
-    move.count = Math.min(move.count, visibleRun(move.from))
     const movedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
     const next = tubes.map(t => t.slice())
     next[move.to] = next[move.to].concat(next[move.from].splice(next[move.from].length - move.count, move.count))
@@ -236,7 +268,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       onWin(moves)
       return
     }
-    if (legalMoves(numeric(), capacity).length === 0) onMove?.('stuck')
+    if (!anyPlayerMove()) onMove?.('stuck')
   }
 
   // ------------------------------------------------------------- public api
@@ -254,6 +286,8 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       history = []
       selected = null
       over = false
+      seen = new Set()
+      revealTops(false)
       setMoves(0)
       render()
     },
@@ -261,6 +295,9 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       const last = history.pop()
       if (!last) return false
       tubes = last.tubes
+      // undo takes back the move, not the player's knowledge: faces already
+      // seen stay face-up
+      for (const t of tubes) for (const item of t) { if (seen.has(item.uid)) item.hid = false }
       selected = null
       over = false
       setMoves(last.moves)
@@ -268,18 +305,20 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       return true
     },
     hint() {
+      if (over) return true // the board is solved, there is nothing to hint
       const result = solve(numeric(), capacity, HINT_BUDGET)
-      if (!result.solved) return false
+      if (!result.solved || !result.moves.length) return false
       const move = result.moves[0]
       for (const t of [move.from, move.to]) {
         const el = boardEl.querySelector(`[data-t="${t}"]`)
         el?.classList.remove('hint')
         void el?.offsetWidth
         el?.classList.add('hint')
+        setTimeout(() => el?.classList.remove('hint'), 2100) // clears the reduced-motion static cue
       }
       return true
     },
     canUndo: () => history.length > 0,
-    measure,
+    measure() { if (tubes.length) render() }, // a resize can change the best row count
   }
 }

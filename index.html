@@ -39,9 +39,9 @@
     <span id="world-title" class="chip flat">world</span>
   </header>
   <div class="world-nav">
-    <button id="world-prev" class="chip">&larr; BACK</button>
+    <button id="world-prev" class="chip">&laquo; PREV</button>
     <span id="world-count" class="chip flat"></span>
-    <button id="world-next" class="chip">MORE &rarr;</button>
+    <button id="world-next" class="chip">NEXT &raquo;</button>
   </div>
   <div id="world-grid" aria-label="levels in this world"></div>
   <p id="sorted-total" class="small center"></p>
@@ -52,7 +52,7 @@
   <header class="bar">
     <button id="back" class="chip" aria-label="back to menu">&larr;</button>
     <span id="board-label" class="chip flat"></span>
-    <span id="moves" class="chip flat mono">0 moves</span>
+    <span id="moves" class="chip flat mono" aria-live="polite">0 moves</span>
   </header>
 
   <div id="board" aria-label="sorting board"></div>
@@ -69,7 +69,7 @@
     <button id="stuck-restart" class="chip">START OVER</button>
   </div>
 
-  <div id="won" class="won" hidden>
+  <div id="won" class="won" role="status" hidden>
     <p class="won-title">SORTED!</p>
     <p id="won-detail" class="won-detail"></p>
     <button id="next" class="big">NEXT LEVEL</button>
@@ -88,7 +88,7 @@
     <li>Fill a whole tube with one kind to finish it.</li>
     <li>Sort every tube to win!</li>
   </ol>
-  <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows you a good move. Take as long as you want.</p>
+  <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows you a good move. Some pieces hide as a <b>?</b> &mdash; move the piece on top of them to peek! Take as long as you want.</p>
   <button id="howto-close" class="big">GOT IT</button>
 </dialog>
 

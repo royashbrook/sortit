@@ -26,11 +26,14 @@ html, body {
   touch-action: manipulation; /* no double-tap zoom while pouring fast */
 }
 
-/* dvh, not vh: mobile safari's vh includes the collapsing url bar */
+/* dvh, not vh: mobile safari's vh includes the collapsing url bar.
+   height, not min-height: the board sizes itself FROM the viewport, so the
+   body must never grow to fit an oversized board (that feedback loop is how
+   a capacity-5 board once overflowed an iPhone SE). */
 body {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   padding:
     max(.8rem, env(safe-area-inset-top))
     max(.8rem, env(safe-area-inset-right))
@@ -51,6 +54,10 @@ body {
   min-height: 0;
   margin: 0 auto;
 }
+
+/* menu and picker may scroll on very short screens; the game never does */
+#menu, #levels { overflow-y: auto; }
+#game { overflow: hidden; }
 
 h1 {
   margin: 1.2rem 0 0;
@@ -96,6 +103,7 @@ h1 {
 
 .chip {
   min-height: 2.75rem; /* 44px floor */
+  min-width: 2.75rem;
   padding: .5rem .7rem;
   border: .15rem solid var(--line);
   border-radius: .9rem;
@@ -159,6 +167,24 @@ h1 {
 
 .tube.sel { transform: translateY(-4px); box-shadow: 0 .35rem 0 var(--line); }
 .tube.done { border-color: #46A758; background: rgb(198 232 194 / .55); }
+
+/* the finished-tube badge is a FORM cue, not just the green tint */
+.tube { position: relative; }
+.tube.done::after {
+  content: '\2713';
+  position: absolute;
+  top: -.7rem;
+  right: -.4rem;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: .12rem solid var(--line);
+  border-radius: 50%;
+  background: #C6E8C2;
+  font-size: .8rem;
+  font-weight: 800;
+}
 
 .item {
   display: block;
@@ -259,11 +285,11 @@ dialog li { margin-bottom: .3rem; }
 
 .confetti {
   position: fixed;
-  inset: 0;
+  inset: 0 auto auto 0;
   z-index: 8;
-  width: 100vw;
-  height: 100vh;
   pointer-events: none;
+  /* width/height set from innerWidth/innerHeight in confetti.js so the css
+     box always matches the canvas backing store (100vh lies on ios safari) */
 }
 
 /* ------------------------------------------------------------ level picker */
@@ -299,9 +325,13 @@ dialog li { margin-bottom: .3rem; }
 .lvl.done { background: #C6E8C2; }
 .lvl.now { background: var(--accent); box-shadow: 0 .25rem 0 var(--line); }
 .lvl:disabled { opacity: .38; cursor: default; }
-.lvl .sub { font-size: .62rem; color: var(--soft); font-weight: 700; }
+.lvl .sub { font-size: .72rem; color: var(--soft); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {
   .item, .tube { transition: none; }
   .tube.shake, .tube.hint { animation: none; }
+  /* motion goes away, information does not: static cues replace the pulses,
+     and game.js removes the classes on a timer so they still clear */
+  .tube.hint { box-shadow: 0 0 0 .3rem var(--accent); }
+  .tube.shake { border-color: #C0392B; }
 }

@@ -8,6 +8,8 @@ export function confetti(colors) {
   canvas.className = 'confetti'
   canvas.width = innerWidth * devicePixelRatio
   canvas.height = innerHeight * devicePixelRatio
+  canvas.style.width = `${innerWidth}px`
+  canvas.style.height = `${innerHeight}px`
   document.body.append(canvas)
   const g = canvas.getContext('2d')
   g.scale(devicePixelRatio, devicePixelRatio)

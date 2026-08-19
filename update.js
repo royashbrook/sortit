@@ -17,6 +17,14 @@ export function wireUpdate(banner, { onStatus } = {}) {
 
   const check = async () => {
     try {
+      // seed the baseline from the shell we actually booted (the sw cache),
+      // not the first successful probe. difference: boot offline on v1 while
+      // v2 is deployed, come online — a probe-seeded baseline would adopt v2
+      // silently and the banner would never fire for this session.
+      if (baseline === null && 'caches' in window) {
+        const cached = await caches.match('./index.html').catch(() => null)
+        if (cached) baseline = await cached.text()
+      }
       const response = await fetch(PROBE, { cache: 'no-store' })
       if (!response.ok) return 'unknown'
       const text = await response.text()
