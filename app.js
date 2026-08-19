@@ -219,6 +219,19 @@ soundChip.addEventListener('click', () => paintSound(sound.toggle()))
 
 addEventListener('resize', () => game.measure())
 
+// two contexts (installed app + a tab, a shared family ipad) write the same
+// store; adopting the other writer's progress beats silently clobbering it
+addEventListener('storage', event => {
+  if (event.key !== KEY) return
+  const incoming = loadProgress()
+  incoming.current = Math.max(incoming.current, progress.current)
+  for (const [n, best] of Object.entries(progress.done)) {
+    if (incoming.done[n] == null || best < incoming.done[n]) incoming.done[n] = best
+  }
+  progress = incoming
+  if (!levelsScreen.hidden) renderWorld()
+})
+
 wireInstall($('install'), {
   showIosHint: () => {
     howto.querySelector('h2').textContent = 'Add to home screen'
