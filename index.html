@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sort It</title>
+<!-- the ethos line is required, and it goes in the description where a person can read it -->
+<meta name="description" content="A cosy sorting puzzle for kids. No ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. Works offline.">
+<meta name="theme-color" content="#FFB03A">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ============ menu: the shape every house game boots into ============ -->
+<main id="menu" class="screen">
+  <h1>Sort It</h1>
+  <p class="tagline">sort everything into tidy tubes</p>
+
+  <button id="play" class="big">PLAY</button>
+  <button id="daily" class="big secondary">TODAY'S PUZZLE</button>
+  <button id="levels-open" class="big secondary">PICK A LEVEL</button>
+  <button id="friends" class="big secondary">PLAY WITH A FRIEND</button>
+  <button id="howto-open" class="big secondary">HOW TO PLAY</button>
+  <!-- install stays hidden until the browser says the app is actually installable -->
+  <button id="install" class="big secondary" hidden>ADD TO HOME SCREEN</button>
+
+  <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
+</main>
+
+<!-- ============ level picker ============ -->
+<main id="levels" class="screen" hidden>
+  <header class="bar">
+    <button id="levels-back" class="chip">&larr;</button>
+    <span id="world-title" class="chip flat">world</span>
+  </header>
+  <div class="world-nav">
+    <button id="world-prev" class="chip">&larr; BACK</button>
+    <span id="world-count" class="chip flat"></span>
+    <button id="world-next" class="chip">MORE &rarr;</button>
+  </div>
+  <div id="world-grid" aria-label="levels in this world"></div>
+  <p id="sorted-total" class="small center"></p>
+</main>
+
+<!-- ============ game ============ -->
+<main id="game" class="screen" hidden>
+  <header class="bar">
+    <button id="back" class="chip" aria-label="back to menu">&larr;</button>
+    <span id="board-label" class="chip flat"></span>
+    <span id="moves" class="chip flat mono">0 moves</span>
+    <button id="sound" class="chip" aria-label="sound on or off">&#9834;</button>
+    <button id="hint" class="chip">HINT</button>
+    <button id="undo" class="chip">UNDO</button>
+  </header>
+
+  <div id="board" aria-label="sorting board"></div>
+
+  <div id="stuck" class="stuck" hidden>
+    <p>no moves left!</p>
+    <button id="stuck-undo" class="chip">UNDO</button>
+    <button id="stuck-restart" class="chip">START OVER</button>
+  </div>
+
+  <div id="won" class="won" hidden>
+    <p class="won-title">SORTED!</p>
+    <p id="won-detail" class="won-detail"></p>
+    <button id="next" class="big">NEXT LEVEL</button>
+    <button id="again" class="big secondary">PLAY AGAIN</button>
+    <button id="share-win" class="big secondary">SEND THIS PUZZLE TO A FRIEND</button>
+  </div>
+</main>
+
+<!-- ============ how to play: in-app, never an external page ============ -->
+<dialog id="howto">
+  <h2>How to play</h2>
+  <ol>
+    <li>Tap a tube to pick up what's on top.</li>
+    <li>Tap another tube to drop it there.</li>
+    <li>Drops only land on a <b>matching</b> friend, or in an empty tube.</li>
+    <li>Fill a whole tube with one kind to finish it.</li>
+    <li>Sort every tube to win!</li>
+  </ol>
+  <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows you a good move. Take as long as you want.</p>
+  <button id="howto-close" class="big">GOT IT</button>
+</dialog>
+
+<!-- ============ update banner ============ -->
+<button id="update" class="update" hidden>NEW VERSION, TAP TO LOAD</button>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
