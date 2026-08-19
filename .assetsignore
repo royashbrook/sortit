@@ -1,0 +1,14 @@
+.git
+.githooks
+.claude
+.gemini
+node_modules
+tools
+ISSUES.md
+README.md
+package.json
+package-lock.json
+wrangler.jsonc
+.assetsignore
+.gitignore
+art/ART-SPEC.md
