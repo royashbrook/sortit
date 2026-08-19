@@ -4,7 +4,7 @@
 // stable across re-renders (that is what the pour animation keys on), c is the
 // colour slot into the theme's 12 items, hid marks a mystery-level item still
 // face-down. the solver only ever sees the numeric colour layer.
-import { legalMoves, applyMove, isComplete, isWin, topRun, solve } from './solver.js'
+import { legalMoves, isComplete, isWin, solve } from './solver.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
 
@@ -34,8 +34,25 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     for (const t of tubes) {
       const top = t[t.length - 1]
       if (top && top.hid) { top.hid = false; revealed = true }
+      // a finished tube shows all its faces, even the ones that were mysteries
+      if (t.length && isComplete(colorsOf(t), capacity)) {
+        for (const item of t) { if (item.hid) { item.hid = false; revealed = true } }
+      }
     }
     if (revealed && changed) sound.reveal()
+  }
+
+  // on mystery boards only the revealed part of a run is really "known", so
+  // that is all a tap picks up — the solver may know more, the kid does not.
+  function visibleRun(index) {
+    const tube = tubes[index]
+    const top = tube[tube.length - 1]
+    let n = 0
+    for (let i = tube.length - 1; i >= 0; i--) {
+      if (tube[i].hid || tube[i].c !== top.c) break
+      n++
+    }
+    return Math.max(1, n)
   }
 
   function setMoves(n) {
@@ -117,7 +134,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
       el.classList.toggle('sel', on)
       el.querySelectorAll('.item').forEach(node => node.classList.remove('lift'))
       if (on) {
-        const run = topRun(colorsOf(tubes[index]))
+        const run = visibleRun(index)
         const nodes = el.querySelectorAll('.item')
         for (let k = 0; k < run; k++) nodes[nodes.length - 1 - k]?.classList.add('lift')
       }
@@ -196,6 +213,7 @@ export function createGame({ boardEl, movesEl, onWin, onMove }) {
     }
 
     checkpoint()
+    move.count = Math.min(move.count, visibleRun(move.from))
     const movedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
     const next = tubes.map(t => t.slice())
     next[move.to] = next[move.to].concat(next[move.from].splice(next[move.from].length - move.count, move.count))

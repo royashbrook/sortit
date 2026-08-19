@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- dev-only: eyeball every theme's 12 items at tube size. not in the sw shell.
+     open via `npm run serve` then /tools/art-preview.html -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sort It art preview</title>
+<style>
+  body { font-family: ui-rounded, system-ui; background: #FFF6E5; color: #3D3230; margin: 1rem; }
+  h2 { margin: 1.2rem 0 .4rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; padding: .6rem; border-radius: 1rem; }
+  figure { margin: 0; text-align: center; font-size: .65rem; font-weight: 700; }
+  svg { width: 44px; height: 44px; display: block; margin: 0 auto; }
+  .big svg { width: 96px; height: 96px; }
+</style>
+<div id="out"></div>
+<script type="module">
+  import { THEMES } from '../art/index.js'
+  const out = document.getElementById('out')
+  for (const theme of THEMES) {
+    const h = document.createElement('h2')
+    h.textContent = `${theme.title} (${theme.key})`
+    const row = document.createElement('div')
+    row.className = 'row'
+    row.style.background = theme.tint
+    const big = document.createElement('div')
+    big.className = 'row big'
+    big.style.background = theme.tint
+    for (const item of theme.items) {
+      for (const target of [row, big]) {
+        const fig = document.createElement('figure')
+        fig.innerHTML = `<svg viewBox="0 0 64 64">${item.svg}</svg><figcaption>${item.key}</figcaption>`
+        target.append(fig)
+      }
+    }
+    out.append(h, row, big)
+  }
+</script>

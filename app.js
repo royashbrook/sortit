@@ -79,9 +79,8 @@ function themeForBoard(b) {
 function play(b, label) {
   board = b
   theme = themeForBoard(b)
-  $('board-label').textContent = `${label} · ${theme.title}`
-  $('board').style.setProperty('--tint', theme.tint)
-  document.getElementById('board').style.background = theme.tint
+  $('board-label').textContent = label
+  $('board').style.background = theme.tint
   show(gameScreen)
   game.start(board, theme)
 }
