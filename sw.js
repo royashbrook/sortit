@@ -38,10 +38,13 @@ const SHELL = [
 ]
 
 self.addEventListener('install', event => {
-  // one bad url must not fail the whole install, so each is added on its own
+  // one bad url must not fail the whole install, so each is added on its
+  // own. cache: 'reload' bypasses the HTTP cache — without it a long
+  // max-age server can seed the NEW sw cache from STALE http-cache entries,
+  // and the update banner then re-fires forever against the fresh probe.
   event.waitUntil(
     caches.open(CACHE).then(cache =>
-      Promise.all(SHELL.map(url => cache.add(url).catch(() => {})))),
+      Promise.all(SHELL.map(url => cache.add(new Request(url, { cache: 'reload' })).catch(() => {})))),
   )
   self.skipWaiting()
 })

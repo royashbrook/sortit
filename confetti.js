@@ -4,22 +4,30 @@
 
 export function confetti(colors) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  // capture size ONCE: a rotation mid-burst must not smear a mismatched
+  // clearRect, and dpr is capped like the game canvas — a dpr-3 phone does
+  // not need a ~40MB backing store for a two-second effect.
+  const W = innerWidth
+  const H = innerHeight
+  const dpr = Math.min(devicePixelRatio || 1, 2)
   const canvas = document.createElement('canvas')
   canvas.className = 'confetti'
-  canvas.width = innerWidth * devicePixelRatio
-  canvas.height = innerHeight * devicePixelRatio
-  canvas.style.width = `${innerWidth}px`
-  canvas.style.height = `${innerHeight}px`
+  canvas.width = W * dpr
+  canvas.height = H * dpr
+  canvas.style.width = `${W}px`
+  canvas.style.height = `${H}px`
   document.body.append(canvas)
   const g = canvas.getContext('2d')
-  g.scale(devicePixelRatio, devicePixelRatio)
+  g.scale(dpr, dpr)
 
+  // spawn band is shallow and fall speed floored so every piece the burst
+  // pays for actually crosses the screen within its lifetime
   const pieces = Array.from({ length: 130 }, () => ({
-    x: Math.random() * innerWidth,
-    y: -20 - Math.random() * innerHeight * 0.5,
+    x: Math.random() * W,
+    y: -20 - Math.random() * H * 0.3,
     w: 6 + Math.random() * 6,
     h: 8 + Math.random() * 8,
-    vy: 130 + Math.random() * 170,
+    vy: 190 + Math.random() * 170,
     vx: -40 + Math.random() * 80,
     rot: Math.random() * Math.PI,
     vr: -4 + Math.random() * 8,
@@ -31,7 +39,7 @@ export function confetti(colors) {
   function frame(now) {
     const dt = Math.min((now - last) / 1000, 0.05)
     last = now
-    g.clearRect(0, 0, innerWidth, innerHeight)
+    g.clearRect(0, 0, W, H)
     for (const p of pieces) {
       p.x += p.vx * dt
       p.y += p.vy * dt

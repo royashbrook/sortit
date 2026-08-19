@@ -244,7 +244,7 @@ wireInstall($('install'), {
   },
 })
 
-wireUpdate($('update'))
+wireUpdate($('update'), { allowed: () => gameScreen.hidden }) // never over a game
 registerWorker()
 
 // a shared link drops the player straight onto their friend's board

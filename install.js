@@ -32,10 +32,14 @@ export function wireInstall(button, { showIosHint }) {
 
   button.addEventListener('click', async () => {
     if (deferred) {
-      deferred.prompt()
-      const { outcome } = await deferred.userChoice
+      // take the event before prompting: a double-tap must not call
+      // prompt() twice on the same event (InvalidStateError noise)
+      const event = deferred
       deferred = null
+      event.prompt()
+      const { outcome } = await event.userChoice
       if (outcome === 'accepted') button.hidden = true
+      else deferred = event // declined: the button can try again later
       return
     }
     showIosHint()
