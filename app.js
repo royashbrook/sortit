@@ -44,6 +44,12 @@ function loadProgress() {
         }
       }
     }
+    // legacy saves predate stars: derive them from the recorded best and the
+    // par table, so an old PERFECT best never re-earns one star on a bad replay
+    for (const [key, best] of Object.entries(done)) {
+      const n = Number(key)
+      if (stars[n] == null) stars[n] = starsFor(best, PARS[n - 1] ?? null, null)
+    }
     return { current, done, stars }
   } catch {
     return { current: 1, done: {}, stars: {} } // a blocked store never stops a kid playing
@@ -170,6 +176,7 @@ function renderWorld() {
     // the picker would show a green tick the kid cannot tap
     el.disabled = n > progress.current && best == null
     const earned = progress.stars[n]
+    if (best != null) el.setAttribute(aria-label, `level ${n}, best ${best} moves, ${earned ?? 1} of 3 stars`)
     el.innerHTML = `<span>${n}</span>` +
       (best != null
         ? `<span class="sub">${earned ? '★'.repeat(earned) : `&#10003; ${best}`}</span>`
@@ -307,6 +314,7 @@ addEventListener('storage', event => {
     if ((incoming.stars[n] ?? 0) < earned) incoming.stars[n] = earned
   }
   progress = incoming
+  saveProgress(progress) // persist the union: the better writer must survive a reload
   if (!levelsScreen.hidden) renderWorld()
 })
 

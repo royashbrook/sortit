@@ -46,13 +46,11 @@ for (let n = 1; n <= LEVEL_COUNT; n++) {
 }
 console.log('  determinism: second pass identical')
 
-// the par table: right shape, never beats the proof solution, and a seeded
-// random sample re-proved against the exact solver every run
+// the par table: right shape, and EVERY entry re-proved against the exact
+// solver (ludo's cold review: a fixed sample lets the other 560 drift forever;
+// the full regeneration costs ~95s and exact-table provenance is the promise)
 if (PARS.length !== LEVEL_COUNT) { console.error(`pars.js has ${PARS.length} entries, want ${LEVEL_COUNT}`); process.exit(1) }
-const sample = rng(20260819)
-const SPOT = 40
-for (let i = 0; i < SPOT; i++) {
-  const n = 1 + Math.floor(sample() * LEVEL_COUNT)
+for (let n = 1; n <= LEVEL_COUNT; n++) {
   const board = levelBoard(n)
   if (PARS[n - 1] > board.solution.length) { console.error(`level ${n}: par ${PARS[n - 1]} beats the proof solution ${board.solution.length}`); process.exit(1) }
   const exact = optimal(board.tubes, board.params.capacity, { maxNodes: 60_000_000 })
@@ -61,7 +59,7 @@ for (let i = 0; i < SPOT; i++) {
     process.exit(1)
   }
 }
-console.log(`pars: table matches the exact solver on ${SPOT} sampled levels`)
+console.log(`pars: all ${LEVEL_COUNT} table entries match the exact solver`)
 
 let dailyWorstMs = 0
 let dailyParWorstMs = 0
