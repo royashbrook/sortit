@@ -274,6 +274,69 @@ h1 {
 }
 [data-skin="blocks"] .item svg { position: relative; scale: .7; }
 
+/* voxel mine: earthy dirt blocks with a grass cap, an aesthetic tribute */
+[data-skin="voxel"] .tube {
+  border-color: transparent;
+  border-bottom: .35rem solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 2px 5px;
+}
+[data-skin="voxel"] .item { position: relative; padding: 1px; }
+[data-skin="voxel"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 3px solid var(--line);
+  background:
+    linear-gradient(0deg, transparent 78%, #6FA644 78%),
+    repeating-linear-gradient(45deg, #8A6142 0 6px, #7A5238 6px 12px);
+  box-shadow: inset -4px -5px 0 rgb(0 0 0 / .22), inset 3px 3px 0 rgb(255 255 255 / .18);
+  image-rendering: pixelated;
+}
+[data-skin="voxel"] .item svg { position: relative; scale: .66; }
+
+/* neon dash: dark grid, glowing cube outlines, an aesthetic tribute */
+[data-skin="dash"] { background: #141A2E !important; }
+[data-skin="dash"] .tube {
+  border-color: rgb(62 240 208 / .5);
+  border-bottom: .3rem solid #3EF0D0;
+  border-radius: 0 0 .5rem .5rem;
+  background: rgb(27 35 64 / .6);
+}
+[data-skin="dash"] .item { position: relative; padding: 2px; }
+[data-skin="dash"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 5px;
+  background: #1B2340;
+  border: 2.5px solid #3EF0D0;
+  box-shadow: 0 0 8px rgb(62 240 208 / .55), inset 0 0 6px rgb(62 240 208 / .3);
+}
+[data-skin="dash"] .item:nth-child(even)::before { border-color: #FF4FD8; box-shadow: 0 0 8px rgb(255 79 216 / .5), inset 0 0 6px rgb(255 79 216 / .3); }
+[data-skin="dash"] .item svg { position: relative; scale: .68; }
+[data-skin="dash"] .tube.done { box-shadow: 0 0 0 3px #3EF0D0, 0 0 18px 5px rgb(62 240 208 / .6); }
+
+/* kawaii pop: chunky pastel squircles, soft everything, an aesthetic tribute */
+[data-skin="kawaii"] .tube {
+  border: .22rem solid #E8A9C4;
+  border-radius: 1.3rem;
+  background: rgb(255 227 238 / .75);
+}
+[data-skin="kawaii"] .item { position: relative; }
+[data-skin="kawaii"] .item::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 38%;
+  background: #FFF6FA;
+  border: 2.5px solid #E8A9C4;
+  box-shadow: inset 0 -4px 0 rgb(232 169 196 / .35);
+}
+[data-skin="kawaii"] .item svg { position: relative; scale: .74; }
+[data-skin="kawaii"] .tube.sel { box-shadow: 0 .35rem 0 #E8A9C4; }
+
 /* the selected lift and done cues stay identical across skins on purpose:
    the READING of the board never changes, only its costume */
 
