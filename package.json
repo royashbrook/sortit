@@ -5,8 +5,19 @@
   "description": "Sort It: a cosy sorting puzzle for kids. No ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared.",
   "type": "module",
   "scripts": {
-    "serve": "node tools/serve.mjs .",
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "svelte-check": "svelte-check --tsconfig ./jsconfig.json",
     "icons": "node tools/make-icons.mjs",
     "verify": "node tools/verify-levels.mjs && node tools/verify-stars.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.1",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "svelte": "^5.56.8",
+    "svelte-check": "^4.7.3",
+    "vite": "^8.1.5"
   }
 }
