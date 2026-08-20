@@ -13,8 +13,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="app.css">
+  <!-- version.js is generated at deploy (tools/stamp-version.mjs); a plain global so a
+       missing file degrades to the 'dev' fallback rather than throwing. -->
+  <script src="version.js"></script>
 </head>
 <body>
+
+<!-- the house version stamp: git tag major.minor + commits since, shown as vX.Y.Z -->
+<div id="ver" class="version-stamp" aria-hidden="true"></div>
 
 <!-- ============ menu: the shape every house game boots into ============ -->
 <main id="menu" class="screen">

@@ -11,6 +11,9 @@ import { wireInstall } from './install.js'
 import { wireUpdate, registerWorker } from './update.js'
 
 const $ = id => document.getElementById(id)
+
+// house version stamp, set from the deploy-time version.js (window.__APP_VERSION)
+$("ver").textContent = "v" + (window.__APP_VERSION || "dev")
 const menu = $('menu')
 const levelsScreen = $('levels')
 const gameScreen = $('game')

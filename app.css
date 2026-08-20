@@ -550,3 +550,17 @@ dialog li { margin-bottom: .3rem; }
 .mark-heart { width: .85em; height: .85em; fill: #e0746a; vertical-align: -.1em; }
 .mark-dot { opacity: .45; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* the house version stamp: top-right, subtle, out of the way. matches quantamari's soft treatment. */
+.version-stamp {
+  position: fixed;
+  top: calc(6px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+  z-index: 50;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--soft, #8b8f99);
+  opacity: .6;
+  pointer-events: none;
+}

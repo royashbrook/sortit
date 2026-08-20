@@ -35,6 +35,8 @@ jobs:
       # test suite: every level and 3 years of dailies must be solvable and
       # deterministic before a deploy.
       - run: npm run verify
+      # stamp the house version (git tag + commits) into version.js before deploy
+      - run: node tools/stamp-version.mjs
       - name: check the site is present
         run: |
           test -f index.html
