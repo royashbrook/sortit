@@ -1,7 +1,4 @@
 <script>
-  import { flip } from 'svelte/animate'
-  import { untrack } from 'svelte'
-
   let { store } = $props()
 
   let boardEl
@@ -35,19 +32,51 @@
     rowCount = best.rc
   }
 
-  // re-measure when the board changes size or the tube count changes
-  $effect(() => {
-    store.tubes.length
-    untrack(() => measure())
-  })
   $effect(() => {
     if (!boardEl) return
+    measure()
     const ro = new ResizeObserver(() => measure())
     ro.observe(boardEl)
     return () => ro.disconnect()
   })
+  // re-measure when the tube count changes (new board)
+  $effect(() => { store.tubes.length; measure() })
 
-  // assign each tube to a row, biggest rows first (the vanilla rowsFor)
+  // manual FLIP with the SKIN'S motion verb. svelte's animate:flip cannot follow
+  // an item between two separate keyed tube lists, so a bolts move showed no
+  // spin at all. this captures moved items' positions BEFORE the DOM updates
+  // ($effect.pre) and animates them home AFTER, applying the skin's rotate/ease/
+  // seconds, which is what makes bolts screw down and blocks somersault.
+  let before = new Map()
+  $effect.pre(() => {
+    const uids = store.lastMovedUids
+    store.moveSeq // re-run each move
+    before = new Map()
+    if (!boardEl) return
+    for (const uid of uids) {
+      const node = boardEl.querySelector(`[data-uid="${uid}"]`)
+      if (node) before.set(uid, node.getBoundingClientRect())
+    }
+  })
+  $effect(() => {
+    store.moveSeq
+    if (!boardEl || !before.size) return
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
+    const motion = store.skin.motion ?? { rotate: 0, ease: 'cubic-bezier(.3,1.2,.5,1)', seconds: .22 }
+    for (const [uid, from] of before) {
+      const node = boardEl.querySelector(`[data-uid="${uid}"]`)
+      if (!node) continue
+      const to = node.getBoundingClientRect()
+      node.style.transition = 'none'
+      node.style.transform = `translate(${from.left - to.left}px, ${from.top - to.top}px) rotate(${motion.rotate}deg)`
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        node.style.transition = `transform ${motion.seconds}s ${motion.ease}`
+        node.style.transform = ''
+      }))
+    }
+    before = new Map()
+  })
+
   const rows = $derived.by(() => {
     const count = store.tubes.length
     const base = Math.floor(count / rowCount)
@@ -64,14 +93,19 @@
   const HID_ART = '<circle cx="32" cy="32" r="22" fill="#C9BCB2" stroke="#3D3230" stroke-width="3"/><path d="M26 28 Q26 21 32 21 Q38 21 38 27 Q38 32 32 33 L32 36" stroke="#3D3230" stroke-width="3.6" fill="none" stroke-linecap="round"/><circle cx="32" cy="43" r="2.4" fill="#3D3230"/>'
   const artFor = item => item.hid ? HID_ART : store.theme.items[item.c].svg
 
+  // the vanilla rich label: a screen-reader player solves by contents, so name
+  // each piece (or "mystery"), or "empty"
+  const tubeLabel = (index) => {
+    const named = store.tubes[index].map(i => i.hid ? 'mystery' : store.theme.items[i.c].key)
+    return `tube ${index + 1}: ${named.join(', ') || 'empty'}`
+  }
+
   const isLifted = (index, item) => {
     if (store.selected !== index) return false
     const tube = store.tubes[index]
     const run = store.visibleRun(index)
     return tube.indexOf(item) >= tube.length - run
   }
-
-  const flipParams = { duration: (store.skin.motion?.seconds ?? .22) * 1000 }
 </script>
 
 <div
@@ -92,10 +126,10 @@
           class:done={store.isTubeDone(store.tubes[index])}
           class:hint={store.hintTubes.includes(index)}
           onclick={() => store.tap(index)}
-          aria-label="tube {index + 1}"
+          aria-label={tubeLabel(index)}
         >
           {#each store.tubes[index] as item (item.uid)}
-            <span class="item" class:hid={item.hid} class:lift={isLifted(index, item)} animate:flip={flipParams}>
+            <span class="item" class:hid={item.hid} class:lift={isLifted(index, item)} data-uid={item.uid}>
               <svg viewBox="0 0 64 64" aria-hidden="true">{@html artFor(item)}</svg>
             </span>
           {/each}

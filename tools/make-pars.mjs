@@ -33,5 +33,5 @@ export const PARS = [
 ${Array.from({ length: Math.ceil(pars.length / 20) }, (_, row) => '  ' + pars.slice(row * 20, row * 20 + 20).join(', ') + ',').join('\n')}
 ]
 `
-writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'pars.js'), body)
+writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'lib', 'engine', 'pars.js'), body)
 console.log(`pars.js written: ${pars.length} levels, ${((Date.now() - started) / 1000).toFixed(0)}s`)

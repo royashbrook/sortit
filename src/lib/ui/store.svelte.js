@@ -72,6 +72,8 @@ export function createStore() {
   let clockStopped = null
   let dialog = $state(null)         // 'howto' | 'looks' | 'about' | null
   let hintTubes = $state([])        // indices the hint button flashes
+  let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
+  let lastMovedUids = $state([])    // the item uids the last move carried
 
   const colorsOf = t => t.map(i => i.c)
   const numeric = () => tubes.map(colorsOf)
@@ -165,11 +167,13 @@ export function createStore() {
       return
     }
     history.push({ tubes: tubes.map(t => t.map(i => ({ ...i }))), moves })
+    lastMovedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
     const next = tubes.map(t => t.slice())
     next[move.to] = next[move.to].concat(next[move.from].splice(next[move.from].length - move.count, move.count))
     tubes = next
     selected = null
     moves += 1
+    moveSeq += 1
     revealTops(true)
     sound.drop()
     const doneNow = isComplete(colorsOf(tubes[move.to]), capacity)
@@ -222,6 +226,8 @@ export function createStore() {
     get clock() { return clockText },
     get dialog() { return dialog },
     get hintTubes() { return hintTubes },
+    get moveSeq() { return moveSeq },
+    get lastMovedUids() { return lastMovedUids },
     get skins() { return SKINS },
     get boardLabel() {
       if (!board) return ''

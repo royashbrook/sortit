@@ -1,0 +1,26 @@
+name: pr check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      # the deterministic guarantee: every level + 3 years of dailies solvable,
+      # pars exact against the solver, determinism, star invariants
+      - run: npm run verify
+      # the shell compiles and typechecks, and the static build succeeds
+      - run: npm run svelte-check
+      - run: npm run build

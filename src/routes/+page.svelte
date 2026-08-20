@@ -5,6 +5,7 @@
   import { dailySeed } from '$lib/engine/seed.js'
   import { sound } from '$lib/ui/sounds.js'
   import Board from '$lib/ui/Board.svelte'
+  import Modal from '$lib/ui/Modal.svelte'
 
   const store = createStore()
   const version = __APP_VERSION__
@@ -32,7 +33,15 @@
 
     // two tabs sharing one store: adopt the better progress rather than clobber
     addEventListener('storage', e => { if (e.key === 'sortit:progress') store.mergeExternalProgress() })
+
+    // capture the shell THIS session booted with, so a later check compares
+    // against what the player is actually running, not against the first probe
+    // (a client already stale at boot would otherwise report up to date)
+    fetch(`${import.meta.env.BASE_URL}?boot=${Date.now()}`, { cache: 'no-store' })
+      .then(r => r.text()).then(t => { bootShell = t }).catch(() => {})
   })
+
+  let bootShell = null
 
   function toggleSound() { muted = sound.toggle() }
 
@@ -59,8 +68,14 @@
     if (r === 'copied') { winShareLabel = 'LINK COPIED, SEND IT'; setTimeout(() => winShareLabel = 'SEND THIS PUZZLE TO A FRIEND', 2400) }
   }
 
-  function doInstall() {
-    if (installEvent) { installEvent.prompt(); installEvent = null; return }
+  async function doInstall() {
+    if (installEvent) {
+      installEvent.prompt()
+      await installEvent.userChoice
+      installEvent = null
+      installable = false // the prompt is one-shot: a dead button must not linger
+      return
+    }
     if (iosInstall) store.openDialog('ios-install')
   }
 
@@ -69,10 +84,10 @@
   async function checkUpdates() {
     updateState = 'checking'
     try {
-      const res = await fetch(`?u=${Date.now()}`, { cache: 'no-store' })
+      const res = await fetch(`${import.meta.env.BASE_URL}?u=${Date.now()}`, { cache: 'no-store' })
       const text = await res.text()
-      if (!window.__bootShell) window.__bootShell = text
-      updateState = text === window.__bootShell ? 'current' : 'stale'
+      // compare the served shell to the one that BOOTED, not to the first probe
+      updateState = bootShell == null ? 'current' : (text === bootShell ? 'current' : 'stale')
     } catch { updateState = 'offline' }
     if (updateState !== 'stale') setTimeout(() => updateState = '', 2500)
   }
@@ -93,7 +108,7 @@
     <button class="big secondary" onclick={shareFriend}>{friendLabel}</button>
     <button class="big secondary" onclick={() => store.openDialog('howto')}>HOW TO PLAY</button>
     <button class="big secondary" onclick={() => store.openDialog('looks')}>LOOKS</button>
-    <button class="big secondary" class:muted onclick={toggleSound}>&#9834; SOUND</button>
+    <button class="big secondary sound-toggle" class:muted onclick={toggleSound} aria-pressed={!muted}>&#9834; SOUND{muted ? ' (off)' : ''}</button>
     {#if installable}<button class="big secondary" onclick={doInstall}>ADD TO HOME SCREEN</button>{/if}
     <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
     <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
@@ -177,9 +192,9 @@
   </main>
 {/if}
 
-<!-- ============ dialogs ============ -->
+<!-- ============ dialogs (real modal dialogs, see Modal.svelte) ============ -->
 {#if store.dialog === 'howto'}
-  <dialog open>
+  <Modal onclose={() => store.closeDialog()}>
     <h2>How to play</h2>
     <ol>
       <li>Tap a tube to pick up what's on top.</li>
@@ -190,11 +205,11 @@
     </ol>
     <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows a good move. Some pieces hide as a <b>?</b>, move the piece on top to peek! Take as long as you want.</p>
     <button class="big" onclick={() => store.closeDialog()}>GOT IT</button>
-  </dialog>
+  </Modal>
 {/if}
 
 {#if store.dialog === 'looks'}
-  <dialog open>
+  <Modal onclose={() => store.closeDialog()}>
     <h2>Pick a look</h2>
     <div class="looks-grid">
       {#each store.skins as candidate}
@@ -206,11 +221,11 @@
     </div>
     <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
     <button class="big" onclick={() => store.closeDialog()}>DONE</button>
-  </dialog>
+  </Modal>
 {/if}
 
 {#if store.dialog === 'about'}
-  <dialog open>
+  <Modal onclose={() => store.closeDialog()}>
     <h2>About Sort It</h2>
     <p class="about-body">tap a tube to pick up a piece, tap another to drop it, and sort every colour into its own tube. a fresh puzzle every day, hundreds of levels, and one to send a friend.</p>
     <p class="about-ethos">no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. that is the whole point.</p>
@@ -224,11 +239,11 @@
     </button>
     {#if updateState === 'stale'}<button class="big" onclick={() => location.reload()}>RELOAD NOW</button>{/if}
     <button class="big" onclick={() => store.closeDialog()}>BACK</button>
-  </dialog>
+  </Modal>
 {/if}
 
 {#if store.dialog === 'ios-install'}
-  <dialog open>
+  <Modal onclose={() => store.closeDialog()}>
     <h2>Add to home screen</h2>
     <ol>
       <li>Tap the <b>share</b> button at the bottom of Safari.</li>
@@ -236,5 +251,5 @@
       <li>Tap <b>Add</b>. It opens like a real app, and works with no internet.</li>
     </ol>
     <button class="big" onclick={() => store.closeDialog()}>GOT IT</button>
-  </dialog>
+  </Modal>
 {/if}
