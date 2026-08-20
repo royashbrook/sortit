@@ -168,22 +168,13 @@ h1 {
 .tube.sel { transform: translateY(-4px); box-shadow: 0 .35rem 0 var(--line); }
 .tube.done { border-color: #46A758; background: rgb(198 232 194 / .55); }
 
-/* the finished-tube badge is a FORM cue, not just the green tint */
+/* the finished cue is a HALO around the whole pillar: it works at any board
+   width (the old corner badge clipped off-screen on wide boards), it reads on
+   every skin, and brightness is a form cue a colourblind kid still gets */
 .tube { position: relative; }
-.tube.done::after {
-  content: '\2713';
-  position: absolute;
-  top: -.7rem;
-  right: -.4rem;
-  display: grid;
-  place-items: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  border: .12rem solid var(--line);
-  border-radius: 50%;
-  background: #C6E8C2;
-  font-size: .8rem;
-  font-weight: 800;
+.tube.done {
+  box-shadow: 0 0 0 3px #46A758, 0 0 16px 4px rgb(70 167 88 / .55);
+  border-radius: .6rem;
 }
 
 .item {
