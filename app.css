@@ -121,9 +121,34 @@ h1 {
 #board-label { flex: 1; text-align: left; padding-inline: .2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #sound.muted { text-decoration: line-through; opacity: .6; }
 
-/* the in-game controls live at the BOTTOM, where a kid's thumb already is */
-.actions { display: flex; gap: .6rem; width: 100%; }
-.actions .chip { flex: 1; min-height: 3rem; }
+/* the in-game bottom nav: the house bar shape (craftrush / quarry). icon over a
+   tiny label reads at a glance and takes LESS height than the old fat chip row,
+   which gives the board back its vertical space. MENU is always one thumb away. */
+#game-nav {
+  display: flex;
+  gap: .3rem;
+  width: 100%;
+  padding: .35rem .4rem;
+  border-radius: 1.1rem;
+  background: rgb(61 50 48 / .92);
+}
+#game-nav button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  gap: .05rem;
+  min-height: 2.9rem;
+  padding: .3rem 0;
+  border: 0;
+  border-radius: .8rem;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+#game-nav button span { font-size: 1.1rem; line-height: 1; }
+#game-nav button b { font-size: .62rem; font-weight: 800; letter-spacing: .02em; }
+#game-nav button:active { transform: translateY(.1rem); }
 
 /* ------------------------------------------------------------------- board */
 
