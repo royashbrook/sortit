@@ -4,6 +4,7 @@ import { dailySeed } from './seed.js'
 import { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT, levelBoard, seedBoard } from './levels.js'
 import { THEMES, themeForWorld } from './art/index.js'
 import { SKINS, loadSkin, saveSkin } from './skins.js'
+import { STAR_SLACK, parFor, starRow, starsFor } from './stars.js'
 import { createGame } from './game.js'
 import { sound } from './sounds.js'
 import { wireInstall } from './install.js'
@@ -34,9 +35,18 @@ function loadProgress() {
         if (Number.isInteger(n) && n >= 1 && n <= LEVEL_COUNT && Number.isFinite(value)) done[n] = value
       }
     }
-    return { current, done }
+    const stars = {}
+    if (raw?.stars && typeof raw.stars === 'object' && !Array.isArray(raw.stars)) {
+      for (const [key, value] of Object.entries(raw.stars)) {
+        const n = Number(key)
+        if (Number.isInteger(n) && n >= 1 && n <= LEVEL_COUNT && Number.isInteger(value)) {
+          stars[n] = Math.min(Math.max(value, 1), 3)
+        }
+      }
+    }
+    return { current, done, stars }
   } catch {
-    return { current: 1, done: {} } // a blocked store never stops a kid playing
+    return { current: 1, done: {}, stars: {} } // a blocked store never stops a kid playing
   }
 }
 
@@ -65,6 +75,7 @@ const game = createGame({
   movesEl: $('moves'),
   onMove: kind => { $('stuck').hidden = kind !== 'stuck' },
   onWin: moves => {
+    const stars = starsFor(moves, board.par, board.solution.length)
     let detail = `sorted in ${moves} moves!`
     if (board.kind === 'level') {
       const best = progress.done[board.n]
@@ -74,12 +85,22 @@ const game = createGame({
       } else {
         detail = `sorted in ${moves} moves. your best is ${best}.`
       }
+      if (stars > (progress.stars[board.n] ?? 0)) progress.stars[board.n] = stars
       if (board.n === progress.current && progress.current < LEVEL_COUNT) progress.current += 1
       saveProgress(progress)
       $('next').hidden = board.n >= LEVEL_COUNT
     } else {
       $('next').hidden = true
     }
+    $('won-stars').textContent = starRow(stars)
+    $('won-stars').classList.toggle('perfect', board.par != null && moves <= board.par)
+    // "best possible" is printed ONLY when it came from the exact solver; a
+    // fallback goal is a goal, not a fact about the board
+    $('won-score').textContent = board.par != null
+      ? (moves <= board.par
+        ? `PERFECT! ${board.par} is the best possible.`
+        : `3 stars at ${board.par + STAR_SLACK.three} or fewer. best possible: ${board.par}.`)
+      : ''
     $('won-detail').textContent = detail
     $('won').hidden = false
   },
@@ -93,10 +114,14 @@ function themeForBoard(b) {
 function play(b, label) {
   board = b
   theme = themeForBoard(b)
+  board.par = null
   $('board-label').textContent = label
   $('board').style.background = theme.tint
   show(gameScreen)
   game.start(board, theme, skin)
+  // par after first paint: campaign is a table lookup, a daily runs the exact
+  // solver (proven <400ms across 3 years of dailies) without holding the board
+  setTimeout(() => { if (board === b) board.par = parFor(b) }, 0)
 }
 
 const startLevel = n => play(levelBoard(n), `level ${n}`)
@@ -126,8 +151,11 @@ function renderWorld() {
     // beaten-but-ahead levels (won via a friend's link) stay replayable, or
     // the picker would show a green tick the kid cannot tap
     el.disabled = n > progress.current && best == null
+    const earned = progress.stars[n]
     el.innerHTML = `<span>${n}</span>` +
-      (best != null ? `<span class="sub">&#10003; ${best}</span>` : '')
+      (best != null
+        ? `<span class="sub">${earned ? '★'.repeat(earned) : `&#10003; ${best}`}</span>`
+        : '')
     el.addEventListener('click', () => startLevel(n))
     grid.append(el)
   }
@@ -257,6 +285,9 @@ addEventListener('storage', event => {
   incoming.current = Math.max(incoming.current, progress.current)
   for (const [n, best] of Object.entries(progress.done)) {
     if (incoming.done[n] == null || best < incoming.done[n]) incoming.done[n] = best
+  }
+  for (const [n, earned] of Object.entries(progress.stars)) {
+    if ((incoming.stars[n] ?? 0) < earned) incoming.stars[n] = earned
   }
   progress = incoming
   if (!levelsScreen.hidden) renderWorld()

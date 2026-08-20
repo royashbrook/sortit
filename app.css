@@ -344,7 +344,15 @@ h1 {
 }
 
 .won-title { margin: 0; font-size: 1.6rem; font-weight: 800; }
-.won-detail { margin: .2rem 0 .6rem; color: var(--soft); font-weight: 700; }
+.won-stars { margin: 0; font-size: 2.2rem; letter-spacing: .18em; color: var(--accent); -webkit-text-stroke: 1.5px var(--line); }
+.won-stars.perfect { animation: starpop .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes starpop {
+  0% { transform: scale(.4); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .won-stars.perfect { animation: none; } }
+.won-detail { margin: .2rem 0 0; color: var(--soft); font-weight: 700; }
+.won-score { margin: 0 0 .6rem; color: var(--soft); font-size: .85rem; font-weight: 700; }
 
 .stuck {
   position: fixed;

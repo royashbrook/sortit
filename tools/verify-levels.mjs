@@ -7,8 +7,13 @@
 //
 //   node tools/verify-levels.mjs            # levels + 3 years of dailies
 //   node tools/verify-levels.mjs --days=30  # quicker daily sweep
+//   - the par table matches the exact solver (spot-proof), and every daily's
+//     par computes inside the phone budget, so stars are never a guess
 import { LEVEL_COUNT, levelBoard, seedBoard } from '../levels.js'
 import { dailySeed } from '../seed.js'
+import { optimal } from '../solver.js'
+import { PARS } from '../pars.js'
+import { rng } from '../seed.js'
 
 const daysArg = process.argv.find(a => a.startsWith('--days='))
 const DAYS = daysArg ? Number(daysArg.split('=')[1]) : 3 * 365
@@ -41,14 +46,37 @@ for (let n = 1; n <= LEVEL_COUNT; n++) {
 }
 console.log('  determinism: second pass identical')
 
+// the par table: right shape, never beats the proof solution, and a seeded
+// random sample re-proved against the exact solver every run
+if (PARS.length !== LEVEL_COUNT) { console.error(`pars.js has ${PARS.length} entries, want ${LEVEL_COUNT}`); process.exit(1) }
+const sample = rng(20260819)
+const SPOT = 40
+for (let i = 0; i < SPOT; i++) {
+  const n = 1 + Math.floor(sample() * LEVEL_COUNT)
+  const board = levelBoard(n)
+  if (PARS[n - 1] > board.solution.length) { console.error(`level ${n}: par ${PARS[n - 1]} beats the proof solution ${board.solution.length}`); process.exit(1) }
+  const exact = optimal(board.tubes, board.params.capacity, { maxNodes: 60_000_000 })
+  if (exact.aborted || exact.length !== PARS[n - 1]) {
+    console.error(`level ${n}: table says par ${PARS[n - 1]}, solver says ${exact.length} (aborted ${exact.aborted})`)
+    process.exit(1)
+  }
+}
+console.log(`pars: table matches the exact solver on ${SPOT} sampled levels`)
+
 let dailyWorstMs = 0
+let dailyParWorstMs = 0
 const start = new Date()
 for (let d = 0; d < DAYS; d++) {
   const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + d)
   const t0 = Date.now()
-  seedBoard(dailySeed(date))
+  const daily = seedBoard(dailySeed(date))
   const ms = Date.now() - t0
   if (ms > dailyWorstMs) dailyWorstMs = ms
+  const p0 = Date.now()
+  const par = optimal(daily.tubes, daily.params.capacity) // the PHONE budget
+  const pms = Date.now() - p0
+  if (pms > dailyParWorstMs) dailyParWorstMs = pms
+  if (par.aborted) { console.error(`daily ${date.toISOString().slice(0, 10)}: par aborts at phone budget`); process.exit(1) }
 }
-console.log(`dailies: ${DAYS} days from today solvable, slowest ${dailyWorstMs}ms`)
+console.log(`dailies: ${DAYS} days from today solvable, slowest ${dailyWorstMs}ms, slowest par ${dailyParWorstMs}ms`)
 console.log(`total: ${((Date.now() - started) / 1000).toFixed(1)}s`)

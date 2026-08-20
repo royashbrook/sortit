@@ -92,6 +92,65 @@ function ordered(tubes, capacity) {
 // proof plus a usable line: good enough for verification and for hints.
 // returns { solved, moves, nodes, aborted }: aborted=true means the budget ran
 // out before an answer either way.
+// the EXACT solver: shortest solution length, for honest stars. IDA* over the
+// same move generator, with an admissible lower bound: every move merges at
+// most one same-colour run pair, and a finished board has exactly one run per
+// colour, so (runs now - colours) moves is a floor no play can beat.
+//
+// returns { length, aborted }: aborted=true means the node budget ran out, and
+// callers must then fall back to a bound they can defend (the proof solution's
+// length) rather than presenting a guess as "best possible".
+export function optimal(tubes, capacity, { maxNodes = 400000 } = {}) {
+  const colours = new Set()
+  let runs = 0
+  for (const t of tubes) {
+    for (let i = 0; i < t.length; i++) {
+      colours.add(t[i])
+      if (i === 0 || t[i] !== t[i - 1]) runs++
+    }
+  }
+  const floor = state => {
+    let r = 0
+    for (const t of state) {
+      for (let i = 0; i < t.length; i++) { if (i === 0 || t[i] !== t[i - 1]) r++ }
+    }
+    return r - colours.size
+  }
+
+  let nodes = 0
+  let aborted = false
+  // transposition: best g seen per state, so revisits on a worse path prune
+  let seen = new Map()
+
+  function search(state, g, bound) {
+    const f = g + floor(state)
+    if (f > bound) return f
+    if (isWin(state, capacity)) return true
+    if (++nodes > maxNodes) { aborted = true; return Infinity }
+    const key = keyOf(state)
+    const known = seen.get(key)
+    if (known != null && known <= g) return Infinity
+    seen.set(key, g)
+    let next = Infinity
+    for (const move of legalMoves(state, capacity)) {
+      const result = search(applyMove(state, move), g + 1, bound)
+      if (result === true) return true
+      if (result < next) next = result
+      if (aborted) return Infinity
+    }
+    return next
+  }
+
+  let bound = floor(tubes)
+  for (;;) {
+    seen = new Map()
+    const result = search(tubes, 0, bound)
+    if (result === true) return { length: bound, aborted: false }
+    if (aborted || result === Infinity) return { length: null, aborted: true }
+    bound = result
+  }
+}
+
 export function solve(tubes, capacity, { maxNodes = 200000, maxDepth = 300 } = {}) {
   const visited = new Set()
   const path = []
