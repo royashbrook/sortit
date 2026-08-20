@@ -75,15 +75,17 @@ const game = createGame({
   movesEl: $('moves'),
   onMove: kind => { $('stuck').hidden = kind !== 'stuck' },
   onWin: moves => {
+    clockStopped = Date.now()
+    $('clock').textContent = clockText()
     const stars = starsFor(moves, board.par, board.solution.length)
-    let detail = `sorted in ${moves} moves!`
+    let detail = `sorted in ${moves} moves, ${clockText()}!`
     if (board.kind === 'level') {
       const best = progress.done[board.n]
       if (best == null || moves < best) {
         progress.done[board.n] = moves
-        if (best != null) detail = `sorted in ${moves} moves, your best yet!`
+        if (best != null) detail = `sorted in ${moves} moves, ${clockText()}, your best yet!`
       } else {
-        detail = `sorted in ${moves} moves. your best is ${best}.`
+        detail = `sorted in ${moves} moves, ${clockText()}. your best is ${best}.`
       }
       if (stars > (progress.stars[board.n] ?? 0)) progress.stars[board.n] = stars
       if (board.n === progress.current && progress.current < LEVEL_COUNT) progress.current += 1
@@ -111,10 +113,26 @@ function themeForBoard(b) {
   return THEMES[b.seed % THEMES.length]
 }
 
+// the clock: elapsed, not a countdown. it starts with the board, freezes on
+// the win, and never pressures anyone: the ethos "no timers" bans deadlines,
+// not a stopwatch a kid can brag with.
+let clockStart = null
+let clockStopped = null
+const clockText = () => {
+  const seconds = Math.floor(((clockStopped ?? Date.now()) - clockStart) / 1000)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+setInterval(() => {
+  if (clockStart != null && clockStopped == null && !gameScreen.hidden) $('clock').textContent = clockText()
+}, 500)
+
 function play(b, label) {
   board = b
   theme = themeForBoard(b)
   board.par = null
+  clockStart = Date.now()
+  clockStopped = null
+  $('clock').textContent = '0:00'
   $('board-label').textContent = label
   $('board').style.background = theme.tint
   show(gameScreen)
@@ -229,6 +247,7 @@ $('share-win').addEventListener('click', event => share(event.currentTarget, boa
 const undo = () => { if (game.undo()) { $('stuck').hidden = true; $('won').hidden = true } }
 $('undo').addEventListener('click', undo)
 $('stuck-undo').addEventListener('click', undo)
+$('reset').addEventListener('click', () => replay()) // fresh board, fresh clock
 $('stuck-restart').addEventListener('click', () => { replay() })
 const hintChip = $('hint')
 const hintLabel = hintChip.textContent
@@ -262,9 +281,7 @@ function renderLooks() {
   }
 }
 
-for (const id of ['looks-open', 'looks-game']) {
-  $(id).addEventListener('click', () => { renderLooks(); looks.showModal() })
-}
+$('looks-open').addEventListener('click', () => { renderLooks(); looks.showModal() })
 $('looks-close').addEventListener('click', () => looks.close())
 
 const soundChip = $('sound')

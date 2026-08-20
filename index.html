@@ -27,6 +27,7 @@
   <button id="friends" class="big secondary">PLAY WITH A FRIEND</button>
   <button id="howto-open" class="big secondary">HOW TO PLAY</button>
   <button id="looks-open" class="big secondary">LOOKS</button>
+  <button id="sound" class="big secondary" aria-label="sound on or off">&#9834; SOUND</button>
   <!-- install stays hidden until the browser says the app is actually installable -->
   <button id="install" class="big secondary" hidden>ADD TO HOME SCREEN</button>
 
@@ -53,16 +54,16 @@
   <header class="bar">
     <button id="back" class="chip" aria-label="back to menu">&larr;</button>
     <span id="board-label" class="chip flat"></span>
+    <span id="clock" class="chip flat mono" aria-label="time elapsed">0:00</span>
     <span id="moves" class="chip flat mono" aria-live="polite">0 moves</span>
   </header>
 
   <div id="board" aria-label="sorting board"></div>
 
   <div class="actions">
-    <button id="sound" class="chip" aria-label="sound on or off">&#9834; SOUND</button>
     <button id="hint" class="chip">&#10024; HINT</button>
     <button id="undo" class="chip">&#8630; UNDO</button>
-    <button id="looks-game" class="chip" aria-label="change the look">&#9673; LOOKS</button>
+    <button id="reset" class="chip">&#8635; RESET</button>
   </div>
 
   <div id="stuck" class="stuck" hidden>
