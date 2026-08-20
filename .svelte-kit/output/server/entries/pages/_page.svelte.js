@@ -1852,6 +1852,7 @@ function createStore() {
 	let clockStart = null;
 	let clockStopped = null;
 	let dialog = null;
+	let hintTubes = [];
 	const colorsOf = (t) => t.map((i) => i.c);
 	const numeric = () => tubes.map(colorsOf);
 	function tick() {
@@ -2055,6 +2056,9 @@ function createStore() {
 		get dialog() {
 			return dialog;
 		},
+		get hintTubes() {
+			return hintTubes;
+		},
 		get skins() {
 			return SKINS;
 		},
@@ -2106,7 +2110,12 @@ function createStore() {
 			if (over) return true;
 			const r = solve(numeric(), capacity, HINT_BUDGET);
 			if (!r.solved || !r.moves.length) return false;
-			return r.moves[0];
+			const m = r.moves[0];
+			hintTubes = [m.from, m.to];
+			setTimeout(() => {
+				hintTubes = [];
+			}, 2e3);
+			return m;
 		},
 		setSkin(next) {
 			skin = next;
@@ -2171,7 +2180,8 @@ function Board($$renderer, $$props) {
 				let index = each_array_1[$$index_1];
 				$$renderer.push(`<button${attr_class("tube", void 0, {
 					"sel": store.selected === index,
-					"done": store.isTubeDone(store.tubes[index])
+					"done": store.isTubeDone(store.tubes[index]),
+					"hint": store.hintTubes.includes(index)
 				})}${attr("aria-label", `tube ${stringify(index + 1)}`)}><!--[-->`);
 				const each_array_2 = ensure_array_like(store.tubes[index]);
 				for (let $$index = 0, $$length = each_array_2.length; $$index < $$length; $$index++) {
@@ -2193,7 +2203,7 @@ function Board($$renderer, $$props) {
 function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		const store = createStore();
-		const version = "0.1.2";
+		const version = "0.1.3";
 		let muted = sound.muted;
 		let friendLabel = "PLAY WITH A FRIEND";
 		let winShareLabel = "SEND THIS PUZZLE TO A FRIEND";

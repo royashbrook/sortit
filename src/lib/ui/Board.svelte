@@ -90,6 +90,7 @@
           class="tube"
           class:sel={store.selected === index}
           class:done={store.isTubeDone(store.tubes[index])}
+          class:hint={store.hintTubes.includes(index)}
           onclick={() => store.tap(index)}
           aria-label="tube {index + 1}"
         >

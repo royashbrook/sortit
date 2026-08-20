@@ -26,7 +26,7 @@ export const options = {
 		app: ({ head, body, assets, nonce, env }) => "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<meta name=\"description\" content=\"A cosy sorting puzzle for kids. No ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. Works offline.\">\n<meta name=\"theme-color\" content=\"#FFB03A\">\n<link rel=\"manifest\" href=\"" + assets + "/manifest.json\">\n<link rel=\"icon\" href=\"" + assets + "/icon.svg\" type=\"image/svg+xml\">\n<link rel=\"apple-touch-icon\" href=\"" + assets + "/icon-180.png\">\n<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"default\">\n" + head + "\n</head>\n<body data-sveltekit-preload-data=\"off\">\n<div style=\"display: contents\">" + body + "</div>\n</body>\n</html>\n",
 		error
 	},
-	version_hash: "1xb9cm"
+	version_hash: "1xz507"
 };
 
 export async function get_hooks() {

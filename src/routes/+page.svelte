@@ -77,13 +77,7 @@
     if (updateState !== 'stale') setTimeout(() => updateState = '', 2500)
   }
 
-  function doHint() {
-    const m = store.hint()
-    if (m === false) { updateState = ''; return }
-    if (m === true) return
-    // highlight is a transient pulse handled by the store's selection; simplest
-    // honest hint here is to select the source tube so the kid sees where to go
-  }
+  function doHint() { store.hint() }
 
   const worldTheme = $derived(themeForWorld(store.world))
   const worldStart = $derived(store.world * WORLD_SIZE)

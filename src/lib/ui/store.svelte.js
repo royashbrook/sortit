@@ -71,6 +71,7 @@ export function createStore() {
   let clockStart = null
   let clockStopped = null
   let dialog = $state(null)         // 'howto' | 'looks' | 'about' | null
+  let hintTubes = $state([])        // indices the hint button flashes
 
   const colorsOf = t => t.map(i => i.c)
   const numeric = () => tubes.map(colorsOf)
@@ -220,6 +221,7 @@ export function createStore() {
     get won() { return won },
     get clock() { return clockText },
     get dialog() { return dialog },
+    get hintTubes() { return hintTubes },
     get skins() { return SKINS },
     get boardLabel() {
       if (!board) return ''
@@ -254,7 +256,10 @@ export function createStore() {
       if (over) return true
       const r = solve(numeric(), capacity, HINT_BUDGET)
       if (!r.solved || !r.moves.length) return false
-      return r.moves[0]
+      const m = r.moves[0]
+      hintTubes = [m.from, m.to]
+      setTimeout(() => { hintTubes = [] }, 2000)
+      return m
     },
     setSkin(next) { skin = next; saveSkin(next) },
     openDialog(d) { dialog = d },
