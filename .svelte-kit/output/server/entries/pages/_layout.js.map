@@ -1,1 +1,0 @@
-{"version":3,"file":"_layout.js","names":[],"sources":["../../../../../src/routes/+layout.js"],"sourcesContent":["// one prerendered page, no server rendering, no client-side routing\nexport const prerender = true\nexport const ssr = false\n"],"mappings":";AACA,IAAa,YAAY;AACzB,IAAa,MAAM"}

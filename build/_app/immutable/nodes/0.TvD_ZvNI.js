@@ -1,2 +1,0 @@
-import{H as e,M as t,O as n,P as r,U as i,f as a,l as o,n as s,q as c,v as l,y as u}from"../chunks/IEK7nVcj.js";import"../chunks/xihTtKlq.js";var d=c({prerender:()=>!0,ssr:()=>!1});function f(c,d){i(d,!0),s(()=>{`serviceWorker`in navigator&&location.protocol!==`file:`&&navigator.serviceWorker.register(`./service-worker.js`).catch(()=>{})});var f=u();o(`12qhfyh`,e=>{n(()=>{t.title=`Sort It`})});var p=r(f);a(p,()=>d.children),l(c,f),e()}export{f as component,d as universal};
-//# sourceMappingURL=0.TvD_ZvNI.js.map
