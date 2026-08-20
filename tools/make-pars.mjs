@@ -10,8 +10,8 @@
 import { writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { levelBoard, LEVEL_COUNT } from '../levels.js'
-import { optimal } from '../solver.js'
+import { levelBoard, LEVEL_COUNT } from '../src/lib/engine/levels.js'
+import { optimal } from '../src/lib/engine/solver.js'
 
 const OFFLINE_BUDGET = { maxNodes: 60_000_000 }
 

@@ -3,8 +3,8 @@
 // were all unguarded because CI only ran verify-levels).
 //
 //   node tools/verify-stars.mjs
-import { STAR_SLACK, starsFor } from '../stars.js'
-import { PARS } from '../pars.js'
+import { STAR_SLACK, starsFor } from '../src/lib/engine/stars.js'
+import { PARS } from '../src/lib/engine/pars.js'
 
 let bad = 0
 const want = (label, got, expect) => {
