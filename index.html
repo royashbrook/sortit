@@ -53,7 +53,6 @@
 <!-- ============ game ============ -->
 <main id="game" class="screen" hidden>
   <header class="bar">
-    <button id="back" class="chip" aria-label="back to menu">&larr;</button>
     <span id="board-label" class="chip flat"></span>
     <span id="clock" class="chip flat mono" aria-label="time elapsed">0:00</span>
     <span id="moves" class="chip flat mono" aria-live="polite">0 moves</span>
@@ -61,11 +60,12 @@
 
   <div id="board" aria-label="sorting board"></div>
 
-  <div class="actions">
-    <button id="hint" class="chip">&#10024; HINT</button>
-    <button id="undo" class="chip">&#8630; UNDO</button>
-    <button id="reset" class="chip">&#8635; RESET</button>
-  </div>
+  <nav id="game-nav" aria-label="Game controls">
+    <button id="back" aria-label="Back to menu"><span aria-hidden="true">&#9776;</span><b>MENU</b></button>
+    <button id="hint"><span aria-hidden="true">&#10024;</span><b>HINT</b></button>
+    <button id="undo"><span aria-hidden="true">&#8630;</span><b>UNDO</b></button>
+    <button id="reset"><span aria-hidden="true">&#8635;</span><b>RESET</b></button>
+  </nav>
 
   <div id="stuck" class="stuck" hidden>
     <p>no moves left!</p>
