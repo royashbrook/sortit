@@ -13,10 +13,20 @@ try {
 
 function ac() {
   if (typeof AudioContext === 'undefined') return null
-  if (!ctx) ctx = new AudioContext()
-  if (ctx.state === 'suspended') void ctx.resume()
+  if (!ctx || ctx.state === 'closed') ctx = new AudioContext()
+  // ios parks the context in 'interrupted' (not 'suspended') after a call,
+  // siri, backgrounding, or a headphone route change, and it stays silent
+  // until someone resumes it. so: any state that is not running gets a kick.
+  if (ctx.state !== 'running') void ctx.resume().catch(() => { /* next kick */ })
   return ctx
 }
+
+// the kicks: coming back to the app, and any tap at all. without these the
+// first sound AFTER an interruption is the one that dies, and on a phone that
+// reads as "the sound keeps turning off". the ringer switch stays respected:
+// webkit routes web audio as ambient, silent switch mutes it, that is correct.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx) ac() })
+addEventListener('pointerdown', () => { if (ctx) ac() }, { passive: true, capture: true })
 
 // one enveloped oscillator note. everything below is phrased with this.
 function tone({ freq, glide = freq, type = 'sine', at = 0, len = 0.12, vol = 0.16 }) {
