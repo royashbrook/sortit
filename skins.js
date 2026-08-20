@@ -32,6 +32,26 @@ export const SKINS = [
     motion: { rotate: 180, ease: 'cubic-bezier(.34,1.45,.6,1)', seconds: .3 },
     preview: '<rect x="20" y="38" width="24" height="18" fill="#79B84C" stroke="#3D3230" stroke-width="3"/><rect x="20" y="18" width="24" height="18" fill="#B98A5A" stroke="#3D3230" stroke-width="3"/>',
   },
+  // the three below are aesthetic tributes, deliberately NOT the trademarks:
+  // the look is the homage, the name stays ours.
+  {
+    key: 'voxel',
+    title: 'Voxel Mine',
+    motion: { rotate: 180, ease: 'cubic-bezier(.3,1.3,.55,1)', seconds: .28 },
+    preview: '<rect x="18" y="36" width="28" height="22" fill="#8A6142" stroke="#3D3230" stroke-width="3"/><rect x="18" y="14" width="28" height="22" fill="#8A6142" stroke="#3D3230" stroke-width="3"/><rect x="18" y="14" width="28" height="7" fill="#6FA644" stroke="#3D3230" stroke-width="3"/>',
+  },
+  {
+    key: 'dash',
+    title: 'Neon Dash',
+    motion: { rotate: -360, ease: 'cubic-bezier(.5,0,.2,1)', seconds: .26 },
+    preview: '<rect x="6" y="6" width="52" height="52" rx="6" fill="#141A2E"/><rect x="20" y="34" width="20" height="20" rx="3" fill="#1B2340" stroke="#3EF0D0" stroke-width="3"/><rect x="20" y="11" width="20" height="20" rx="3" fill="#1B2340" stroke="#FF4FD8" stroke-width="3"/>',
+  },
+  {
+    key: 'kawaii',
+    title: 'Kawaii Pop',
+    motion: { rotate: 24, ease: 'cubic-bezier(.3,1.75,.5,1)', seconds: .32 },
+    preview: '<rect x="18" y="8" width="28" height="48" rx="14" fill="#FFE3EE" stroke="#3D3230" stroke-width="3"/><circle cx="32" cy="44" r="9" fill="#FFB7D2" stroke="#3D3230" stroke-width="2.6"/><circle cx="32" cy="23" r="9" fill="#BFE8FF" stroke="#3D3230" stroke-width="2.6"/>',
+  },
 ]
 
 const KEY = 'sortit:skin'
