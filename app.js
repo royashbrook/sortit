@@ -242,6 +242,8 @@ $('howto-open').addEventListener('click', () => {
   howto.showModal()
 })
 $('howto-close').addEventListener('click', () => howto.close())
+$('about-open').addEventListener('click', () => $('about').showModal())
+$('about-close').addEventListener('click', () => $('about').close())
 
 $('again').addEventListener('click', () => replay())
 $('next').addEventListener('click', () => startLevel(Math.min(board.n + 1, LEVEL_COUNT)))
