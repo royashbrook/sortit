@@ -20,7 +20,9 @@ export default {
     adapter: adapter({ pages: 'build', assets: 'build', precompress: false, strict: true }),
     // served from a subpath by the site build, so keep asset urls relative
     paths: { relative: true },
-    version: { name: appVersion() },
+    // poll the deployed version so kit knows when an update exists (the honest
+    // running-vs-deployed check the About screen reads)
+    version: { name: appVersion(), pollInterval: 300000 },
     // the worker is registered by hand in +layout.svelte so dev never gets a stale one
     serviceWorker: { register: false },
   },

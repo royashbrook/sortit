@@ -3,6 +3,7 @@
   import { createStore, LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT } from '$lib/ui/store.svelte.js'
   import { themeForWorld } from '$lib/engine/art/index.js'
   import { dailySeed } from '$lib/engine/seed.js'
+  import { updated } from '$app/state'
   import { sound } from '$lib/ui/sounds.js'
   import Board from '$lib/ui/Board.svelte'
   import Modal from '$lib/ui/Modal.svelte'
@@ -33,15 +34,7 @@
 
     // two tabs sharing one store: adopt the better progress rather than clobber
     addEventListener('storage', e => { if (e.key === 'sortit:progress') store.mergeExternalProgress() })
-
-    // capture the shell THIS session booted with, so a later check compares
-    // against what the player is actually running, not against the first probe
-    // (a client already stale at boot would otherwise report up to date)
-    fetch(`${import.meta.env.BASE_URL}?boot=${Date.now()}`, { cache: 'no-store' })
-      .then(r => r.text()).then(t => { bootShell = t }).catch(() => {})
   })
-
-  let bootShell = null
 
   function toggleSound() { muted = sound.toggle() }
 
@@ -81,13 +74,14 @@
 
   // update check: compare the served shell against the booted one, so a stale
   // installed client can pull the current deploy (kit worker is passive)
+  // kit's own version check: `updated.current` is true when the DEPLOYED version
+  // differs from the one THIS build booted with (the version is baked into the
+  // running bundle, so there is no stale-baseline trap). updated.check() forces it.
   async function checkUpdates() {
     updateState = 'checking'
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}?u=${Date.now()}`, { cache: 'no-store' })
-      const text = await res.text()
-      // compare the served shell to the one that BOOTED, not to the first probe
-      updateState = bootShell == null ? 'current' : (text === bootShell ? 'current' : 'stale')
+      const stale = await updated.check()
+      updateState = stale || updated.current ? 'stale' : 'current'
     } catch { updateState = 'offline' }
     if (updateState !== 'stale') setTimeout(() => updateState = '', 2500)
   }
@@ -194,62 +188,70 @@
 
 <!-- ============ dialogs (real modal dialogs, see Modal.svelte) ============ -->
 {#if store.dialog === 'howto'}
-  <Modal onclose={() => store.closeDialog()}>
-    <h2>How to play</h2>
-    <ol>
-      <li>Tap a tube to pick up what's on top.</li>
-      <li>Tap another tube to drop it there.</li>
-      <li>Drops only land on a <b>matching</b> friend, or in an empty tube.</li>
-      <li>Fill a whole tube with one kind to finish it.</li>
-      <li>Sort every tube to win!</li>
-    </ol>
-    <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows a good move. Some pieces hide as a <b>?</b>, move the piece on top to peek! Take as long as you want.</p>
-    <button class="big" onclick={() => store.closeDialog()}>GOT IT</button>
+  <Modal label="How to play" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>How to play</h2>
+      <ol>
+        <li>Tap a tube to pick up what's on top.</li>
+        <li>Tap another tube to drop it there.</li>
+        <li>Drops only land on a <b>matching</b> friend, or in an empty tube.</li>
+        <li>Fill a whole tube with one kind to finish it.</li>
+        <li>Sort every tube to win!</li>
+      </ol>
+      <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows a good move. Some pieces hide as a <b>?</b>, move the piece on top to peek! Take as long as you want.</p>
+      <button class="big" onclick={close}>GOT IT</button>
+    {/snippet}
   </Modal>
 {/if}
 
 {#if store.dialog === 'looks'}
-  <Modal onclose={() => store.closeDialog()}>
-    <h2>Pick a look</h2>
-    <div class="looks-grid">
-      {#each store.skins as candidate}
-        <button class="look" aria-pressed={candidate.key === store.skin.key} onclick={() => store.setSkin(candidate)}>
-          <svg viewBox="0 0 64 64" aria-hidden="true">{@html candidate.preview}</svg>
-          <span>{candidate.title}</span>
-        </button>
-      {/each}
-    </div>
-    <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
-    <button class="big" onclick={() => store.closeDialog()}>DONE</button>
+  <Modal label="Pick a look" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>Pick a look</h2>
+      <div class="looks-grid">
+        {#each store.skins as candidate}
+          <button class="look" aria-pressed={candidate.key === store.skin.key} onclick={() => store.setSkin(candidate)}>
+            <svg viewBox="0 0 64 64" aria-hidden="true">{@html candidate.preview}</svg>
+            <span>{candidate.title}</span>
+          </button>
+        {/each}
+      </div>
+      <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
+      <button class="big" onclick={close}>DONE</button>
+    {/snippet}
   </Modal>
 {/if}
 
 {#if store.dialog === 'about'}
-  <Modal onclose={() => store.closeDialog()}>
-    <h2>About Sort It</h2>
-    <p class="about-body">tap a tube to pick up a piece, tap another to drop it, and sort every colour into its own tube. a fresh puzzle every day, hundreds of levels, and one to send a friend.</p>
-    <p class="about-ethos">no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. that is the whole point.</p>
-    <p class="maker-mark">made with <svg aria-hidden="true" class="mark-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="sr">love</span> by
-      <a href="https://royashbrook.com" target="_blank" rel="noreferrer">roy</a> +
-      <a href="https://royashbrook.com/agents" target="_blank" rel="noreferrer">ai</a>
-      <span aria-hidden="true" class="mark-dot">&middot;</span>
-      <a href="https://github.com/sponsors/royashbrook" target="_blank" rel="noreferrer" class="mark-sponsor">sponsor me</a></p>
-    <button class="big secondary check-updates" onclick={checkUpdates}>
-      {#if updateState === 'checking'}checking...{:else if updateState === 'current'}up to date{:else if updateState === 'stale'}update ready, tap to reload{:else if updateState === 'offline'}offline{:else}check for updates{/if}
-    </button>
-    {#if updateState === 'stale'}<button class="big" onclick={() => location.reload()}>RELOAD NOW</button>{/if}
-    <button class="big" onclick={() => store.closeDialog()}>BACK</button>
+  <Modal label="About Sort It" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>About Sort It</h2>
+      <p class="about-body">tap a tube to pick up a piece, tap another to drop it, and sort every colour into its own tube. a fresh puzzle every day, hundreds of levels, and one to send a friend.</p>
+      <p class="about-ethos">no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. that is the whole point.</p>
+      <p class="maker-mark">made with <svg aria-hidden="true" class="mark-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="sr">love</span> by
+        <a href="https://royashbrook.com" target="_blank" rel="noreferrer">roy</a> +
+        <a href="https://royashbrook.com/agents" target="_blank" rel="noreferrer">ai</a>
+        <span aria-hidden="true" class="mark-dot">&middot;</span>
+        <a href="https://github.com/sponsors/royashbrook" target="_blank" rel="noreferrer" class="mark-sponsor">sponsor me</a></p>
+      <button class="big secondary check-updates" onclick={checkUpdates}>
+        {#if updateState === 'checking'}checking...{:else if updateState === 'current'}up to date{:else if updateState === 'stale'}update ready, tap to reload{:else if updateState === 'offline'}offline{:else}check for updates{/if}
+      </button>
+      {#if updateState === 'stale'}<button class="big" onclick={() => location.reload()}>RELOAD NOW</button>{/if}
+      <button class="big" onclick={close}>BACK</button>
+    {/snippet}
   </Modal>
 {/if}
 
 {#if store.dialog === 'ios-install'}
-  <Modal onclose={() => store.closeDialog()}>
-    <h2>Add to home screen</h2>
-    <ol>
-      <li>Tap the <b>share</b> button at the bottom of Safari.</li>
-      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
-      <li>Tap <b>Add</b>. It opens like a real app, and works with no internet.</li>
-    </ol>
-    <button class="big" onclick={() => store.closeDialog()}>GOT IT</button>
+  <Modal label="Add to home screen" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>Add to home screen</h2>
+      <ol>
+        <li>Tap the <b>share</b> button at the bottom of Safari.</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+        <li>Tap <b>Add</b>. It opens like a real app, and works with no internet.</li>
+      </ol>
+      <button class="big" onclick={close}>GOT IT</button>
+    {/snippet}
   </Modal>
 {/if}
