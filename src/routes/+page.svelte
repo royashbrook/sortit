@@ -92,6 +92,10 @@
   const worldStart = $derived(store.world * WORLD_SIZE)
 </script>
 
+<!-- house version stamp: fixed top-right on every screen (the fleet pattern, matches
+     quantamari's soft treatment). the .version-stamp css was already here; nothing wired it. -->
+<div class="version-stamp" aria-hidden="true">v{version}</div>
+
 {#if store.screen === 'menu'}
   <main class="screen" id="menu">
     <h1>Sort It</h1>
@@ -106,7 +110,6 @@
     {#if installable}<button class="big secondary" onclick={doInstall}>ADD TO HOME SCREEN</button>{/if}
     <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
     <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
-    <p class="version">v{version}</p>
   </main>
 {/if}
 
