@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "svelte-check": "svelte-check --tsconfig ./jsconfig.json",
     "icons": "node tools/make-icons.mjs",
+    "lint:copy": "node tools/lint-copy.mjs",
     "verify": "node tools/verify-levels.mjs && node tools/verify-stars.mjs"
   },
   "devDependencies": {

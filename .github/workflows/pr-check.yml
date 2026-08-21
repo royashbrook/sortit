@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # the public copy carries no banned claim (false-privacy, em-dash), scanning
+      # *.md/*.html AND *.svelte so the about/footer/maker-mark text is covered
+      - run: npm run lint:copy
       # the deterministic guarantee: every level + 3 years of dailies solvable,
       # pars exact against the solver, determinism, star invariants
       - run: npm run verify

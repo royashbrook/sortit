@@ -17,7 +17,7 @@ npm run serve   # http://localhost:4310
 - **600 campaign levels** across 30 themed worlds (7 art themes rotating), plus
   a **daily puzzle** that is the same board for everyone in the world.
 - every board is dealt deterministically from its level number / date and
-  **proven solvable by an exact solver before it is shown** — see `solver.js`
+  **proven solvable by an exact solver before it is shown**: see `solver.js`
   and `levels.js`. `npm run verify` re-proves all 600 levels and 3 years of
   dailies in under a second.
 - unlimited **undo**, an honest **hint** (it replays the solver from your
