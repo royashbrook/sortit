@@ -5,6 +5,7 @@
   "description": "Sort It: a cosy sorting puzzle for kids. No ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared.",
   "type": "module",
   "scripts": {
+    "prepare": "svelte-kit sync",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
