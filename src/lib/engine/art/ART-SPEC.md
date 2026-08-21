@@ -25,7 +25,7 @@ each item:
   two items that differ only by colour are a spec violation.
 - style: flat warm fills, bold `#3D3230` outline at stroke-width 3
   (stroke-linejoin/linecap round), one friendly face per item (two dot eyes +
-  a smile — copy the `face()` helper in `shapes.js`), optional tiny highlight.
+  a smile, copy the `face()` helper in `shapes.js`), optional tiny highlight.
   warm and cosy over slick. calm, not loud.
 - no raster data, no external refs, no <image>, no gradients-heavy filters.
   plain shapes: path/circle/rect/ellipse/line/polygon/g only.

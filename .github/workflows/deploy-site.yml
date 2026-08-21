@@ -29,6 +29,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # no banned public copy ships (false-privacy, em-dash) across *.md/*.html/*.svelte
+      - run: npm run lint:copy
       # the verifier IS the test suite: every level + 3 years of dailies must be
       # solvable, deterministic, and pars must match the exact solver before deploy
       - run: npm run verify

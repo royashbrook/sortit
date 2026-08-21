@@ -2,7 +2,7 @@
 
 local issue log (no remote yet). commits reference these numbers.
 
-## #1 — build "Sort It" to a releasable, locally-testable state
+## #1: build "Sort It" to a releasable, locally-testable state
 
 a kids' ball-sort puzzle PWA per the kidgames house standard
 (~/gh/kidgames/STANDARD.md). scope:
@@ -13,7 +13,7 @@ a kids' ball-sort puzzle PWA per the kidgames house standard
 - offline-first service worker, install helper, update banner
 - unlimited undo, hint, no ads / no lives / no timers / nothing to buy
 
-status: open — releasable local state reached 2026-08-18; remaining: deploy + real-device install checks
+status: open, releasable local state reached 2026-08-18. remaining: deploy + real-device install checks
 
 ### adversarial review 2026-08-18 (6 reviewers, all findings triaged)
 
@@ -44,7 +44,7 @@ fixed:
 
 deferred (viewed, judged low):
 - back mid-level discards the attempt (no mid-level persistence yet)
-- hint treats a solver budget abort as "lost" — empirically unreachable
+- hint treats a solver budget abort as "lost", empirically unreachable
   (600 starts + 400 dailies + adversarial mid-game walks all solve <8k nodes)
 - landscape browser tab on a very short window can still crowd the header
   (installed app is portrait-locked; menu/picker scroll)
