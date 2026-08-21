@@ -51,6 +51,7 @@ function saveProgress(p) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringi
 export function createStore() {
   let screen = $state('menu')       // 'menu' | 'levels' | 'game'
   let board = $state(null)          // levels.js board being played
+  let playSeq = 0                   // bumped per play(), so a stale deferred par lands nowhere
   let theme = $state(null)
   let skin = $state(loadSkin())
   let progress = $state(loadProgress())
@@ -206,7 +207,12 @@ export function createStore() {
     clockText = '0:00'
     revealTops(false)
     screen = 'game'
-    setTimeout(() => { if (board === b) board.par = parFor(b) }, 0)
+    // par is computed off the critical path so the board paints first. the guard has
+    // to be a TOKEN, not object identity: `board` is $state, so `board = b` stores a
+    // reactive PROXY and `board === b` is always false, which silently dropped every
+    // par (and with it "best possible" + the 3-star goal on the win card).
+    const token = ++playSeq
+    setTimeout(() => { if (playSeq === token) board.par = parFor(b) }, 0)
   }
 
   return {
