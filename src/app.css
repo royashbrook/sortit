@@ -555,7 +555,16 @@ dialog li { margin-bottom: .3rem; }
 }
 /* colophon links get real vertical padding so each is a comfortable tap target
    rather than a 15px sliver, while staying inline in the mark */
-.maker-mark a { display: inline-block; min-height: 44px; padding: calc((44px - 1em) / 2) .25rem; line-height: 1; color: var(--ink, inherit); text-decoration: underline; }
+.maker-mark a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;   /* short links (roy, ai) still clear the target on both axes */
+  min-height: 44px;
+  padding: 0 .3rem;
+  color: var(--ink, inherit);
+  text-decoration: underline;
+}
 .maker-mark { line-height: 2.6; }
 .maker-mark a.mark-sponsor { color: #d9a441; }
 .mark-heart { width: .85em; height: .85em; fill: #e0746a; vertical-align: -.1em; }

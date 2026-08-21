@@ -18,15 +18,23 @@
     const count = store.tubes.length
     const capacity = store.capacity
     if (!count) return
+    // the tube button is the tap target and never goes below 44px (its min-width
+    // in css). so a row layout is only feasible if that many 44px tubes fit the
+    // width: without this check the layout picked a wide row and the css floor
+    // overflowed it, clipping the edge tubes' hit area (level 175 at 375px).
+    const TUBE_MIN = 44
     let best = null
     for (let rc = 1; rc <= Math.min(4, count); rc++) {
       const widest = Math.ceil(count / rc)
+      if (widest * TUBE_MIN + (widest - 1) * GAP > availW) continue // 44px tubes don't fit this row count
       const availH = availHTotal - (rc - 1) * GAP
       const bySide = (availH / rc - LIP - PAD) / capacity
       const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
       const s = Math.min(64, bySide, byWidth)
       if (!best || s > best.s) best = { rc, s }
     }
+    if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
+    rowCount = best.rc
     side = Math.max(20, Math.min(64, best.s))
     tubeH = side * capacity + LIP + PAD
     rowCount = best.rc

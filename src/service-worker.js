@@ -23,6 +23,14 @@ self.addEventListener('fetch', event => {
   const req = event.request
   if (req.method !== 'GET' || !req.url.startsWith(self.location.origin)) return
 
+  // kit's version manifest is how the app learns a new deploy exists. serving it
+  // cache-first pins the client to the version it booted with, so the update
+  // check can never see a new deploy (it hit count stayed 1). go network for it.
+  if (new URL(req.url).pathname.endsWith('/_app/version.json')) {
+    event.respondWith(fetch(req).catch(() => caches.match(req)))
+    return
+  }
+
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req).catch(() => caches.match(req).then(hit => hit || caches.match('.'))),
