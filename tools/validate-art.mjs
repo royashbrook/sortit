@@ -61,7 +61,7 @@ if (args.length) {
     await checkTheme(arg, mod.default)
   }
 } else {
-  const { THEMES } = await import(pathToFileURL(resolve('art/index.js')).href)
+  const { THEMES } = await import(pathToFileURL(resolve('src/lib/engine/art/index.js')).href)
   const keys = new Set()
   for (const theme of THEMES) {
     if (keys.has(theme.key)) bad('index', `duplicate theme key ${theme.key}`)

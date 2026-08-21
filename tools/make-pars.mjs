@@ -10,8 +10,8 @@
 import { writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { levelBoard, LEVEL_COUNT } from '../levels.js'
-import { optimal } from '../solver.js'
+import { levelBoard, LEVEL_COUNT } from '../src/lib/engine/levels.js'
+import { optimal } from '../src/lib/engine/solver.js'
 
 const OFFLINE_BUDGET = { maxNodes: 60_000_000 }
 
@@ -33,5 +33,5 @@ export const PARS = [
 ${Array.from({ length: Math.ceil(pars.length / 20) }, (_, row) => '  ' + pars.slice(row * 20, row * 20 + 20).join(', ') + ',').join('\n')}
 ]
 `
-writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'pars.js'), body)
+writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'lib', 'engine', 'pars.js'), body)
 console.log(`pars.js written: ${pars.length} levels, ${((Date.now() - started) / 1000).toFixed(0)}s`)

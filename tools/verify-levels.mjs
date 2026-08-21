@@ -9,11 +9,11 @@
 //   node tools/verify-levels.mjs --days=30  # quicker daily sweep
 //   - the par table matches the exact solver (spot-proof), and every daily's
 //     par computes inside the phone budget, so stars are never a guess
-import { LEVEL_COUNT, levelBoard, seedBoard } from '../levels.js'
-import { dailySeed } from '../seed.js'
-import { optimal } from '../solver.js'
-import { PARS } from '../pars.js'
-import { rng } from '../seed.js'
+import { LEVEL_COUNT, levelBoard, seedBoard } from '../src/lib/engine/levels.js'
+import { dailySeed } from '../src/lib/engine/seed.js'
+import { optimal } from '../src/lib/engine/solver.js'
+import { PARS } from '../src/lib/engine/pars.js'
+import { rng } from '../src/lib/engine/seed.js'
 
 const daysArg = process.argv.find(a => a.startsWith('--days='))
 const DAYS = daysArg ? Number(daysArg.split('=')[1]) : 3 * 365

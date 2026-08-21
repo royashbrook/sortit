@@ -119,19 +119,26 @@ h1 {
 .chip.flat { border-color: transparent; background: transparent; color: var(--soft); cursor: default; }
 .chip.flat.mono { font-variant-numeric: tabular-nums; }
 #board-label { flex: 1; text-align: left; padding-inline: .2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sound.muted { text-decoration: line-through; opacity: .6; }
+/* the menu sound toggle: struck through and dimmed when muted, so the state
+   reads without relying on the removed #sound id selector */
+.sound-toggle.muted { text-decoration: line-through; opacity: .62; }
 
 /* the in-game bottom nav: the house bar shape (craftrush / quarry). icon over a
    tiny label reads at a glance and takes LESS height than the old fat chip row,
    which gives the board back its vertical space. MENU is always one thumb away. */
+/* pinned edge to edge at the very bottom, safe-area aware (kidgames#5 rule 2) */
 #game-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 8;
   display: flex;
   gap: .3rem;
   width: 100%;
-  padding: .35rem .4rem;
-  border-radius: 1.1rem;
+  padding: .35rem .4rem calc(.35rem + env(safe-area-inset-bottom));
   background: rgb(61 50 48 / .92);
 }
+/* reserve the bar's height so the board never hides under it */
+#game { padding-bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
 #game-nav button {
   flex: 1;
   display: grid;
@@ -180,6 +187,7 @@ h1 {
   flex-direction: column-reverse;
   align-items: center;
   width: calc(var(--side, 44px) + 10px);
+  min-width: 44px; /* the tube is the tap target: never below the 44px floor */
   height: var(--tube-h, 200px);
   padding: 0 5px 5px;
   border: .16rem solid var(--line);
@@ -407,7 +415,7 @@ h1 {
 .won {
   position: fixed;
   inset: auto 0 0;
-  z-index: 5;
+  z-index: 9; /* above the pinned nav (z8) so the SHARE button is never covered */
   display: flex;
   flex-direction: column;
   gap: .5rem;
@@ -545,7 +553,19 @@ dialog li { margin-bottom: .3rem; }
   color: var(--soft, #8b8f99);
   text-align: center;
 }
-.maker-mark a { color: var(--ink, inherit); text-decoration: underline; }
+/* colophon links get real vertical padding so each is a comfortable tap target
+   rather than a 15px sliver, while staying inline in the mark */
+.maker-mark a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;   /* short links (roy, ai) still clear the target on both axes */
+  min-height: 44px;
+  padding: 0 .3rem;
+  color: var(--ink, inherit);
+  text-decoration: underline;
+}
+.maker-mark { line-height: 2.6; }
 .maker-mark a.mark-sponsor { color: #d9a441; }
 .mark-heart { width: .85em; height: .85em; fill: #e0746a; vertical-align: -.1em; }
 .mark-dot { opacity: .45; }

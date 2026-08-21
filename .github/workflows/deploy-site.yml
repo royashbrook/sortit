@@ -1,17 +1,13 @@
 name: deploy sortit.royashbrook.com
 
-# The game deploys ITSELF, the same pattern as craftrush, scoopaloo and quarry:
-# pushing to main ships it to its own Cloudflare origin. Its own hostname keeps a
-# game change from redeploying anything else, and a broken game from holding
-# anything else up.
+# The game deploys ITSELF, the same pattern as craftrush / scoopaloo / quarry:
+# pushing to main ships it to its own Cloudflare origin.
 on:
   push:
     branches: [main]
-    # CI config and docs don't change the served game, so they shouldn't burn a deploy.
     paths-ignore:
       - ".github/**"
       - "**/*.md"
-  # manual re-deploy, so a build can be reissued without a dummy commit
   workflow_dispatch:
 
 permissions:
@@ -27,21 +23,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # full history so the build stamps a real git-tag version, not 0.0.0-dev
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      # No build step: a vanilla PWA served from the repo root. The verifier is the
-      # test suite: every level and 3 years of dailies must be solvable and
-      # deterministic before a deploy.
+      - run: npm ci
+      # the verifier IS the test suite: every level + 3 years of dailies must be
+      # solvable, deterministic, and pars must match the exact solver before deploy
       - run: npm run verify
-      # stamp the house version (git tag + commits) into version.js before deploy
-      - run: node tools/stamp-version.mjs
-      - name: check the site is present
+      - run: npm run build
+      - name: check the build is present
         run: |
-          test -f index.html
-          test -f sw.js
-          test -f manifest.json
+          test -f build/index.html
+          test -f build/service-worker.js
+          test -f build/manifest.json
       - name: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
