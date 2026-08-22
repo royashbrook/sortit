@@ -6,6 +6,8 @@ import { isComplete, isWin, solve } from '../engine/solver.js'
 import { THEMES, themeForWorld } from '../engine/art/index.js'
 import { STAR_SLACK, parFor, starsFor } from '../engine/stars.js'
 import { SKINS, loadSkin, saveSkin } from '../engine/skins.js'
+// the SHELL theme layer (the chrome's look), orthogonal to the game-art skin layer
+import { SHELL_THEMES, applyTheme, loadTheme, saveTheme } from './themes.js'
 import { dailySeed } from '../engine/seed.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
@@ -54,6 +56,7 @@ export function createStore() {
   let playSeq = 0                   // bumped per play(), so a stale deferred par lands nowhere
   let theme = $state(null)
   let skin = $state(loadSkin())
+  let shellTheme = $state(loadTheme())
   let progress = $state(loadProgress())
   let world = $state(0)
 
@@ -235,6 +238,8 @@ export function createStore() {
     get moveSeq() { return moveSeq },
     get lastMovedUids() { return lastMovedUids },
     get skins() { return SKINS },
+    get shellThemes() { return SHELL_THEMES },
+    get shellTheme() { return shellTheme },
     get boardLabel() {
       if (!board) return ''
       if (board.kind === 'level') return `level ${board.n}`
@@ -274,6 +279,7 @@ export function createStore() {
       return m
     },
     setSkin(next) { skin = next; saveSkin(next) },
+    setShellTheme(next) { shellTheme = next; saveTheme(next.key); applyTheme(next) },
     openDialog(d) { dialog = d },
     closeDialog() { dialog = null },
     // two tabs writing one store: adopt the better of the two rather than clobber
