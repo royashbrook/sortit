@@ -219,6 +219,21 @@
           </button>
         {/each}
       </div>
+      <h2 class="looks-sub">Colours</h2>
+      <div class="themes-row">
+        {#each store.shellThemes as candidate}
+          <button
+            class="theme-chip"
+            aria-pressed={candidate.key === store.shellTheme.key}
+            onclick={() => store.setShellTheme(candidate)}
+          >
+            <span class="theme-swatch" aria-hidden="true">
+              {#each candidate.swatch as colour}<i style:background={colour}></i>{/each}
+            </span>
+            <span>{candidate.title}</span>
+          </button>
+        {/each}
+      </div>
       <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
       <button class="big" onclick={close}>DONE</button>
     {/snippet}
