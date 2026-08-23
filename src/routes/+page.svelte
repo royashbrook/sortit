@@ -111,6 +111,17 @@
     <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
     <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
   </main>
+  <!-- the house bottom bar, present on EVERY screen. same styling and placement
+       throughout; the CONTENTS are genre-appropriate (kidgames#5): tabs while you are
+       choosing, in-play controls while you are solving. a launch screen with no bar at
+       all is what this closes. -->
+  <nav id="game-nav" aria-label="Main">
+    <button onclick={() => store.startLevel(store.progress.current)} aria-label="Play"><span aria-hidden="true">&#9654;</span><b>PLAY</b></button>
+    <button onclick={() => store.openLevels()} data-active={store.screen === 'levels' ? '' : undefined} aria-label="Pick a level"><span aria-hidden="true">&#9776;</span><b>LEVELS</b></button>
+    <button onclick={() => store.openDialog('looks')} aria-label="Looks"><span aria-hidden="true">&#10024;</span><b>LOOKS</b></button>
+    <button onclick={() => store.openDialog('about')} aria-label="More"><span aria-hidden="true">&#9881;</span><b>MORE</b></button>
+  </nav>
+
 {/if}
 
 {#if store.screen === 'levels'}
@@ -146,6 +157,17 @@
       {Object.keys(store.progress.done).length ? `you've sorted ${Object.keys(store.progress.done).length} of ${LEVEL_COUNT} levels` : 'sort a level to leave your mark!'}
     </p>
   </main>
+  <!-- the house bottom bar, present on EVERY screen. same styling and placement
+       throughout; the CONTENTS are genre-appropriate (kidgames#5): tabs while you are
+       choosing, in-play controls while you are solving. a launch screen with no bar at
+       all is what this closes. -->
+  <nav id="game-nav" aria-label="Main">
+    <button onclick={() => store.startLevel(store.progress.current)} aria-label="Play"><span aria-hidden="true">&#9654;</span><b>PLAY</b></button>
+    <button onclick={() => store.openLevels()} data-active={store.screen === 'levels' ? '' : undefined} aria-label="Pick a level"><span aria-hidden="true">&#9776;</span><b>LEVELS</b></button>
+    <button onclick={() => store.openDialog('looks')} aria-label="Looks"><span aria-hidden="true">&#10024;</span><b>LOOKS</b></button>
+    <button onclick={() => store.openDialog('about')} aria-label="More"><span aria-hidden="true">&#9881;</span><b>MORE</b></button>
+  </nav>
+
 {/if}
 
 {#if store.screen === 'game'}
