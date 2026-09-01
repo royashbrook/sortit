@@ -46,10 +46,76 @@ function tone({ freq, glide = freq, type = 'sine', at = 0, len = 0.12, vol = 0.1
   osc.stop(t0 + len + 0.05)
 }
 
+// one shaped noise burst: the percussive half of every material. a bandpass
+// picks the body (glass rings high, stone thuds low), the envelope picks how
+// hard the touch reads.
+let noiseBuf = null
+function noise({ at = 0, len = 0.08, vol = 0.1, freq = 2000, q = 1 }) {
+  const audio = ac()
+  if (!audio || muted) return
+  if (!noiseBuf) {
+    noiseBuf = audio.createBuffer(1, audio.sampleRate * 0.25, audio.sampleRate)
+    const data = noiseBuf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+  }
+  const t0 = audio.currentTime + at
+  const src = audio.createBufferSource()
+  src.buffer = noiseBuf
+  const filter = audio.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.value = freq
+  filter.Q.value = q
+  const gain = audio.createGain()
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.006)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + len)
+  src.connect(filter).connect(gain).connect(audio.destination)
+  src.start(t0)
+  src.stop(t0 + len + 0.05)
+}
+
+// the landing phrase per material, played once per item at its own touchdown
+// moment. `at` rides the audio clock, so a staggered convoy of nuts ratchets
+// down one after another without a js timer in sight.
+const MATERIALS = {
+  glass(at, i) {
+    tone({ freq: 1180 - i * 60, glide: 880, type: 'sine', at, len: 0.1, vol: 0.12 })
+    noise({ at, len: 0.05, vol: 0.05, freq: 5200, q: 2 })
+  },
+  metal(at) {
+    // the wind-down: three quick ratchet clicks while the nut spins home, then
+    // the seat. click spacing matches the screw beat by ear, not by measure.
+    for (let c = 0; c < 3; c++) noise({ at: Math.max(0, at - 0.14 + c * 0.05), len: 0.03, vol: 0.07, freq: 3300 + c * 400, q: 4 })
+    tone({ freq: 620, glide: 520, type: 'triangle', at, len: 0.08, vol: 0.1 })
+    noise({ at, len: 0.06, vol: 0.08, freq: 2100, q: 1.5 })
+  },
+  wood(at, i) {
+    tone({ freq: 300 - i * 18, glide: 210, type: 'triangle', at, len: 0.09, vol: 0.13 })
+    noise({ at, len: 0.05, vol: 0.07, freq: 900, q: 0.8 })
+  },
+  stone(at) {
+    tone({ freq: 150, glide: 90, type: 'sine', at, len: 0.12, vol: 0.16 })
+    noise({ at, len: 0.09, vol: 0.1, freq: 420, q: 0.6 })
+  },
+  neon(at, i) {
+    tone({ freq: 880 + i * 120, glide: 1500, type: 'sawtooth', at, len: 0.07, vol: 0.06 })
+    tone({ freq: 440, glide: 660, type: 'square', at: at + 0.03, len: 0.05, vol: 0.04 })
+  },
+  pop(at, i) {
+    tone({ freq: 340 + i * 30, glide: 150, type: 'sine', at, len: 0.14 })
+  },
+}
+
 export const sound = {
   pick() { tone({ freq: 420, glide: 660, type: 'triangle', len: 0.09, vol: 0.12 }) },
-  drop() { tone({ freq: 340, glide: 150, type: 'sine', len: 0.14 }) },
   no() { tone({ freq: 140, glide: 110, type: 'square', len: 0.12, vol: 0.06 }) },
+  // the move's whole audio: whoosh on launch, then the skin's material at each
+  // item's landing time (flight.js computes those, Board passes them through)
+  move(material, times) {
+    noise({ at: 0, len: 0.16, vol: 0.03, freq: 700, q: 0.4 })
+    const phrase = MATERIALS[material] ?? MATERIALS.pop
+    times.forEach((t, i) => phrase(t, i))
+  },
   reveal() {
     tone({ freq: 700, glide: 900, type: 'triangle', len: 0.08, vol: 0.09 })
     tone({ freq: 1050, glide: 1250, type: 'triangle', at: 0.07, len: 0.1, vol: 0.09 })
