@@ -256,7 +256,7 @@
           </button>
         {/each}
       </div>
-      <p class="small">Same puzzles, different costume. Changing it never touches your game.</p>
+      <p class="small">Same puzzles, totally different worlds. Your progress stays right where it is.</p>
       <button class="big" onclick={close}>DONE</button>
     {/snippet}
   </Modal>

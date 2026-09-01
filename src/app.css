@@ -241,11 +241,9 @@ h1 {
 }
 .item.hid svg { opacity: .9; }
 
-/* ===== skins: the container + the item backing, picked in LOOKS =====
-   the default rules above ARE the classic (tubes) skin; each skin below
-   overrides only what its metaphor changes. items keep the theme's art as
-   the face, and every skin's job is to make that face sit on an OBJECT:
-   light from the upper left, a shaded underside, a real shadow. */
+/* ===== skins: total board conversions, picked in LOOKS =====
+   the default rules above ARE Classic. conversion skins provide their own
+   twelve pieces; their css owns only the furniture and presentation. */
 
 /* an item mid-flight rides above every container on the board */
 .item.flying { position: relative; z-index: 30; }
@@ -539,8 +537,44 @@ h1 {
 [data-skin="kawaii"] .item svg { position: relative; scale: .74; }
 [data-skin="kawaii"] .tube.sel { box-shadow: 0 .35rem 0 #E8A9C4; }
 
+/* v1 total conversions. The earlier costume selectors stay harmless while
+   the branch is in flight; these later rules remove their shared backings so
+   each conversion's SVG is the complete piece, not a theme face on a prop. */
+[data-skin="bolts"] .item::before,
+[data-skin="bolts"] .item::after,
+[data-skin="dash"] .item::before,
+[data-skin="dash"] .item::after { content: none; }
+
+[data-skin="bolts"] .item { padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
+[data-skin="bolts"] .item svg { scale: .96; }
+
+#board[data-skin="mine"] {
+  background:
+    radial-gradient(circle at 22% 8%, rgb(255 226 145 / .2), transparent 28%),
+    linear-gradient(180deg, #547188 0 22%, #3D5363 22% 31%, #6B503A 31% 100%) !important;
+}
+[data-skin="mine"] .tube {
+  border-color: transparent;
+  border-bottom: .35rem solid #2B2118;
+  border-radius: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / .12), transparent 35% 65%, rgb(0 0 0 / .18));
+  padding: 0 1px 5px;
+}
+[data-skin="mine"] .item {
+  padding: 0;
+  filter: drop-shadow(0 4px 2px rgb(26 20 16 / .38));
+}
+[data-skin="mine"] .item svg { scale: .96; overflow: visible; image-rendering: pixelated; }
+[data-skin="mine"] .tube.done { box-shadow: 0 0 0 3px #8FCC5E, 0 0 16px 4px rgb(143 204 94 / .55); }
+
+[data-skin="dash"] .item { padding: 0; }
+[data-skin="dash"] .item svg {
+  scale: .92;
+  filter: drop-shadow(0 0 5px rgb(62 240 208 / .38));
+}
+
 /* the selected lift and done cues stay identical across skins on purpose:
-   the READING of the board never changes, only its costume */
+   the READING of the board never changes, only its world */
 
 .tube.shake { animation: shake .3s ease; }
 @keyframes shake {

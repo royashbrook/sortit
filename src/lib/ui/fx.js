@@ -29,6 +29,12 @@ function fit() {
 // the burst recipes, keyed by the skin's landing verb
 const RECIPES = {
   screw: { n: 7, colors: ['#FFE9A8', '#FFD54A', '#FFFFFF'], shape: 'spark', speed: 130, up: .4, grav: 260, life: .28 },
+  breakpop: { n: 14, colors: ['#B9A38C', '#75604A', '#D8C7A9'], shape: 'chunk', speed: 125, up: .85, grav: 460, life: .38 },
+  flip: { n: 9, colors: ['#3EF0D0', '#FF4FD8', '#FFFFFF'], shape: 'spark', speed: 165, up: .35, grav: 80, life: .24 },
+  roll: { n: 7, colors: ['#FFE63F', '#FF8A00', '#FFFFFF'], shape: 'spark', speed: 120, up: .3, grav: 150, life: .24 },
+  fly: { n: 8, colors: ['#3F7BFF', '#3EF0D0', '#FFFFFF'], shape: 'spark', speed: 180, up: .55, grav: 40, life: .3 },
+  hover: { n: 8, colors: ['#3FFFB0', '#FF7FD2', '#FFFFFF'], shape: 'dot', speed: 75, up: 1, grav: -45, life: .42 },
+  zig: { n: 10, colors: ['#FFC53F', '#3EF0D0', '#FFFFFF'], shape: 'spark', speed: 190, up: .25, grav: 30, life: .22 },
   bounce: { n: 10, colors: ['#B9A38C', '#8A7A70', '#D8CFC6'], shape: 'chunk', speed: 110, up: .8, grav: 420, life: .34 },
   drop: { n: 8, colors: ['#FFFFFF', '#DCEFFA', '#BFE3F5'], shape: 'dot', speed: 90, up: .9, grav: 150, life: .3 },
   slide: { n: 6, colors: ['#D8C4A6', '#B79A76', '#FFF3DD'], shape: 'chunk', speed: 90, up: .7, grav: 380, life: .26 },
@@ -71,9 +77,9 @@ function loop(now) {
 }
 
 export const fx = {
-  // rect: the landed item's viewport box. verb picks the recipe; the theme's
-  // item colors tint half the particles so bursts belong to the board.
-  land(rect, verb, themeColors = []) {
+  // rect: the landed item's viewport box. verb picks the recipe; the active
+  // conversion's colors tint half the particles so bursts belong to its art.
+  land(rect, verb, artColors = []) {
     if (typeof document === 'undefined') return
     ensure()
     fit()
@@ -84,7 +90,7 @@ export const fx = {
     for (let i = 0; i < r.n; i++) {
       const angle = Math.PI * (1 + (i / (r.n - 1))) // fan across the upper half
       const speed = r.speed * (0.5 + Math.random() * 0.7)
-      const palette = (i % 2 === 0 && themeColors.length) ? themeColors : r.colors
+      const palette = (i % 2 === 0 && artColors.length) ? artColors : r.colors
       parts.push({
         x: cx + (Math.random() - 0.5) * rect.width * 0.5,
         y: cy,

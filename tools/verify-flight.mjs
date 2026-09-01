@@ -1,74 +1,130 @@
-// proves the flight geometry in node, the same way levels and stars are
-// proven: every skin's landing verb must produce a path that starts at the
-// old spot, actually rises over the arc peak, ends seated at the origin
-// reading upright, and keeps its offsets ascending (the web animations api
-// throws on a descending offset list at runtime, where no test would see it).
+// Proves the total-conversion contract and every movement geometry in Node.
+// The browser owns pixels; this gate owns the data that makes those pixels
+// possible: twelve unique pieces, a mystery piece, valid per-piece verbs,
+// stable Classic fallback, and flights that start and finish where they say.
 import { SKINS } from '../src/lib/engine/skins.js'
 import { flightKeyframes, flightOptions, landingTimes } from '../src/lib/ui/flight.js'
+import { readFileSync } from 'node:fs'
 
 let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
 const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60 }
-const VERBS = ['drop', 'screw', 'slide', 'bounce', 'zip', 'float']
-const MATERIALS = ['glass', 'metal', 'wood', 'stone', 'neon', 'pop']
+const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig'])
+const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop'])
+const CONVERSIONS = ['bolts', 'mine', 'dash', 'tubes']
+const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
 
-const translateOf = t => {
-  const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(t)
-  return m ? { x: Number(m[1]), y: Number(m[2]) } : null
+const translateOf = transform => {
+  const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(transform)
+  return match ? { x: Number(match[1]), y: Number(match[2]) } : null
 }
-const rotationOf = t => {
-  const m = /rotate\((-?[\d.]+)deg\)/.exec(t)
-  return m ? Number(m[1]) : 0
+
+const rotationOf = transform => {
+  const match = /rotate\((-?[\d.]+)deg\)/.exec(transform)
+  return match ? Number(match[1]) : 0
+}
+
+function verifyFlight(verb, motion, id) {
+  const keyframes = flightKeyframes(verb, { ...GEO, spin: motion.spin })
+  if (keyframes.length < 3) fail(`${id}: fewer than 3 keyframes`)
+
+  const first = translateOf(keyframes[0].transform)
+  if (!first || first.x !== GEO.dx || first.y !== GEO.dy) {
+    fail(`${id}: flight does not start at the old spot (${keyframes[0].transform})`)
+  }
+  if (rotationOf(keyframes[0].transform) !== 0) fail(`${id}: starts pre-rotated`)
+
+  const last = translateOf(keyframes.at(-1).transform)
+  if (!last || last.x !== 0 || last.y !== 0) {
+    fail(`${id}: flight does not end seated at the origin (${keyframes.at(-1).transform})`)
+  }
+  if (rotationOf(keyframes.at(-1).transform) % 360 !== 0) {
+    fail(`${id}: lands tilted (${keyframes.at(-1).transform})`)
+  }
+
+  if (verb === 'breakpop') {
+    const hiddenAtDestination = keyframes.some(frame => {
+      const point = translateOf(frame.transform)
+      return frame.opacity === 0 && point?.x === 0 && point?.y === 0
+    })
+    if (!hiddenAtDestination) fail(`${id}: destroy/create swap is visible`)
+  } else {
+    const ys = keyframes.map(frame => translateOf(frame.transform)).filter(Boolean).map(point => point.y)
+    if (Math.min(...ys) > GEO.peakRel + 1) {
+      fail(`${id}: path never reaches the arc peak (min y ${Math.min(...ys)})`)
+    }
+  }
+
+  if (keyframes[0].offset !== 0) fail(`${id}: first offset is not 0`)
+  if (keyframes.at(-1).offset !== 1) fail(`${id}: last offset is not 1`)
+  let previous = -1
+  for (const frame of keyframes) {
+    if (frame.offset == null) fail(`${id}: keyframe missing offset`)
+    else if (frame.offset <= previous) fail(`${id}: offsets descend at ${frame.offset}`)
+    else previous = frame.offset
+  }
+
+  const times = landingTimes(motion, 4, verb)
+  if (times.length !== 4) fail(`${id}: landingTimes count wrong`)
+  for (let i = 1; i < times.length; i++) {
+    if (times[i] <= times[i - 1]) fail(`${id}: landing times not ascending`)
+  }
+  if (times[0] <= 0 || times[0] > motion.seconds) {
+    fail(`${id}: first landing outside the animation`)
+  }
+}
+
+if (SKINS.map(skin => skin.key).join(',') !== CONVERSIONS.join(',')) {
+  fail(`v1 conversion set/order drifted: ${SKINS.map(skin => skin.key).join(',')}`)
 }
 
 for (const skin of SKINS) {
   const id = `skin ${skin.key}`
   const motion = skin.motion ?? {}
-  for (const field of ['seconds', 'lift', 'spin', 'ease', 'stagger', 'land']) {
+  for (const field of ['seconds', 'lift', 'spin', 'stagger', 'land']) {
     if (motion[field] == null) fail(`${id}: motion.${field} missing`)
   }
-  if (!VERBS.includes(motion.land)) fail(`${id}: unknown landing verb ${motion.land}`)
-  if (!MATERIALS.includes(skin.sound)) fail(`${id}: unknown sound material ${skin.sound}`)
-
-  const kf = flightKeyframes(motion.land, { ...GEO, spin: motion.spin })
-  if (kf.length < 3) fail(`${id}: fewer than 3 keyframes`)
-
-  const first = translateOf(kf[0].transform)
-  if (!first || first.x !== GEO.dx || first.y !== GEO.dy) fail(`${id}: flight does not start at the old spot (${kf[0].transform})`)
-  if (rotationOf(kf[0].transform) !== 0) fail(`${id}: flight starts pre-rotated`)
-
-  const last = translateOf(kf[kf.length - 1].transform)
-  if (!last || last.x !== 0 || last.y !== 0) fail(`${id}: flight does not end seated at the origin (${kf[kf.length - 1].transform})`)
-  if (rotationOf(kf[kf.length - 1].transform) % 360 !== 0) fail(`${id}: lands tilted (${kf[kf.length - 1].transform})`)
-
-  const ys = kf.map(k => translateOf(k.transform)).filter(Boolean).map(p => p.y)
-  if (Math.min(...ys) > GEO.peakRel + 1) fail(`${id}: arc never reaches the peak (min y ${Math.min(...ys)}, peak ${GEO.peakRel})`)
-
-  if (kf[0].offset !== 0) fail(`${id}: first offset is ${kf[0].offset}, not 0`)
-  if (kf[kf.length - 1].offset !== 1) fail(`${id}: last offset is ${kf[kf.length - 1].offset}, not 1`)
-  let prev = -1
-  for (const k of kf) {
-    if (k.offset == null) fail(`${id}: a keyframe is missing its offset`)
-    else if (k.offset <= prev) fail(`${id}: offsets not ascending (${k.offset} after ${prev})`)
-    else prev = k.offset
+  if (!VERBS.has(motion.land)) fail(`${id}: unknown default verb ${motion.land}`)
+  if (!MATERIALS.has(skin.sound)) fail(`${id}: unknown sound material ${skin.sound}`)
+  if (!skin.preview?.includes('<')) fail(`${id}: preview is empty`)
+  if (skin.key !== 'tubes' && !CSS.includes(`[data-skin="${skin.key}"]`)) {
+    fail(`${id}: no board furniture css`)
   }
 
-  const opts = flightOptions(motion, 2)
-  if (opts.duration !== motion.seconds * 1000) fail(`${id}: duration ${opts.duration} != ${motion.seconds * 1000}`)
-  if (opts.delay !== 2 * motion.stagger * 1000) fail(`${id}: convoy delay ${opts.delay} wrong for index 2`)
-  if (opts.fill !== 'backwards') fail(`${id}: fill must hold items at launch through their stagger delay`)
+  const verbs = new Set([motion.land])
+  if (skin.key === 'tubes') {
+    if (skin.pieces != null || skin.hidden != null) fail('Classic must keep using world art')
+  } else {
+    if (skin.pieces?.length !== 12) fail(`${id}: expected 12 pieces, got ${skin.pieces?.length ?? 0}`)
+    if (!skin.hidden?.includes('<')) fail(`${id}: mystery piece is empty`)
+    const keys = new Set()
+    const svgs = new Set()
+    for (const [index, piece] of (skin.pieces ?? []).entries()) {
+      if (!piece.key || keys.has(piece.key)) fail(`${id}: piece ${index} has a missing/duplicate key`)
+      keys.add(piece.key)
+      if (!/^#[0-9a-f]{6}$/i.test(piece.color ?? '')) fail(`${id}: piece ${index} has invalid color`)
+      if (!/<(?:path|rect|circle|ellipse|polygon|g)\b/.test(piece.svg ?? '')) fail(`${id}: piece ${index} has no vector art`)
+      if (/<script\b|\son\w+=/i.test(piece.svg ?? '')) fail(`${id}: piece ${index} has active markup`)
+      if (svgs.has(piece.svg)) fail(`${id}: piece ${index} duplicates another piece's art`)
+      svgs.add(piece.svg)
+      const verb = piece.verb ?? motion.land
+      if (!VERBS.has(verb)) fail(`${id}: piece ${index} has unknown verb ${verb}`)
+      verbs.add(verb)
+    }
+  }
 
-  const times = landingTimes(motion, 4)
-  if (times.length !== 4) fail(`${id}: landingTimes count wrong`)
-  for (let i = 1; i < times.length; i++) if (times[i] <= times[i - 1]) fail(`${id}: landing times not ascending`)
-  if (times[0] <= 0 || times[0] > motion.seconds) fail(`${id}: first landing outside the flight (${times[0]}s of ${motion.seconds}s)`)
+  for (const verb of verbs) verifyFlight(verb, motion, `${id}/${verb}`)
+
+  const options = flightOptions(motion, 2)
+  if (options.duration !== motion.seconds * 1000) fail(`${id}: duration is wrong`)
+  if (options.delay !== 2 * motion.stagger * 1000) fail(`${id}: convoy delay is wrong`)
+  if (options.fill !== 'backwards') fail(`${id}: stagger does not hold the launch pose`)
+  if (options.easing !== 'linear') fail(`${id}: effect easing would desync audio from keyframe offsets`)
 }
 
-// the classic skin must still exist (a saved 'tubes' preference keeps working)
-// and glass must be the default for a fresh player (SKINS[0] is the fallback)
-if (SKINS[0]?.key !== 'glass') fail('glass is not the default skin')
-if (!SKINS.some(s => s.key === 'tubes')) fail('the classic tubes skin is gone')
-
-if (failures) { console.error(`${failures} flight problem(s)`); process.exit(1) }
-console.log(`flight ok: ${SKINS.length} skins, ${VERBS.length} verbs proven`)
+if (failures) {
+  console.error(`${failures} conversion/flight problem(s)`)
+  process.exit(1)
+}
+console.log(`flight ok: ${SKINS.length} conversions, ${VERBS.size} verbs, 36 custom pieces proven`)

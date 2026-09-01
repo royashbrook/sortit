@@ -120,6 +120,8 @@ export function createStore() {
     return { from, to, count: Math.min(visibleRun(from), space) }
   }
 
+  const moveVerb = color => skin.pieces?.[color]?.verb ?? skin.motion?.land ?? 'drop'
+
   function anyPlayerMove() {
     for (let from = 0; from < tubes.length; from++) {
       if (!tubes[from].length || isComplete(colorsOf(tubes[from]), capacity)) continue
@@ -171,6 +173,7 @@ export function createStore() {
       else sound.no()
       return
     }
+    const movingColor = tubes[move.from][tubes[move.from].length - 1].c
     history.push({ tubes: tubes.map(t => t.map(i => ({ ...i }))), moves })
     lastMovedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
     const next = tubes.map(t => t.slice())
@@ -183,7 +186,7 @@ export function createStore() {
     // each landed item sounds at its own touchdown; with motion off there is
     // no flight to wait for, so the whole phrase lands now
     const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count))
+    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count, moveVerb(movingColor)))
     const doneNow = isComplete(colorsOf(tubes[move.to]), capacity)
     if (doneNow && !isWin(numeric(), capacity)) sound.tube()
     if (isWin(numeric(), capacity)) { finishWin(); return }
@@ -199,6 +202,8 @@ export function createStore() {
     board = b
     board.par = null
     theme = themeForBoard(b)
+    lastMovedUids = []
+    moveSeq += 1
     capacity = b.params.capacity
     uidNext = 0
     tubes = b.tubes.map(t => t.map((c, slot) => ({ uid: uidNext++, c, hid: b.params.hidden && slot < t.length - 1 })))
@@ -265,6 +270,8 @@ export function createStore() {
     undo() {
       const last = history.pop()
       if (!last) return
+      lastMovedUids = []
+      moveSeq += 1
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
       tubes = last.tubes
       selected = null
@@ -282,7 +289,12 @@ export function createStore() {
       setTimeout(() => { hintTubes = [] }, 2000)
       return m
     },
-    setSkin(next) { skin = next; saveSkin(next) },
+    setSkin(next) {
+      lastMovedUids = []
+      moveSeq += 1
+      skin = next
+      saveSkin(next)
+    },
     setShellTheme(next) { shellTheme = next; saveTheme(next.key); applyTheme(next) },
     openDialog(d) { dialog = d },
     closeDialog() { dialog = null },
