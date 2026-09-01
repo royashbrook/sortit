@@ -1,4 +1,7 @@
 <script>
+  import { flightKeyframes, flightOptions } from './flight.js'
+  import { fx } from './fx.js'
+
   let { store } = $props()
 
   let boardEl
@@ -50,11 +53,10 @@
   // re-measure when the tube count changes (new board)
   $effect(() => { store.tubes.length; measure() })
 
-  // manual FLIP with the SKIN'S motion verb. svelte's animate:flip cannot follow
-  // an item between two separate keyed tube lists, so a bolts move showed no
-  // spin at all. this captures moved items' positions BEFORE the DOM updates
-  // ($effect.pre) and animates them home AFTER, applying the skin's rotate/ease/
-  // seconds, which is what makes bolts screw down and blocks somersault.
+  // the flight. svelte's animate:flip cannot follow an item between two keyed
+  // tube lists, so positions are captured BEFORE the DOM updates ($effect.pre)
+  // and the trip is played AFTER with the web animations api: flight.js builds
+  // the path (lift, arc, the skin's landing verb), fx.js bursts on touchdown.
   let before = new Map()
   $effect.pre(() => {
     const uids = store.lastMovedUids
@@ -63,24 +65,42 @@
     if (!boardEl) return
     for (const uid of uids) {
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
-      if (node) before.set(uid, node.getBoundingClientRect())
+      if (!node) continue
+      const tube = node.closest('.tube')
+      before.set(uid, { rect: node.getBoundingClientRect(), tubeTop: tube ? tube.getBoundingClientRect().top : 0 })
     }
   })
   $effect(() => {
     store.moveSeq
     if (!boardEl || !before.size) return
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
-    const motion = store.skin.motion ?? { rotate: 0, ease: 'cubic-bezier(.3,1.2,.5,1)', seconds: .22 }
+    const motion = store.skin.motion ?? { seconds: .22, lift: 1, spin: 0, ease: 'ease', stagger: 0, land: 'drop' }
+    let index = 0
     for (const [uid, from] of before) {
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
       if (!node) continue
       const to = node.getBoundingClientRect()
-      node.style.transition = 'none'
-      node.style.transform = `translate(${from.left - to.left}px, ${from.top - to.top}px) rotate(${motion.rotate}deg)`
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        node.style.transition = `transform ${motion.seconds}s ${motion.ease}`
-        node.style.transform = ''
-      }))
+      const destTube = node.closest('.tube')
+      const destTop = destTube ? destTube.getBoundingClientRect().top : to.top
+      // the arc peaks above BOTH mouths, so a trip between rows still clears
+      const peakRel = Math.min(from.tubeTop, destTop) - to.top - motion.lift * side
+      const rimRel = Math.min(-2, destTop - to.top)
+      const keyframes = flightKeyframes(motion.land, {
+        dx: from.rect.left - to.left,
+        dy: from.rect.top - to.top,
+        peakRel, rimRel,
+        spin: motion.spin ?? 0,
+      })
+      for (const a of node.getAnimations()) a.cancel()
+      node.style.transformOrigin = motion.land === 'screw' ? '50% 50%' : '50% 80%'
+      node.classList.add('flying')
+      const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
+      const anim = node.animate(keyframes, flightOptions(motion, index))
+      anim.finished.then(() => {
+        node.classList.remove('flying')
+        if (burst) fx.land(node.getBoundingClientRect(), motion.land, store.theme?.items.map(i => i.color) ?? [])
+      }).catch(() => node.classList.remove('flying'))
+      index += 1
     }
     before = new Map()
   })

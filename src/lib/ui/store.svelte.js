@@ -11,6 +11,7 @@ import { SHELL_THEMES, applyTheme, loadTheme, saveTheme } from './themes.js'
 import { dailySeed } from '../engine/seed.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
+import { landingTimes } from './flight.js'
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
@@ -179,7 +180,10 @@ export function createStore() {
     moves += 1
     moveSeq += 1
     revealTops(true)
-    sound.drop()
+    // each landed item sounds at its own touchdown; with motion off there is
+    // no flight to wait for, so the whole phrase lands now
+    const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count))
     const doneNow = isComplete(colorsOf(tubes[move.to]), capacity)
     if (doneNow && !isWin(numeric(), capacity)) sound.tube()
     if (isWin(numeric(), capacity)) { finishWin(); return }
