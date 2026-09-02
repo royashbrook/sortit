@@ -34,6 +34,10 @@
 
     // two tabs sharing one store: adopt the better progress rather than clobber
     addEventListener('storage', e => { if (e.key === 'sortit:progress') store.mergeExternalProgress() })
+
+    // kit polls the deployed version on its own interval; coming back to the
+    // app is the moment a player would want to know, so ask right then too
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) updated.check().catch(() => {}) })
   })
 
   function toggleSound() { muted = sound.toggle() }
@@ -50,11 +54,6 @@
     try { await navigator.clipboard.writeText(url.toString()); return 'copied' } catch { return 'failed' }
   }
 
-  let friendLabel = $state('PLAY WITH A FRIEND')
-  async function shareFriend() {
-    const r = await share(store.screen === 'game' ? store.board : { kind: 'seed', seed: dailySeed() })
-    if (r === 'copied') { friendLabel = 'LINK COPIED, SEND IT'; setTimeout(() => friendLabel = 'PLAY WITH A FRIEND', 2400) }
-  }
   let winShareLabel = $state('SEND THIS PUZZLE TO A FRIEND')
   async function shareWin() {
     const r = await share(store.board)
@@ -72,12 +71,11 @@
     if (iosInstall) store.openDialog('ios-install')
   }
 
-  // update check: compare the served shell against the booted one, so a stale
-  // installed client can pull the current deploy (kit worker is passive)
   // kit's own version check: `updated.current` is true when the DEPLOYED version
   // differs from the one THIS build booted with (the version is baked into the
   // running bundle, so there is no stale-baseline trap). updated.check() forces it.
   async function checkUpdates() {
+    if (updateState === 'stale') { location.reload(); return } // the button IS the reload once an update is ready
     updateState = 'checking'
     try {
       const stale = await updated.check()
@@ -93,41 +91,18 @@
 </script>
 
 <!-- house version stamp: fixed top-right on every screen (the fleet pattern, matches
-     quantamari's soft treatment). the .version-stamp css was already here; nothing wired it. -->
+     quantamari's soft treatment). -->
 <div class="version-stamp" aria-hidden="true">v{version}</div>
 
-{#if store.screen === 'menu'}
-  <main class="screen" id="menu">
-    <h1>Sort It</h1>
-    <p class="tagline">sort everything into tidy tubes</p>
-    <button class="big" onclick={() => store.startLevel(store.progress.current)}>PLAY</button>
-    <button class="big secondary" onclick={() => store.startDaily()}>TODAY'S PUZZLE</button>
-    <button class="big secondary" onclick={() => store.openLevels()}>PICK A LEVEL</button>
-    <button class="big secondary" onclick={shareFriend}>{friendLabel}</button>
-    <button class="big secondary" onclick={() => store.openDialog('howto')}>HOW TO PLAY</button>
-    <button class="big secondary" onclick={() => store.openDialog('looks')}>LOOKS</button>
-    <button class="big secondary sound-toggle" class:muted onclick={toggleSound} aria-pressed={!muted}>&#9834; SOUND{muted ? ' (off)' : ''}</button>
-    {#if installable}<button class="big secondary" onclick={doInstall}>ADD TO HOME SCREEN</button>{/if}
-    <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
-    <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
-  </main>
-  <!-- the house bottom bar, present on EVERY screen. same styling and placement
-       throughout; the CONTENTS are genre-appropriate (kidgames#5): tabs while you are
-       choosing, in-play controls while you are solving. a launch screen with no bar at
-       all is what this closes. -->
-  <nav id="game-nav" aria-label="Main">
-    <button onclick={() => store.startLevel(store.progress.current)} aria-label="Play"><span aria-hidden="true">&#9654;</span><b>PLAY</b></button>
-    <button onclick={() => store.openLevels()} data-active={store.screen === 'levels' ? '' : undefined} aria-label="Pick a level"><span aria-hidden="true">&#9776;</span><b>LEVELS</b></button>
-    <button onclick={() => store.openDialog('looks')} aria-label="Looks"><span aria-hidden="true">&#10024;</span><b>LOOKS</b></button>
-    <button onclick={() => store.openDialog('about')} aria-label="More"><span aria-hidden="true">&#9881;</span><b>MORE</b></button>
-  </nav>
-
+<!-- a deploy happened while this shell was open: one tap reloads into it -->
+{#if updated.current}
+  <button class="toast" onclick={() => location.reload()}>update ready, tap to reload</button>
 {/if}
 
 {#if store.screen === 'levels'}
   <main class="screen" id="levels">
     <header class="bar">
-      <button class="chip" onclick={() => store.goMenu()} aria-label="back to menu">&larr;</button>
+      <button class="chip" onclick={() => store.goGame()} aria-label="back to the game">&larr;</button>
       <span class="chip flat">world {store.world + 1} &middot; {worldTheme.title}</span>
     </header>
     <div class="world-nav">
@@ -157,27 +132,20 @@
       {Object.keys(store.progress.done).length ? `you've sorted ${Object.keys(store.progress.done).length} of ${LEVEL_COUNT} levels` : 'sort a level to leave your mark!'}
     </p>
   </main>
-  <!-- the house bottom bar, present on EVERY screen. same styling and placement
-       throughout; the CONTENTS are genre-appropriate (kidgames#5): tabs while you are
-       choosing, in-play controls while you are solving. a launch screen with no bar at
-       all is what this closes. -->
+  <!-- the house bottom bar, present on EVERY screen (kidgames#5). text only:
+       plain words read faster than a generic icon and there is nothing to decode. -->
   <nav id="game-nav" aria-label="Main">
-    <button onclick={() => store.startLevel(store.progress.current)} aria-label="Play"><span aria-hidden="true">&#9654;</span><b>PLAY</b></button>
-    <button onclick={() => store.openLevels()} data-active={store.screen === 'levels' ? '' : undefined} aria-label="Pick a level"><span aria-hidden="true">&#9776;</span><b>LEVELS</b></button>
-    <button onclick={() => store.openDialog('looks')} aria-label="Looks"><span aria-hidden="true">&#10024;</span><b>LOOKS</b></button>
-    <button onclick={() => store.openDialog('about')} aria-label="More"><span aria-hidden="true">&#9881;</span><b>MORE</b></button>
+    <button onclick={() => store.goGame()}>PLAY</button>
+    <button data-active onclick={() => store.openLevels()}>LEVELS</button>
+    <button onclick={() => store.openDialog('looks')}>LOOKS</button>
+    <button onclick={() => store.openDialog('more')}>MORE</button>
   </nav>
-
 {/if}
 
 {#if store.screen === 'game'}
   <main class="screen" id="game">
     <header class="bar">
       <span class="chip flat" id="board-label">{store.boardLabel}</span>
-      <!-- looks are swappable mid-level: the store drops any in-flight cue on a
-           skin change, and the board, moves, and clock are untouched. it sits
-           before the readouts so it never crowds the version stamp top-right. -->
-      <button class="chip" onclick={() => store.openDialog('looks')} aria-label="Change the look"><span aria-hidden="true">&#10024;</span></button>
       <span class="chip flat mono" aria-label="time elapsed">{store.clock}</span>
       <span class="chip flat mono" aria-live="polite">{store.moves} {store.moves === 1 ? 'move' : 'moves'}</span>
     </header>
@@ -185,10 +153,11 @@
     <Board {store} />
 
     <nav id="game-nav" aria-label="Game controls">
-      <button onclick={() => store.goMenu()} aria-label="Back to menu"><span aria-hidden="true">&#9776;</span><b>MENU</b></button>
-      <button onclick={doHint}><span aria-hidden="true">&#10024;</span><b>HINT</b></button>
-      <button onclick={() => store.undo()}><span aria-hidden="true">&#8630;</span><b>UNDO</b></button>
-      <button onclick={() => store.replay()}><span aria-hidden="true">&#8635;</span><b>RESET</b></button>
+      <button onclick={() => store.openLevels()}>LEVELS</button>
+      <button onclick={doHint}>HINT</button>
+      <button onclick={() => store.undo()}>UNDO</button>
+      <button onclick={() => store.openDialog('looks')}>LOOKS</button>
+      <button onclick={() => store.openDialog('more')}>MORE</button>
     </nav>
 
     {#if store.stuck && !store.won}
@@ -216,6 +185,24 @@
 {/if}
 
 <!-- ============ dialogs (real modal dialogs, see Modal.svelte) ============ -->
+{#if store.dialog === 'more'}
+  <Modal label="More" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>More</h2>
+      <div class="more-list">
+        <button class="big secondary" onclick={() => { store.replay(); close() }}>START THIS ONE OVER</button>
+        <button class="big secondary" onclick={() => { store.startDaily(); close() }}>TODAY'S PUZZLE</button>
+        <button class="big secondary" onclick={() => store.openDialog('howto')}>HOW TO PLAY</button>
+        <button class="big secondary sound-toggle" class:muted onclick={toggleSound} aria-pressed={!muted}>SOUND {muted ? 'OFF' : 'ON'}</button>
+        {#if installable}<button class="big secondary" onclick={doInstall}>ADD TO HOME SCREEN</button>{/if}
+        <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
+      </div>
+      <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
+      <button class="big" onclick={close}>BACK</button>
+    {/snippet}
+  </Modal>
+{/if}
+
 {#if store.dialog === 'howto'}
   <Modal label="How to play" onclose={() => store.closeDialog()}>
     {#snippet children(close)}
@@ -277,10 +264,10 @@
         <a href="https://royashbrook.com/agents" target="_blank" rel="noreferrer">ai</a>
         <span aria-hidden="true" class="mark-dot">&middot;</span>
         <a href="https://github.com/sponsors/royashbrook" target="_blank" rel="noreferrer" class="mark-sponsor">sponsor me</a></p>
-      <button class="big secondary check-updates" onclick={checkUpdates}>
+      <p class="small center">version {version}</p>
+      <button class="big secondary check-updates" class:ready={updateState === 'stale'} onclick={checkUpdates}>
         {#if updateState === 'checking'}checking...{:else if updateState === 'current'}up to date{:else if updateState === 'stale'}update ready, tap to reload{:else if updateState === 'offline'}offline{:else}check for updates{/if}
       </button>
-      {#if updateState === 'stale'}<button class="big" onclick={() => location.reload()}>RELOAD NOW</button>{/if}
       <button class="big" onclick={close}>BACK</button>
     {/snippet}
   </Modal>

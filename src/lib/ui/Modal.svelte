@@ -6,17 +6,21 @@
   // gives the dialog an accessible name (a modal with none is a screen-reader dead end).
   let { label, onclose, children } = $props()
   let el
+  // an unmount closes the element too, but that close is not the USER's: when
+  // one dialog opens another (MORE opens ABOUT), the store already moved on,
+  // and reporting the teardown as a close would clear the dialog it just opened
+  let unmounting = false
 
   $effect(() => {
     if (!el) return
     if (!el.open) el.showModal()
-    return () => { if (el?.open) el.close() }
+    return () => { unmounting = true; if (el?.open) el.close() }
   })
 
   const close = () => el?.close()
   function onclick(e) { if (e.target === el) el.close() } // backdrop click
 </script>
 
-<dialog bind:this={el} aria-label={label} onclose={() => onclose?.()} {onclick}>
+<dialog bind:this={el} aria-label={label} onclose={() => { if (!unmounting) onclose?.() }} {onclick}>
   {@render children(close)}
 </dialog>
