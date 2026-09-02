@@ -93,7 +93,7 @@
     for (const node of boardEl.querySelectorAll('.item.flying')) {
       if (node.dataset.flightSeq === flightSeq) continue
       for (const animation of node.getAnimations()) animation.cancel()
-      node.classList.remove('flying')
+      node.classList.remove('flying', 'threading')
     }
     if (!before.size) return
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
@@ -133,12 +133,19 @@
           if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
         }, options.delay + options.duration * (verb === 'mine' ? 0.28 : 0.42))
       }
+      // a screwing nut flies bare, then THREADS: the descent beat of the screw
+      // keyframes (offset .52) is where the rod appears through it and it turns
+      if (verb === 'screw') {
+        setTimeout(() => {
+          if (node.dataset.flightSeq === flightSeq && node.classList.contains('flying')) node.classList.add('threading')
+        }, options.delay + options.duration * 0.52)
+      }
       anim.finished.then(() => {
         if (node.dataset.flightSeq !== flightSeq) return
-        node.classList.remove('flying')
+        node.classList.remove('flying', 'threading')
         if (burst) fx.land(node.getBoundingClientRect(), verb, artColors())
       }).catch(() => {
-        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
+        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying', 'threading')
       })
       trips.push({ from: from.rect, to, svg: node.innerHTML, color: pieceColor(uid) })
       index += 1

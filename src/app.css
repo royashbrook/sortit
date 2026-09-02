@@ -296,11 +296,13 @@ h1 {
    them, which is exactly what a threaded stack looks like. hidden on none, or
    the bore of every lower nut reads empty and the rod seems to stop at each. */
 [data-skin="bolts"] .nut-rod { display: block; }
-/* a flying nut TURNS about the bolt: its side-face band slides one full turn
-   (two periods of 52 svg units) across the flight, timed to the same seconds
-   and stagger delay the Board gave the trip, so the band ends where it began */
-[data-skin="bolts"] .item.flying .nut-band {
-  animation: nutspin var(--flight-secs, .5s) linear var(--flight-delay, 0s) 1;
+/* in the air a nut flies BARE: no rod through it, no turning. once it is over
+   the post and threading down (the Board flips .threading at the descent
+   beat) the rod appears through it and its side-face band slides one full
+   turn (two periods of 52 svg units) across the rest of the trip. */
+[data-skin="bolts"] .item.flying:not(.threading) .nut-rod { display: none; }
+[data-skin="bolts"] .item.threading .nut-band {
+  animation: nutspin calc(var(--flight-secs, .5s) * .48) linear 1;
 }
 @keyframes nutspin {
   from { transform: translateX(0); }
