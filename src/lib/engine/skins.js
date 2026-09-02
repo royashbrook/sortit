@@ -34,7 +34,7 @@ export const SKINS = [
     hidden: bolts.hidden,
     pieceRatio: .625,
     pieceViewBox: '0 0 64 40',
-    tubeLip: 22,
+    tubeLip: 34,
     // spin 0: the nut turns about the bolt via its own side band (app.css
     // nutspin), a planar rotate would read as tumbling in three-quarter view
     motion: { seconds: .48, lift: .75, spin: 0, stagger: .06, land: 'screw' },
