@@ -17,6 +17,9 @@ export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
 const HINT_BUDGET = { maxNodes: 60000 }
 const PROGRESS_KEY = 'sortit:progress'
+// the game in progress: saved on every change so the app opens straight back
+// into it (a won board is not a game in progress, it clears the slot)
+const GAME_KEY = 'sortit:game'
 
 function loadProgress() {
   try {
@@ -52,7 +55,7 @@ function PARS_AT(n) { return PARS[n - 1] ?? null }
 function saveProgress(p) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)) } catch { /* fine */ } }
 
 export function createStore() {
-  let screen = $state('menu')       // 'menu' | 'levels' | 'game'
+  let screen = $state('game')       // 'game' | 'levels': the app opens IN the game
   let board = $state(null)          // levels.js board being played
   let playSeq = 0                   // bumped per play(), so a stale deferred par lands nowhere
   let theme = $state(null)
@@ -156,7 +159,46 @@ export function createStore() {
       : ''
     won = { stars, detail, score, perfect: board.par != null && moves <= board.par, canNext }
     sound.win()
-    confetti(theme.items.map(i => i.color))
+    confetti((skin.pieces ?? theme.items).map(i => i.color))
+    saveGame()
+  }
+
+  // the in-progress slot. tubes carry uids and hidden flags, history is the
+  // undo stack, elapsed keeps the clock honest across a relaunch.
+  function saveGame() {
+    try {
+      if (!board || over) { localStorage.removeItem(GAME_KEY); return }
+      localStorage.setItem(GAME_KEY, JSON.stringify({
+        kind: board.kind, n: board.n, seed: board.seed,
+        tubes: $state.snapshot(tubes), moves, history,
+        elapsed: clockStart == null ? 0 : Date.now() - clockStart,
+        seen: [...seen],
+      }))
+    } catch { /* a blocked store only costs the resume */ }
+  }
+  function restoreGame() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(GAME_KEY) ?? 'null')
+      if (!raw || !Array.isArray(raw.tubes)) return false
+      const b = raw.kind === 'level' && Number.isInteger(raw.n) && raw.n >= 1 && raw.n <= LEVEL_COUNT
+        ? levelBoard(raw.n)
+        : (raw.kind === 'seed' && Number.isInteger(raw.seed) && raw.seed > 0 ? seedBoard(raw.seed) : null)
+      if (!b) return false
+      const okItem = i => i && Number.isInteger(i.uid) && Number.isInteger(i.c) && i.c >= 0 && i.c < b.params.colors && typeof i.hid === 'boolean'
+      if (raw.tubes.length !== b.tubes.length || !raw.tubes.every(t => Array.isArray(t) && t.every(okItem))) return false
+      play(b)
+      tubes = raw.tubes.map(t => t.map(i => ({ ...i })))
+      uidNext = Math.max(0, ...raw.tubes.flat().map(i => i.uid)) + 1
+      moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
+      history = Array.isArray(raw.history) ? raw.history : []
+      seen = new Set(Array.isArray(raw.seen) ? raw.seen : [])
+      clockStart = Date.now() - (Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0)
+      tick()
+      stuck = !anyPlayerMove()
+      return true
+    } catch {
+      return false
+    }
   }
 
   function tap(index) {
@@ -191,6 +233,7 @@ export function createStore() {
     if (doneNow && !isWin(numeric(), capacity)) sound.tube()
     if (isWin(numeric(), capacity)) { finishWin(); return }
     stuck = !anyPlayerMove()
+    saveGame()
   }
 
   function themeForBoard(b) {
@@ -225,7 +268,12 @@ export function createStore() {
     // par (and with it "best possible" + the 3-star goal on the win card).
     const token = ++playSeq
     setTimeout(() => { if (playSeq === token) board.par = parFor(b) }, 0)
+    saveGame()
   }
+
+  // the app opens in a game: the one in progress if there is one, else the
+  // player's current level. a ?level= or ?seed= link replaces it on mount.
+  if (typeof window !== 'undefined' && !restoreGame()) play(levelBoard(progress.current))
 
   return {
     // reactive reads
@@ -259,8 +307,8 @@ export function createStore() {
     tap,
     visibleRun,
     isTubeDone: t => isComplete(colorsOf(t), capacity) && !t.some(i => i.hid),
-    goMenu() { screen = 'menu' },
-    openLevels() { world = Math.floor((progress.current - 1) / WORLD_SIZE); screen = 'levels' },
+    goGame() { screen = 'game' },
+    openLevels() { world = Math.floor(((board?.kind === 'level' ? board.n : progress.current) - 1) / WORLD_SIZE); screen = 'levels' },
     setWorld(w) { world = Math.max(0, Math.min(WORLD_COUNT - 1, w)) },
     startLevel(n) { play(levelBoard(n)) },
     startDaily() { play(seedBoard(dailySeed())) },
@@ -279,6 +327,7 @@ export function createStore() {
       moves = last.moves
       won = null
       stuck = false
+      saveGame()
     },
     hint() {
       if (over) return true

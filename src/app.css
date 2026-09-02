@@ -136,10 +136,9 @@ h1 {
    reads without relying on the removed #sound id selector */
 .sound-toggle.muted { text-decoration: line-through; opacity: .62; }
 
-/* the in-game bottom nav: the house bar shape (craftrush / quarry). icon over a
-   tiny label reads at a glance and takes LESS height than the old fat chip row,
-   which gives the board back its vertical space. MENU is always one thumb away. */
-/* pinned edge to edge at the very bottom, safe-area aware (kidgames#5 rule 2) */
+/* the bottom bar: the house bar shape (craftrush / quarry), on every screen,
+   pinned edge to edge, safe-area aware (kidgames#5 rule 2). words only: a
+   short label reads at a glance and nothing has to be decoded. */
 #game-nav {
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -150,13 +149,10 @@ h1 {
   padding: .35rem .4rem calc(.35rem + env(safe-area-inset-bottom));
   background: rgb(61 50 48 / .92);
 }
-/* reserve the bar's height so the board never hides under it */
-#game { padding-bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
+/* reserve the bar's height so no screen hides under it */
+#game, #levels { padding-bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
 #game-nav button {
   flex: 1;
-  display: grid;
-  place-items: center;
-  gap: .05rem;
   min-height: 2.9rem;
   padding: .3rem 0;
   border: 0;
@@ -164,11 +160,41 @@ h1 {
   background: var(--card);
   color: var(--ink);
   font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .05em;
   cursor: pointer;
 }
-#game-nav button span { font-size: 1.1rem; line-height: 1; }
-#game-nav button b { font-size: .62rem; font-weight: 800; letter-spacing: .02em; }
+#game-nav button[data-active] { background: var(--accent); color: var(--ink-on-accent); }
 #game-nav button:active { transform: translateY(.1rem); }
+
+/* the update toast: one tap, straight into the new build */
+.toast {
+  position: fixed;
+  top: calc(.6rem + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 60;
+  translate: -50% 0;
+  min-height: 44px;
+  padding: .7rem 1.1rem;
+  border: .18rem solid var(--line);
+  border-radius: 1rem;
+  background: var(--accent);
+  box-shadow: 0 .3rem 0 var(--line);
+  color: var(--ink-on-accent);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  animation: toast-in .35s cubic-bezier(.3,1.4,.5,1);
+}
+@keyframes toast-in {
+  from { translate: -50% -140%; }
+  to { translate: -50% 0; }
+}
+
+/* the MORE sheet: the old front page's list, one tap away from any screen */
+.more-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .6rem; }
+.check-updates.ready { background: var(--accent); }
 
 /* ------------------------------------------------------------------- board */
 
