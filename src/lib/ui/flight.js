@@ -77,6 +77,21 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1.14)', opacity: 1, easing: 'ease-out', offset: 0.76 },
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
       ]
+    case 'mine':
+      // the block is MINED: three shudders under the pickaxe (actors.js swings
+      // on the same beats), gone at .28, carried over unseen, set down at .82.
+      // the invisible position swap is the carrier's job, not the block's.
+      return [
+        { transform: `${start} rotate(0deg) scale(1)`, opacity: 1, offset: 0 },
+        { transform: `translate(${dx - 3}px, ${dy + 1}px) rotate(-3deg) scale(1.02)`, opacity: 1, offset: 0.08 },
+        { transform: `translate(${dx + 3}px, ${dy - 1}px) rotate(3deg) scale(1)`, opacity: 1, offset: 0.16 },
+        { transform: `translate(${dx - 2}px, ${dy + 1}px) rotate(-3deg) scale(.96)`, opacity: 1, offset: 0.23 },
+        { transform: `${start} rotate(0deg) scale(.1)`, opacity: 0, offset: 0.28 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.29 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.82 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1.12)', opacity: 1, easing: 'ease-out', offset: 0.92 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
+      ]
     case 'flip':
       return [
         { transform: `${start} rotate(0deg)`, easing: LAUNCH, offset: 0 },
@@ -169,6 +184,7 @@ export function landingTimes(motion, count, verb = motion.land) {
   const beat = {
     screw: 0.52,
     breakpop: 0.76,
+    mine: 0.82,
     flip: 0.82,
     roll: 0.88,
     fly: 1,

@@ -83,7 +83,20 @@ function nut(key, face, lit, shade, mark) {
     // the edges
     `<path d="${TOP}" fill="none" stroke="#2A2220" stroke-width="2" stroke-linejoin="round"/>` +
     `<path d="M6 18 L6 50 L20 60 L44 60 L58 50 L58 18" fill="none" stroke="#2A2220" stroke-width="2.2" stroke-linejoin="round"/>` +
-    `<path d="M20 28 L20 60 M44 28 L44 60" stroke="#2A2220" stroke-width="1.2" opacity=".55"/>`
+    `<path d="M20 28 L20 60 M44 28 L44 60" stroke="#2A2220" stroke-width="1.2" opacity=".55"/>` +
+    // the rod rising out of the bore. hidden on nuts buried in a stack (the
+    // nut above covers it) and shown by app.css on the top nut and on a nut in
+    // flight, so the bolt visibly passes THROUGH the nut instead of stopping
+    // at it. same width as the bore, same thread pitch as the css post.
+    `<g class="nut-rod" display="none">` +
+    `<rect x="22.5" y="-30" width="19" height="48" fill="url(#${id}-r)"/>` +
+    `<rect x="22.5" y="-30" width="19" height="48" fill="url(#${id}-rs)"/>` +
+    `<path d="M22.5 -30 V18 M41.5 -30 V18" stroke="#2A2220" stroke-width="1.6"/>` +
+    `</g>` +
+    `<defs>` +
+    `<pattern id="${id}-r" width="19" height="6" patternUnits="userSpaceOnUse"><rect width="19" height="3" fill="#D3CCC4"/><rect y="3" width="19" height="2" fill="#8F877F"/><rect y="5" width="19" height="1" fill="#6E665F"/></pattern>` +
+    `<linearGradient id="${id}-rs" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient>` +
+    `</defs>`
   )
 }
 
