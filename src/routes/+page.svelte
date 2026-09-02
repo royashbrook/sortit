@@ -174,6 +174,10 @@
   <main class="screen" id="game">
     <header class="bar">
       <span class="chip flat" id="board-label">{store.boardLabel}</span>
+      <!-- looks are swappable mid-level: the store drops any in-flight cue on a
+           skin change, and the board, moves, and clock are untouched. it sits
+           before the readouts so it never crowds the version stamp top-right. -->
+      <button class="chip" onclick={() => store.openDialog('looks')} aria-label="Change the look"><span aria-hidden="true">&#10024;</span></button>
       <span class="chip flat mono" aria-label="time elapsed">{store.clock}</span>
       <span class="chip flat mono" aria-live="polite">{store.moves} {store.moves === 1 ? 'move' : 'moves'}</span>
     </header>
