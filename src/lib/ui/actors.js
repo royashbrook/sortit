@@ -78,18 +78,25 @@ export function mine(boardEl, trips, motion, hooks = {}) {
   for (let k = n - 1; k >= 0; k--) {
     const at = rel(trips[k].from)
     const pick = el('div', 'actor pickaxe', PICKAXE)
-    // the haft's end sits just off the block's right shoulder so the head
-    // swings down INTO the block rather than through it
-    pick.style.cssText = `left:${at.x + side * 0.72}px;top:${at.y - side * 0.34}px;width:${side * 1.18}px;height:${side * 1.18}px`
+    // keep the whole swing inside the board: a right-edge block is struck
+    // from its left shoulder with the same tool mirrored mechanically.
+    const fromLeft = at.x + side * 1.9 > board.width
+    if (fromLeft) pick.classList.add('from-left')
+    const left = fromLeft ? at.x - side * 0.9 : at.x + side * 0.72
+    const ready = fromLeft ? 52 : -52
+    const windup = fromLeft ? 62 : -62
+    const impact = fromLeft ? -28 : 28
+    const rest = fromLeft ? -24 : 24
+    pick.style.cssText = `left:${left}px;top:${at.y - side * 0.34}px;width:${side * 1.18}px;height:${side * 1.18}px`
     layer.appendChild(pick)
     const delay = (n - 1 - k) * d
     const a = pick.animate([
-      { transform: 'rotate(-52deg) scale(.96)', opacity: 0, offset: 0 },
-      { transform: 'rotate(-52deg) scale(1)', opacity: 1, offset: 0.12 },
-      { transform: 'rotate(-62deg) scale(1)', opacity: 1, easing: 'ease-out', offset: 0.34 },
-      { transform: 'rotate(28deg) scale(1.04)', opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: 0.72 },
-      { transform: 'rotate(24deg) scale(1)', opacity: 1, offset: 0.84 },
-      { transform: 'rotate(24deg) scale(1)', opacity: 0, offset: 1 },
+      { transform: `rotate(${ready}deg) scale(.96)`, opacity: 0, offset: 0 },
+      { transform: `rotate(${ready}deg) scale(1)`, opacity: 1, offset: 0.12 },
+      { transform: `rotate(${windup}deg) scale(1)`, opacity: 1, easing: 'ease-out', offset: 0.34 },
+      { transform: `rotate(${impact}deg) scale(1.04)`, opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: 0.72 },
+      { transform: `rotate(${rest}deg) scale(1)`, opacity: 1, offset: 0.84 },
+      { transform: `rotate(${rest}deg) scale(1)`, opacity: 0, offset: 1 },
     ], { duration: S * 0.38, delay, easing: 'linear', fill: 'both' })
     animations.push(a)
     settled.push(a.finished)
