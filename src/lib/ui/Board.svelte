@@ -108,6 +108,9 @@
       for (const a of node.getAnimations()) a.cancel()
       node.style.transformOrigin = ['screw', 'roll', 'breakpop'].includes(verb) ? '50% 50%' : '50% 80%'
       node.dataset.flightSeq = flightSeq
+      // css-side companions (a nut's turning band) sync to the same clock
+      node.style.setProperty('--flight-secs', `${motion.seconds}s`)
+      node.style.setProperty('--flight-delay', `${index * (motion.stagger ?? 0)}s`)
       node.classList.add('flying')
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
       const options = flightOptions(motion, index)

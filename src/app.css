@@ -261,32 +261,44 @@ h1 {
   border-radius: 0;
   background: transparent;
 }
-[data-skin="bolts"] .tube::before { /* the shaft: lit steel, helical thread */
+[data-skin="bolts"] .tube::before { /* the threaded post, rounded at the top */
   content: '';
   position: absolute;
-  inset: 0 auto 5px 50%;
-  width: 12px;
+  inset: 0 auto 6px 50%;
+  width: 34%;
+  min-width: 14px;
   translate: -50% 0;
   background:
-    linear-gradient(90deg, rgb(255 255 255 / .55), rgb(255 255 255 / 0) 45%, rgb(0 0 0 / .25) 90%),
-    repeating-linear-gradient(-24deg, #C9C1B8 0 3px, #918880 3px 6px, #6E665F 6px 7px);
+    linear-gradient(90deg, rgb(255 255 255 / .6), rgb(255 255 255 / 0) 40%, rgb(0 0 0 / .3) 92%),
+    repeating-linear-gradient(180deg, #D3CCC4 0 3px, #8F877F 3px 5px, #6E665F 5px 6px);
   border: 2px solid var(--line);
   border-bottom: 0;
-  border-radius: 5px 5px 0 0;
-  box-shadow: 3px 0 5px -2px rgb(61 50 48 / .4);
+  border-radius: 45% 45% 0 0 / 22% 22% 0 0;
+  box-shadow: 4px 0 6px -3px rgb(61 50 48 / .45);
 }
-[data-skin="bolts"] .tube::after { /* the bolt head above the rim */
+[data-skin="bolts"] .tube::after { /* the washer the column stands on */
   content: '';
   position: absolute;
-  top: -7px; left: 50%;
-  width: 26px; height: 10px;
+  bottom: -4px; left: 50%;
+  width: 96%; height: 14px;
   translate: -50% 0;
-  background: linear-gradient(180deg, #E8E2DA, #A89F96);
+  background: radial-gradient(ellipse at 40% 35%, #E4DED7, #A29A92 70%, #7A736C);
   border: 2px solid var(--line);
-  border-radius: 4px;
+  border-radius: 50%;
 }
+[data-skin="bolts"] .tube { border-bottom-color: transparent; }
 [data-skin="bolts"] .item { position: relative; z-index: 1; padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
-[data-skin="bolts"] .item svg { scale: .96; }
+[data-skin="bolts"] .item svg { scale: 1.04; overflow: visible; }
+/* a flying nut TURNS about the bolt: its side-face band slides one full turn
+   (two periods of 52 svg units) across the flight, timed to the same seconds
+   and stagger delay the Board gave the trip, so the band ends where it began */
+[data-skin="bolts"] .item.flying .nut-band {
+  animation: nutspin var(--flight-secs, .5s) linear var(--flight-delay, 0s) 1;
+}
+@keyframes nutspin {
+  from { transform: translateX(0); }
+  to { transform: translateX(-104px); }
+}
 [data-skin="bolts"] .tube.sel { box-shadow: none; }
 
 /* block mine: a bright day over dug shafts. the pieces are 2.5d cubes with

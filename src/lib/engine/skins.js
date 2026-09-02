@@ -31,7 +31,9 @@ export const SKINS = [
     title: 'Nuts & Bolts',
     pieces: bolts.pieces,
     hidden: bolts.hidden,
-    motion: { seconds: .56, lift: 1.25, spin: -720, stagger: .08, land: 'screw' },
+    // spin 0: the nut turns about the bolt via its own side band (app.css
+    // nutspin), a planar rotate would read as tumbling in three-quarter view
+    motion: { seconds: .6, lift: 1.25, spin: 0, stagger: .09, land: 'screw' },
     sound: 'metal',
     preview:
       `<rect x="29" y="2" width="6" height="60" fill="#B9AFA6" stroke="#2A2220" stroke-width="2"/>` +
