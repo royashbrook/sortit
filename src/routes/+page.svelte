@@ -37,7 +37,20 @@
 
     // kit polls the deployed version on its own interval; coming back to the
     // app is the moment a player would want to know, so ask right then too
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) updated.check().catch(() => {}) })
+    const onVisibility = () => {
+      store.setVisible(!document.hidden)
+      if (!document.hidden) updated.check().catch(() => {})
+    }
+    const onPageHide = () => store.setVisible(false)
+    const onPageShow = () => store.setVisible(true)
+    document.addEventListener('visibilitychange', onVisibility)
+    addEventListener('pagehide', onPageHide)
+    addEventListener('pageshow', onPageShow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      removeEventListener('pagehide', onPageHide)
+      removeEventListener('pageshow', onPageShow)
+    }
   })
 
   function toggleSound() { muted = sound.toggle() }
@@ -156,6 +169,7 @@
       <button onclick={() => store.openLevels()}>LEVELS</button>
       <button onclick={doHint}>HINT</button>
       <button onclick={() => store.undo()}>UNDO</button>
+      <button onclick={() => store.replay()}>RESET</button>
       <button onclick={() => store.openDialog('looks')}>LOOKS</button>
       <button onclick={() => store.openDialog('more')}>MORE</button>
     </nav>

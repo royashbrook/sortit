@@ -12,6 +12,7 @@ import { dailySeed } from '../engine/seed.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
 import { landingTimes } from './flight.js'
+import { createPlayClock, formatPlayTime } from './play-clock.js'
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
@@ -76,8 +77,7 @@ export function createStore() {
   let history = []                  // undo snapshots (not reactive: read only on undo)
   let seen = new Set()
   let uidNext = 0
-  let clockStart = null
-  let clockStopped = null
+  const playClock = createPlayClock()
   let dialog = $state(null)         // 'howto' | 'looks' | 'about' | null
   let hintTubes = $state([])        // indices the hint button flashes
   let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
@@ -87,9 +87,8 @@ export function createStore() {
   const numeric = () => tubes.map(colorsOf)
 
   function tick() {
-    if (clockStart == null || clockStopped != null || screen !== 'game') return
-    const s = Math.floor((Date.now() - clockStart) / 1000)
-    clockText = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+    if (screen !== 'game') return
+    clockText = formatPlayTime(playClock.elapsed())
   }
   if (typeof window !== 'undefined') setInterval(tick, 500)
 
@@ -135,7 +134,7 @@ export function createStore() {
 
   function finishWin() {
     over = true
-    clockStopped = Date.now()
+    playClock.stop()
     tick()
     const stars = starsFor(moves, board.par, board.solution.length)
     let detail = `sorted in ${moves} moves, ${clockText}!`
@@ -171,7 +170,7 @@ export function createStore() {
       localStorage.setItem(GAME_KEY, JSON.stringify({
         kind: board.kind, n: board.n, seed: board.seed,
         tubes: $state.snapshot(tubes), moves, history,
-        elapsed: clockStart == null ? 0 : Date.now() - clockStart,
+        elapsed: playClock.elapsed(),
         seen: [...seen],
       }))
     } catch { /* a blocked store only costs the resume */ }
@@ -192,7 +191,7 @@ export function createStore() {
       moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
       history = Array.isArray(raw.history) ? raw.history : []
       seen = new Set(Array.isArray(raw.seen) ? raw.seen : [])
-      clockStart = Date.now() - (Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0)
+      playClock.start(Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0, document.hidden)
       tick()
       stuck = !anyPlayerMove()
       return true
@@ -257,8 +256,7 @@ export function createStore() {
     stuck = false
     won = null
     seen = new Set()
-    clockStart = Date.now()
-    clockStopped = null
+    playClock.start(0, typeof document !== 'undefined' && document.hidden)
     clockText = '0:00'
     revealTops(false)
     screen = 'game'
@@ -307,8 +305,18 @@ export function createStore() {
     tap,
     visibleRun,
     isTubeDone: t => isComplete(colorsOf(t), capacity) && !t.some(i => i.hid),
-    goGame() { screen = 'game' },
-    openLevels() { world = Math.floor(((board?.kind === 'level' ? board.n : progress.current) - 1) / WORLD_SIZE); screen = 'levels' },
+    goGame() {
+      screen = 'game'
+      if (typeof document === 'undefined' || !document.hidden) playClock.resume()
+      tick()
+    },
+    openLevels() {
+      playClock.pause()
+      tick()
+      saveGame()
+      world = Math.floor(((board?.kind === 'level' ? board.n : progress.current) - 1) / WORLD_SIZE)
+      screen = 'levels'
+    },
     setWorld(w) { world = Math.max(0, Math.min(WORLD_COUNT - 1, w)) },
     startLevel(n) { play(levelBoard(n)) },
     startDaily() { play(seedBoard(dailySeed())) },
@@ -347,6 +355,16 @@ export function createStore() {
     setShellTheme(next) { shellTheme = next; saveTheme(next.key); applyTheme(next) },
     openDialog(d) { dialog = d },
     closeDialog() { dialog = null },
+    setVisible(visible) {
+      if (!visible) {
+        playClock.pause()
+        tick()
+        saveGame()
+      } else if (screen === 'game' && !over) {
+        playClock.resume()
+        tick()
+      }
+    },
     // two tabs writing one store: adopt the better of the two rather than clobber
     mergeExternalProgress() {
       const incoming = loadProgress()
