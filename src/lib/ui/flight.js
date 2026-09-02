@@ -64,6 +64,58 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: 'translate(0px, -2px) rotate(0deg)', easing: 'ease-in-out', offset: 0.92 },
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1,1)', offset: 1 },
       ]
+    case 'breakpop':
+      // Mine conversion: the source block shudders apart, disappears, then
+      // respawns in the destination. The invisible one-frame position swap is
+      // deliberate: this is a destroy/create verb, not a flying block.
+      return [
+        { transform: `${start} rotate(0deg) scale(1)`, opacity: 1, offset: 0 },
+        { transform: `translate(${dx - 3}px, ${dy + 1}px) rotate(-4deg) scale(1.04)`, opacity: 1, offset: 0.2 },
+        { transform: `translate(${dx + 3}px, ${dy - 1}px) rotate(4deg) scale(.88)`, opacity: 0.85, offset: 0.34 },
+        { transform: `${start} rotate(0deg) scale(.08)`, opacity: 0, offset: 0.45 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.08)', opacity: 0, offset: 0.46 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1.14)', opacity: 1, easing: 'ease-out', offset: 0.76 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
+      ]
+    case 'flip':
+      return [
+        { transform: `${start} rotate(0deg)`, easing: LAUNCH, offset: 0 },
+        { transform: `${peak(0.42)} rotate(${spin * 0.55}deg)`, easing: CRUISE, offset: 0.46 },
+        { transform: `translate(0px, -4px) rotate(${spin}deg) scale(1.08,.92)`, easing: 'ease-out', offset: 0.82 },
+        { transform: `translate(0px, 0px) rotate(${settled(spin)}deg) scale(1,1)`, offset: 1 },
+      ]
+    case 'roll': {
+      const turns = spin % 360 === 0 ? spin * 2 : 720
+      return [
+        { transform: `${start} rotate(0deg)`, easing: 'ease-in', offset: 0 },
+        { transform: `${peak(0.28)} rotate(${turns * 0.45}deg)`, easing: 'linear', offset: 0.44 },
+        { transform: `translate(0px, 0px) rotate(${turns}deg) scale(1.08,.92)`, easing: 'ease-out', offset: 0.88 },
+        { transform: `translate(0px, 0px) rotate(${turns}deg) scale(1,1)`, offset: 1 },
+      ]
+    }
+    case 'fly':
+      return [
+        { transform: `${start} rotate(0deg) scale(.96)`, easing: 'ease-in', offset: 0 },
+        { transform: `${peak(0.35)} rotate(-16deg) scale(1.04)`, easing: CRUISE, offset: 0.38 },
+        { transform: `translate(${dx * 0.22}px, ${peakRel * 0.58}px) rotate(10deg) scale(1.03)`, easing: 'ease-out', offset: 0.68 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1,1)', offset: 1 },
+      ]
+    case 'hover':
+      return [
+        { transform: `${start} rotate(0deg)`, easing: 'ease-in-out', offset: 0 },
+        { transform: `${peak(0.32)} rotate(-5deg) translateY(-3px)`, easing: 'ease-in-out', offset: 0.34 },
+        { transform: `translate(${dx * 0.28}px, ${peakRel * 0.72}px) rotate(5deg) translateY(3px)`, easing: 'ease-in-out', offset: 0.64 },
+        { transform: 'translate(0px, -4px) rotate(0deg)', easing: 'ease-out', offset: 0.88 },
+        { transform: 'translate(0px, 0px) rotate(0deg)', offset: 1 },
+      ]
+    case 'zig':
+      return [
+        { transform: `${start} rotate(0deg)`, easing: 'linear', offset: 0 },
+        { transform: `translate(${dx * 0.72}px, ${peakRel}px) rotate(-18deg)`, easing: 'linear', offset: 0.28 },
+        { transform: `translate(${dx * 0.46}px, ${dy * 0.25}px) rotate(18deg)`, easing: 'linear', offset: 0.5 },
+        { transform: `translate(${dx * 0.2}px, ${peakRel * 0.55}px) rotate(-18deg)`, easing: 'linear', offset: 0.72 },
+        { transform: 'translate(0px, 0px) rotate(0deg)', offset: 1 },
+      ]
     default:
       // 'drop': the plain arc with a soft touch
       return [
@@ -82,14 +134,30 @@ export function flightOptions(motion, index) {
   return {
     duration: Math.max(1, motion.seconds * 1000),
     delay: index * (motion.stagger ?? 0) * 1000,
-    easing: motion.ease ?? 'linear',
+    // Segment keyframes own their easing. A second effect-level easing bends
+    // the offsets themselves, so audio scheduled at a touchdown offset lands
+    // visibly early or late.
+    easing: 'linear',
     fill: 'backwards',
   }
 }
 
 // when each landing happens on the audio clock, so sounds.js can schedule the
 // material's note per item without a js timer racing the compositor.
-export function landingTimes(motion, count) {
-  const beat = { screw: 0.52, bounce: 0.78, slide: 0.92, zip: 1, float: 0.82, drop: 0.86 }[motion.land] ?? 0.86
+export function landingTimes(motion, count, verb = motion.land) {
+  const beat = {
+    screw: 0.52,
+    breakpop: 0.76,
+    flip: 0.82,
+    roll: 0.88,
+    fly: 1,
+    hover: 0.88,
+    zig: 1,
+    bounce: 0.78,
+    slide: 0.92,
+    zip: 1,
+    float: 0.82,
+    drop: 0.86,
+  }[verb] ?? 0.86
   return Array.from({ length: count }, (_, i) => motion.seconds * beat + i * (motion.stagger ?? 0))
 }

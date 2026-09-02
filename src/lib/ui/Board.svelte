@@ -67,14 +67,27 @@
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
       if (!node) continue
       const tube = node.closest('.tube')
-      before.set(uid, { rect: node.getBoundingClientRect(), tubeTop: tube ? tube.getBoundingClientRect().top : 0 })
+      before.set(uid, {
+        rect: node.getBoundingClientRect(),
+        tubeTop: tube ? tube.getBoundingClientRect().top : 0,
+        verb: node.dataset.verb || 'drop',
+      })
     }
   })
   $effect(() => {
-    store.moveSeq
-    if (!boardEl || !before.size) return
+    const flightSeq = String(store.moveSeq)
+    if (!boardEl) return
+    // A rapid second move or undo owns the node now. Cancel the old compositor
+    // work before starting (or declining) this sequence; its settled promise
+    // is sequence-guarded below so it cannot tear down the new flight's cue.
+    for (const node of boardEl.querySelectorAll('.item.flying')) {
+      if (node.dataset.flightSeq === flightSeq) continue
+      for (const animation of node.getAnimations()) animation.cancel()
+      node.classList.remove('flying')
+    }
+    if (!before.size) return
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
-    const motion = store.skin.motion ?? { seconds: .22, lift: 1, spin: 0, ease: 'ease', stagger: 0, land: 'drop' }
+    const motion = store.skin.motion ?? { seconds: .22, lift: 1, spin: 0, stagger: 0, land: 'drop' }
     let index = 0
     for (const [uid, from] of before) {
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
@@ -85,21 +98,34 @@
       // the arc peaks above BOTH mouths, so a trip between rows still clears
       const peakRel = Math.min(from.tubeTop, destTop) - to.top - motion.lift * side
       const rimRel = Math.min(-2, destTop - to.top)
-      const keyframes = flightKeyframes(motion.land, {
+      const verb = from.verb || motion.land
+      const keyframes = flightKeyframes(verb, {
         dx: from.rect.left - to.left,
         dy: from.rect.top - to.top,
         peakRel, rimRel,
         spin: motion.spin ?? 0,
       })
       for (const a of node.getAnimations()) a.cancel()
-      node.style.transformOrigin = motion.land === 'screw' ? '50% 50%' : '50% 80%'
+      node.style.transformOrigin = ['screw', 'roll', 'breakpop'].includes(verb) ? '50% 50%' : '50% 80%'
+      node.dataset.flightSeq = flightSeq
       node.classList.add('flying')
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
-      const anim = node.animate(keyframes, flightOptions(motion, index))
+      const options = flightOptions(motion, index)
+      const anim = node.animate(keyframes, options)
+      // a broken block bursts where it BROKE, at the source, when the shudder
+      // ends (the flight's own timing), not where it respawns
+      if (burst && verb === 'breakpop') {
+        setTimeout(() => {
+          if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
+        }, options.delay + options.duration * 0.42)
+      }
       anim.finished.then(() => {
+        if (node.dataset.flightSeq !== flightSeq) return
         node.classList.remove('flying')
-        if (burst) fx.land(node.getBoundingClientRect(), motion.land, store.theme?.items.map(i => i.color) ?? [])
-      }).catch(() => node.classList.remove('flying'))
+        if (burst) fx.land(node.getBoundingClientRect(), verb, artColors())
+      }).catch(() => {
+        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
+      })
       index += 1
     }
     before = new Map()
@@ -119,12 +145,19 @@
   })
 
   const HID_ART = '<circle cx="32" cy="32" r="22" fill="#C9BCB2" stroke="#3D3230" stroke-width="3"/><path d="M26 28 Q26 21 32 21 Q38 21 38 27 Q38 32 32 33 L32 36" stroke="#3D3230" stroke-width="3.6" fill="none" stroke-linecap="round"/><circle cx="32" cy="43" r="2.4" fill="#3D3230"/>'
-  const artFor = item => item.hid ? HID_ART : store.theme.items[item.c].svg
+  const pieceFor = item => store.skin.pieces?.[item.c] ?? store.theme.items[item.c]
+  const artFor = item => item.hid ? (store.skin.hidden ?? HID_ART) : pieceFor(item).svg
+  const verbFor = item => pieceFor(item)?.verb ?? store.skin.motion?.land ?? 'drop'
+  const artColors = () => (store.skin.pieces ?? store.theme?.items ?? []).map(item => item.color)
+  const pieceColor = uid => {
+    for (const tube of store.tubes) for (const item of tube) if (item.uid === uid) return pieceFor(item).color
+    return '#8A6142'
+  }
 
   // the vanilla rich label: a screen-reader player solves by contents, so name
   // each piece (or "mystery"), or "empty"
   const tubeLabel = (index) => {
-    const named = store.tubes[index].map(i => i.hid ? 'mystery' : store.theme.items[i.c].key)
+    const named = store.tubes[index].map(i => i.hid ? 'mystery' : pieceFor(i).key)
     return `tube ${index + 1}: ${named.join(', ') || 'empty'}`
   }
 
@@ -157,7 +190,13 @@
           aria-label={tubeLabel(index)}
         >
           {#each store.tubes[index] as item (item.uid)}
-            <span class="item" class:hid={item.hid} class:lift={isLifted(index, item)} data-uid={item.uid}>
+            <span
+              class="item"
+              class:hid={item.hid}
+              class:lift={isLifted(index, item)}
+              data-uid={item.uid}
+              data-verb={verbFor(item)}
+            >
               <svg viewBox="0 0 64 64" aria-hidden="true">{@html artFor(item)}</svg>
             </span>
           {/each}
