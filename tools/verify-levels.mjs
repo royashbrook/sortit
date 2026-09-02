@@ -47,7 +47,7 @@ for (let n = 1; n <= LEVEL_COUNT; n++) {
 console.log('  determinism: second pass identical')
 
 // the par table: right shape, and EVERY entry re-proved against the exact
-// solver (ludo's cold review: a fixed sample lets the other 560 drift forever;
+// solver (a fixed sample lets the other 560 drift forever;
 // the full regeneration costs ~95s and exact-table provenance is the promise)
 if (PARS.length !== LEVEL_COUNT) { console.error(`pars.js has ${PARS.length} entries, want ${LEVEL_COUNT}`); process.exit(1) }
 for (let n = 1; n <= LEVEL_COUNT; n++) {

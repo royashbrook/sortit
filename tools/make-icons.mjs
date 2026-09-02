@@ -1,4 +1,4 @@
-// Build the install icons from Roy's selected Sort Stream source art.
+// Build the install icons from the selected Sort Stream source art.
 // Plain Node keeps this reproducible without adding an image dependency.
 import { deflateSync, inflateSync } from 'node:zlib'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'

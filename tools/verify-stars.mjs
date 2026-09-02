@@ -1,5 +1,5 @@
 // guards the star behaviours that used to live only in a reviewer's head
-// (ludo's cold review: the curve, the backfill, and the never-downgrade rule
+// (the curve, the backfill, and the never-downgrade rule
 // were all unguarded because CI only ran verify-levels).
 //
 //   node tools/verify-stars.mjs

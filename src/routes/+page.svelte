@@ -5,6 +5,15 @@
   import { dailySeed } from '$lib/engine/seed.js'
   import { updated } from '$app/state'
   import { sound } from '$lib/ui/sounds.js'
+  import QRCode from 'qrcode'
+  import {
+    codeFromHash,
+    encodeSave,
+    hasRollback,
+    importSave,
+    restoreRollback,
+    saveLink,
+  } from '$lib/ui/save-transfer.js'
   import Board from '$lib/ui/Board.svelte'
   import Modal from '$lib/ui/Modal.svelte'
 
@@ -16,6 +25,13 @@
   let installable = $state(false)
   let iosInstall = $state(false)
   let updateState = $state('')
+  let saveCode = $state('')
+  let saveImport = $state('')
+  let transferMsg = $state('')
+  let qrShown = $state(false)
+  let rollbackReady = $state(false)
+  let saveCodeEl = $state()
+  let qrCanvas = $state()
 
   // a shared link drops the player onto their friend's exact board
   onMount(() => {
@@ -24,6 +40,12 @@
     const seed = Number.parseInt(params.get('seed') ?? '', 10)
     if (Number.isFinite(lvl) && lvl >= 1 && lvl <= LEVEL_COUNT) store.startLevel(lvl)
     else if (Number.isFinite(seed) && seed > 0) store.startSeed(seed)
+
+    const incomingSave = codeFromHash(location.hash)
+    if (incomingSave) {
+      history.replaceState(null, '', location.pathname + location.search)
+      void openTransfer(incomingSave)
+    }
 
     // install helper (shell): hidden until genuinely installable; ios gets a hint
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -82,6 +104,67 @@
       return
     }
     if (iosInstall) store.openDialog('ios-install')
+  }
+
+  async function openTransfer(incoming = '') {
+    store.openDialog('transfer')
+    saveImport = incoming
+    qrShown = false
+    rollbackReady = hasRollback()
+    transferMsg = 'building your save code...'
+    try {
+      saveCode = await encodeSave()
+      transferMsg = incoming ? 'a save arrived. tap LOAD THIS SAVE to use it.' : 'ready to move.'
+    } catch (error) {
+      saveCode = ''
+      transferMsg = error?.message ?? 'your save could not be read.'
+    }
+  }
+
+  async function copySave() {
+    if (!saveCode) return
+    let copied = false
+    try { await navigator.clipboard.writeText(saveCode); copied = true } catch { /* select fallback below */ }
+    if (!copied) {
+      try { saveCodeEl?.select(); copied = document.execCommand('copy') } catch { /* manual copy remains */ }
+    }
+    transferMsg = copied ? 'copied. open the new shortcut and paste it here.' : 'select the code and copy it.'
+  }
+
+  async function showSaveQr() {
+    if (!saveCode || !qrCanvas) return
+    transferMsg = 'building the QR code...'
+    try {
+      await QRCode.toCanvas(qrCanvas, saveLink(saveCode), { errorCorrectionLevel: 'L', margin: 2, width: 260 })
+      qrShown = true
+      transferMsg = 'scan this with the other device.'
+    } catch {
+      qrShown = false
+      transferMsg = 'this save is too big for a QR code. use COPY SAVE CODE.'
+    }
+  }
+
+  async function loadSave() {
+    if (!saveImport.trim()) { transferMsg = 'paste a save code first.'; return }
+    if (!confirm('Replace this shortcut\'s progress? Its current save will be kept as a one-step rollback.')) return
+    try {
+      await importSave(saveImport)
+      transferMsg = 'progress moved. restarting...'
+      setTimeout(() => location.reload(), 500)
+    } catch (error) {
+      transferMsg = error?.message ?? 'that save code did not work.'
+    }
+  }
+
+  function useRollback() {
+    if (!confirm('Put back the save from before the last transfer?')) return
+    try {
+      restoreRollback()
+      transferMsg = 'old save restored. restarting...'
+      setTimeout(() => location.reload(), 500)
+    } catch (error) {
+      transferMsg = error?.message ?? 'the rollback could not be restored.'
+    }
   }
 
   // kit's own version check: `updated.current` is true when the DEPLOYED version
@@ -208,11 +291,34 @@
         <button class="big secondary" onclick={() => { store.startDaily(); close() }}>TODAY'S PUZZLE</button>
         <button class="big secondary" onclick={() => store.openDialog('howto')}>HOW TO PLAY</button>
         <button class="big secondary sound-toggle" class:muted onclick={toggleSound} aria-pressed={!muted}>SOUND {muted ? 'OFF' : 'ON'}</button>
+        <button class="big secondary" onclick={() => openTransfer()}>MOVE MY SAVE</button>
         {#if installable}<button class="big secondary" onclick={doInstall}>ADD TO HOME SCREEN</button>{/if}
         <button class="big secondary" onclick={() => store.openDialog('about')}>ABOUT</button>
       </div>
       <p class="ethos">no ads &middot; no timers &middot; nothing to buy &middot; no cookies</p>
       <button class="big" onclick={close}>BACK</button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if store.dialog === 'transfer'}
+  <Modal label="Move my save" onclose={() => store.closeDialog()}>
+    {#snippet children(close)}
+      <h2>Move my save</h2>
+      <p class="small">On this phone, use COPY SAVE CODE in the old shortcut. Open the new shortcut, come back here, paste it, and tap LOAD THIS SAVE.</p>
+      <div class="transfer-actions">
+        <button class="big" disabled={!saveCode} onclick={copySave}>COPY SAVE CODE</button>
+        <button class="big secondary" disabled={!saveCode} onclick={showSaveQr}>SHOW AS QR CODE</button>
+      </div>
+      <canvas class="save-qr" bind:this={qrCanvas} hidden={!qrShown} aria-label="QR code containing a Sort It save link"></canvas>
+      <textarea class="save-code" readonly bind:this={saveCodeEl} aria-label="Your save code">{saveCode}</textarea>
+      <label class="save-label" for="save-import">Paste a save code here:</label>
+      <textarea id="save-import" class="save-code" bind:value={saveImport} spellcheck="false" placeholder="si1..."></textarea>
+      <button class="big" onclick={loadSave}>LOAD THIS SAVE</button>
+      {#if rollbackReady}<button class="big secondary" onclick={useRollback}>UNDO LAST TRANSFER</button>{/if}
+      <p class="transfer-status" role="status" aria-live="polite">{transferMsg}</p>
+      <p class="small center">Nothing is uploaded. The QR carries the save inside the link.</p>
+      <button class="big secondary" onclick={close}>BACK</button>
     {/snippet}
   </Modal>
 {/if}
