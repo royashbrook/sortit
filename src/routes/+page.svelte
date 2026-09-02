@@ -43,7 +43,6 @@
 
     const incomingSave = codeFromHash(location.hash)
     if (incomingSave) {
-      history.replaceState(null, '', location.pathname + location.search)
       void openTransfer(incomingSave)
     }
 
@@ -150,10 +149,20 @@
     try {
       await importSave(saveImport)
       transferMsg = 'progress moved. restarting...'
+      clearSaveLink()
       setTimeout(() => location.reload(), 500)
     } catch (error) {
       transferMsg = error?.message ?? 'that save code did not work.'
     }
+  }
+
+  function clearSaveLink() {
+    if (codeFromHash(location.hash)) location.replace(location.pathname + location.search)
+  }
+
+  function closeTransfer(close) {
+    close()
+    clearSaveLink()
   }
 
   function useRollback() {
@@ -302,7 +311,7 @@
 {/if}
 
 {#if store.dialog === 'transfer'}
-  <Modal label="Move my save" onclose={() => store.closeDialog()}>
+  <Modal label="Move my save" onclose={() => closeTransfer(() => store.closeDialog())}>
     {#snippet children(close)}
       <h2>Move my save</h2>
       <p class="small">On this phone, use COPY SAVE CODE in the old shortcut. Open the new shortcut, come back here, paste it, and tap LOAD THIS SAVE.</p>
