@@ -151,6 +151,10 @@ if (!CSS.includes('#board[data-skin="bolts"] { gap: 2px; }')) fail('bolts: row g
 if (!CSS.includes('* -62 / 64')) fail('bolts: the side band no longer completes a scaled mechanical turn')
 if (!CSS.includes('z-index: var(--stack-depth, 1)')) fail('bolts: upper nuts no longer paint over lower nuts')
 if (!BOARD.includes('style:--stack-depth={itemIndex + 1}')) fail('bolts: stack order no longer puts upper nuts in front')
+const boltShaft = /\[data-skin="bolts"\] \.tube::before \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? ''
+const boltHead = /\[data-skin="bolts"\] \.tube::after \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? ''
+if (!boltShaft.includes('repeating-linear-gradient(168deg')) fail('bolts: shaft threads no longer read as a helix')
+if (!boltShaft.includes('z-index: 1') || !boltHead.includes('z-index: 0')) fail('bolts: carriage head no longer sits behind its shaft')
 const mine = SKINS.find(skin => skin.key === 'mine')
 if ((mine?.motion.seconds ?? 2) >= 1) fail('mine: performance is no longer sub-one-second')
 const middleStrike = pickaxeSwing(80, 40, 320)
