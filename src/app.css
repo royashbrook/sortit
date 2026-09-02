@@ -291,10 +291,11 @@ h1 {
 [data-skin="bolts"] .tube { border-bottom-color: transparent; }
 [data-skin="bolts"] .item { position: relative; z-index: 1; padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
 [data-skin="bolts"] .item svg { scale: 1.04; overflow: visible; }
-/* the rod rises out of the TOP nut's bore, and out of a nut in flight, so the
-   bolt passes through the nut. a buried nut has the nut above covering it. */
-[data-skin="bolts"] .item:last-child .nut-rod,
-[data-skin="bolts"] .item.flying .nut-rod { display: block; }
+/* every nut shows the rod rising out of its bore: on the top nut it climbs into
+   the open, on a buried nut the nut above covers all but the short run between
+   them, which is exactly what a threaded stack looks like. hidden on none, or
+   the bore of every lower nut reads empty and the rod seems to stop at each. */
+[data-skin="bolts"] .nut-rod { display: block; }
 /* a flying nut TURNS about the bolt: its side-face band slides one full turn
    (two periods of 52 svg units) across the flight, timed to the same seconds
    and stagger delay the Board gave the trip, so the band ends where it began */
