@@ -252,7 +252,7 @@ h1 {
 .item {
   display: block;
   width: var(--side, 44px);
-  height: var(--side, 44px);
+  height: var(--item-h, var(--side, 44px));
   padding: 2px;
   will-change: transform;
   transition: transform .18s ease;
@@ -278,18 +278,17 @@ h1 {
 /* the landing-effects canvas: above the board, below the win sheet */
 .fxlayer { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
 
-/* nuts & bolts: a machined bolt up the middle, coloured hex nuts riding it.
-   the shaft's angled thread and the nut's own bevel (in its svg) are what
-   make the screw-down landing read as threading, not spinning. */
+/* nuts & bolts: one machined post per tube, with coloured hex nuts riding it.
+   the shaft's angled thread and the nut's bevel make the landing read as a
+   mechanical screw move without drawing a second rod through every piece. */
 [data-skin="bolts"] .tube {
   border-color: transparent;
   border-bottom: .3rem solid var(--line);
   border-radius: 0;
   background: transparent;
 }
-/* the bolt: a straight threaded rod, flat on top (a bolt, not a screw), as
-   wide as the nut's bore so the rod segment drawn inside the top nut lines
-   up with it. the thread pitch is 6/64 of a side, the same as the nut's. */
+/* the bolt: a straight threaded rod, flat on top (a bolt, not a screw), and
+   narrow enough to stay inside the nuts' central bore. */
 [data-skin="bolts"] .tube::before {
   content: '';
   position: absolute;
@@ -316,23 +315,18 @@ h1 {
 }
 [data-skin="bolts"] .tube { border-bottom-color: transparent; }
 [data-skin="bolts"] .item { position: relative; z-index: 1; padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
-[data-skin="bolts"] .item svg { scale: 1.04; overflow: visible; }
-/* every nut shows the rod rising out of its bore: on the top nut it climbs into
-   the open, on a buried nut the nut above covers all but the short run between
-   them, which is exactly what a threaded stack looks like. hidden on none, or
-   the bore of every lower nut reads empty and the rod seems to stop at each. */
-[data-skin="bolts"] .nut-rod { display: block; }
-/* in the air a nut flies BARE: no rod through it, no turning. once it is over
-   the post and threading down (the Board flips .threading at the descent
-   beat) the rod appears through it and its side-face band slides one full
-   turn (two periods of 52 svg units) across the rest of the trip. */
-[data-skin="bolts"] .item.flying:not(.threading) .nut-rod { display: none; }
-[data-skin="bolts"] .item.threading .nut-band {
-  animation: nutspin calc(var(--flight-secs, .5s) * .48) linear 1;
+[data-skin="bolts"] .item svg { overflow: visible; }
+/* the tube owns the only post. the nut owns only its turning side band: first
+   it backs off the source thread, holds while crossing, then winds onto the
+   destination. no per-piece rod means no doubled shafts or fake gaps. */
+[data-skin="bolts"] .item.flying .nut-band {
+  animation: nutspin var(--flight-secs, .48s) linear 1;
 }
 @keyframes nutspin {
   from { transform: translateX(0); }
-  to { transform: translateX(-104px); }
+  22% { transform: translateX(112px); }
+  58% { transform: translateX(112px); }
+  to { transform: translateX(0); }
 }
 [data-skin="bolts"] .tube.sel { box-shadow: none; }
 

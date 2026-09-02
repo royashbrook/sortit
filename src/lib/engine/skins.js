@@ -32,9 +32,12 @@ export const SKINS = [
     title: 'Nuts & Bolts',
     pieces: bolts.pieces,
     hidden: bolts.hidden,
+    pieceRatio: .625,
+    pieceViewBox: '0 0 64 40',
+    tubeLip: 22,
     // spin 0: the nut turns about the bolt via its own side band (app.css
     // nutspin), a planar rotate would read as tumbling in three-quarter view
-    motion: { seconds: .6, lift: 1.25, spin: 0, stagger: .09, land: 'screw' },
+    motion: { seconds: .48, lift: .75, spin: 0, stagger: .06, land: 'screw' },
     sound: 'metal',
     preview:
       `<rect x="29" y="2" width="6" height="60" fill="#B9AFA6" stroke="#2A2220" stroke-width="2"/>` +
@@ -45,9 +48,9 @@ export const SKINS = [
     title: 'Block Mine',
     pieces: mine.pieces,
     hidden: mine.hidden,
-    // a mined move is long on purpose: pickaxe swings, the carrier's trip,
-    // the set-down. stagger is small so a run is one trip, not a queue.
-    motion: { seconds: 1.3, lift: 0, spin: 0, stagger: .08, land: 'mine' },
+    // one clear strike, one carrier trip, one set-down. quick enough that the
+    // performance explains the move without making the player wait for it.
+    motion: { seconds: .9, lift: 0, spin: 0, stagger: .06, land: 'mine' },
     sound: 'stone',
     preview: stack(mine.pieces[1].svg, mine.pieces[0].svg),
   },

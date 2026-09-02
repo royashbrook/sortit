@@ -6,17 +6,18 @@
 // the side faces live in a wide band under a clip. app.css slides that band
 // sideways while a nut is flying, so a nut screwing down the post visibly
 // TURNS about the bolt instead of tumbling in the plane of the screen.
-// drawn for a viewBox of 0 0 64 64.
+// drawn for a viewBox of 0 0 64 40. the short viewBox is deliberate: a nut
+// is squat hardware, not a square game tile. Board uses the skin's pieceRatio
+// so these stack tightly on one continuous tube-owned post.
 //
 // every piece module in skinart/ exports the same shape:
 //   { pieces: [12 x { key, color, svg }], hidden: svg }
 
 // the flattened hexagon of the top face, and the body below it
-const TOP = 'M6 18 L20 8 L44 8 L58 18 L44 28 L20 28 Z'
-const BODY = 'M6 18 L6 50 L20 60 L44 60 L58 50 L58 18 L44 28 L20 28 Z'
+const TOP = 'M4 10 L16 1 L48 1 L60 10 L48 19 L16 19 Z'
+const BODY = 'M4 10 L4 29 L16 39 L48 39 L60 29 L60 10 L48 19 L16 19 Z'
 // one period of the band: a lit side face, the front face, a shaded side
-// face (14 + 24 + 14 = 52 units). a full turn of the nut is two periods.
-export const BAND_PERIOD = 52
+// face (14 + 28 + 14 = 56 units). a full turn of the nut is two periods.
 
 // the twelve marks, each centred at (0,0) in a 16-unit box
 const MARKS = {
@@ -54,10 +55,10 @@ function nut(key, face, lit, shade, mark) {
   const id = `nut-${key}`
   // one period of side faces; the mark rides the front face only
   const period = (x) =>
-    `<rect x="${x}" y="18" width="14" height="42" fill="${lit}"/>` +
-    `<rect x="${x + 14}" y="18" width="24" height="42" fill="${face}"/>` +
-    `<rect x="${x + 38}" y="18" width="14" height="42" fill="${shade}"/>` +
-    `<path d="${MARKS[mark]}" fill="#fff" opacity=".92" transform="translate(${x + 26} 42)"/>`
+    `<rect x="${x}" y="10" width="14" height="29" fill="${lit}"/>` +
+    `<rect x="${x + 14}" y="10" width="28" height="29" fill="${face}"/>` +
+    `<rect x="${x + 42}" y="10" width="14" height="29" fill="${shade}"/>` +
+    `<path d="${MARKS[mark]}" fill="#fff" opacity=".92" transform="translate(${x + 28} 28) scale(.82)"/>`
   return (
     `<defs>` +
     `<clipPath id="${id}-c"><path d="${BODY}"/></clipPath>` +
@@ -68,35 +69,23 @@ function nut(key, face, lit, shade, mark) {
     // the side faces: a band three periods wide, clipped to the body. the
     // band starts one period left so the front face sits centre at rest.
     `<g clip-path="url(#${id}-c)">` +
-    `<g class="nut-band">${period(-46)}${period(6)}${period(58)}</g>` +
+    `<g class="nut-band">${period(-52)}${period(4)}${period(60)}</g>` +
     // the bottom bevel and a soft vertical shading over the whole body
-    `<path d="M6 44 L6 50 L20 60 L44 60 L58 50 L58 44 L44 54 L20 54 Z" fill="#000" opacity=".22"/>` +
-    `<rect x="6" y="18" width="52" height="42" fill="url(#${id}-v)"/>` +
+    `<path d="M4 33 L4 29 L16 39 L48 39 L60 29 L60 33 L48 40 L16 40 Z" fill="#000" opacity=".22"/>` +
+    `<rect x="4" y="10" width="56" height="29" fill="url(#${id}-v)"/>` +
     `</g>` +
     `<defs><linearGradient id="${id}-v" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/>` +
     `</linearGradient></defs>` +
     // the top face, lit from the upper left, and the threaded bore
     `<path d="${TOP}" fill="url(#${id}-t)"/>` +
-    `<ellipse cx="32" cy="18" rx="9.5" ry="4.6" fill="#2E2A27"/>` +
-    `<ellipse cx="32" cy="17.4" rx="7" ry="3.2" fill="none" stroke="#8C847C" stroke-width="1" stroke-dasharray="2 1.4" opacity=".7"/>` +
+    `<ellipse cx="32" cy="10" rx="10" ry="4.8" fill="#2E2A27"/>` +
+    `<ellipse cx="32" cy="9.6" rx="7" ry="3.1" fill="#A8A19A" stroke="#625B55" stroke-width="1" stroke-dasharray="2 1.4"/>` +
+    `<ellipse cx="30" cy="8.8" rx="3.8" ry="1.1" fill="#fff" opacity=".38"/>` +
     // the edges
     `<path d="${TOP}" fill="none" stroke="#2A2220" stroke-width="2" stroke-linejoin="round"/>` +
-    `<path d="M6 18 L6 50 L20 60 L44 60 L58 50 L58 18" fill="none" stroke="#2A2220" stroke-width="2.2" stroke-linejoin="round"/>` +
-    `<path d="M20 28 L20 60 M44 28 L44 60" stroke="#2A2220" stroke-width="1.2" opacity=".55"/>` +
-    // the rod rising out of the bore. hidden on nuts buried in a stack (the
-    // nut above covers it) and shown by app.css on the top nut and on a nut in
-    // flight, so the bolt visibly passes THROUGH the nut instead of stopping
-    // at it. same width as the bore, same thread pitch as the css post.
-    `<g class="nut-rod" display="none">` +
-    `<rect x="22.5" y="-30" width="19" height="48" fill="url(#${id}-r)"/>` +
-    `<rect x="22.5" y="-30" width="19" height="48" fill="url(#${id}-rs)"/>` +
-    `<path d="M22.5 -30 V18 M41.5 -30 V18" stroke="#2A2220" stroke-width="1.6"/>` +
-    `</g>` +
-    `<defs>` +
-    `<pattern id="${id}-r" width="19" height="6" patternUnits="userSpaceOnUse"><rect width="19" height="3" fill="#D3CCC4"/><rect y="3" width="19" height="2" fill="#8F877F"/><rect y="5" width="19" height="1" fill="#6E665F"/></pattern>` +
-    `<linearGradient id="${id}-rs" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient>` +
-    `</defs>`
+    `<path d="M4 10 L4 29 L16 39 L48 39 L60 29 L60 10" fill="none" stroke="#2A2220" stroke-width="2.2" stroke-linejoin="round"/>` +
+    `<path d="M16 19 L16 39 M48 19 L48 39" stroke="#2A2220" stroke-width="1.2" opacity=".55"/>`
   )
 }
 
@@ -104,6 +93,6 @@ export default {
   pieces: NUTS.map(([key, face, lit, shade, mark]) => ({ key: `${key} nut`, color: face, svg: nut(key, face, lit, shade, mark) })),
   // a mystery nut: dull unfinished steel, a question mark on the front face
   hidden: nut('hid', '#A39B93', '#D9D3CC', '#5E5751', 'dot')
-    .replace(/<path d="[^"]*" fill="#fff" opacity="\.92" transform="translate\(32 42\)"\/>/,
-      `<path d="M-4 -5 Q-4 -10 0 -10 Q4 -10 4 -6 Q4 -3 1 -2 L1 0" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" transform="translate(32 42)"/><circle cx="33" cy="46" r="1.6" fill="#fff"/>`),
+    .replace(/<path d="[^"]*" fill="#fff" opacity="\.92" transform="translate\(32 28\) scale\(\.82\)"\/>/,
+      `<path d="M-4 -5 Q-4 -10 0 -10 Q4 -10 4 -6 Q4 -3 1 -2 L1 0" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" transform="translate(32 29) scale(.82)"/><circle cx="32.8" cy="32.5" r="1.4" fill="#fff"/>`),
 }
