@@ -20,6 +20,7 @@ import bolts from './skinart/bolts.js'
 import mine from './skinart/mine.js'
 import dash from './skinart/dash.js'
 import kawaii from './skinart/kawaii.js'
+import dice from './skinart/dice.js'
 
 // a LOOKS card: two of the skin's own pieces stacked, so the card is the skin
 const stack = (a, b) =>
@@ -69,6 +70,17 @@ export const SKINS = [
     preview:
       `<rect x="2" y="2" width="60" height="60" rx="14" fill="#FFE3EE"/>` +
       stack(kawaii.pieces[0].svg, kawaii.pieces[2].svg),
+  },
+  {
+    key: 'dice',
+    title: 'Dice Table',
+    pieces: dice.pieces,
+    hidden: dice.hidden,
+    motion: { seconds: .52, lift: 1.2, spin: 720, stagger: .07, land: 'tumble' },
+    sound: 'dice',
+    preview:
+      `<rect x="2" y="2" width="60" height="60" rx="10" fill="#1F6B45"/>` +
+      stack(dice.pieces[5].svg, dice.pieces[0].svg),
   },
   {
     key: 'tubes',
