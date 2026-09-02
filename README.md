@@ -25,8 +25,8 @@ npm run serve   # http://localhost:4310
 - all art is svg in `art/` (7 packs of 12 characters, see `art/ART-SPEC.md`),
   all sound is synthesised in `sounds.js`. zero external assets, zero requests
   to anyone.
-- PWA per the house standard: offline shell (`sw.js`), update banner,
-  install helper, share-a-board with no server.
+- PWA per the house standard: offline shell (`service-worker.js`), update banner,
+  install helper, share-a-board, and QR/code save transfer with one-step rollback.
 
 ## tools
 
