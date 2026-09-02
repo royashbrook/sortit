@@ -16,15 +16,31 @@ function el(tag, cls, html) {
   return node
 }
 
-// a pixel pickaxe: one readable steel head and a square wooden haft. the old
-// curved head became a grey blob at phone size; hard steps survive scaling.
+// our own blocky pickaxe: a broad cyan head and stepped wooden haft. the
+// silhouette borrows the visual grammar of voxel tools without importing art.
 const PICKAXE =
   `<svg viewBox="0 0 72 72" aria-hidden="true" shape-rendering="crispEdges">` +
-  `<path d="M8 66 L4 62 L48 18 L54 24 L12 68 Z" fill="#7A5233" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
-  `<path d="M10 60 L46 24 L49 27 L13 63 Z" fill="#B77A45"/>` +
-  `<path d="M18 8 H48 L67 21 L61 28 L46 18 H25 L12 31 L5 24 Z" fill="#BFC8CE" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>` +
-  `<path d="M23 11 H47 L58 19 H49 L44 16 H25 L17 24 H11 Z" fill="#EDF2F4" opacity=".85"/>` +
+  `<path class="pick-handle" d="M4 57 H12 V49 H20 V41 H28 V33 H36 V25 H48 V37 H40 V41 H32 V49 H24 V57 H16 V69 H4 Z" fill="${INK}"/>` +
+  `<path d="M8 57 H16 V49 H24 V41 H32 V33 H40 V29 H44 V33 H36 V41 H28 V49 H20 V57 H12 V65 H8 Z" fill="#8B552F"/>` +
+  `<path d="M12 57 H16 V53 H24 V45 H32 V37 H36 V33 H40 V29 H44 V33 H40 V37 H36 V41 H32 V45 H28 V49 H24 V53 H20 V57 H16 V61 H12 Z" fill="#C8894E"/>` +
+  `<path class="pick-head" d="M3 13 H11 V9 H19 V5 H47 V9 H55 V13 H63 V17 H69 V29 H61 V25 H53 V21 H45 V29 H37 V25 H29 V21 H21 V25 H13 V33 H3 Z" fill="${INK}"/>` +
+  `<path d="M7 15 H15 V11 H21 V9 H45 V13 H53 V17 H61 V21 H65 V25 H61 V21 H53 V17 H45 V21 H41 V25 H37 V21 H29 V17 H21 V21 H15 V25 H11 V29 H7 Z" fill="#27AFC1"/>` +
+  `<path d="M15 11 H21 V9 H45 V13 H53 V17 H45 V17 H39 V21 H31 V17 H21 V21 H15 V25 H11 V21 H15 Z" fill="#7DE3E8"/>` +
+  `<path d="M41 25 H45 V21 H53 V17 H61 V21 H65 V25 H61 V21 H53 V17 H45 V21 H41 Z" fill="#087D9A"/>` +
   `</svg>`
+
+export function pickaxeSwing(x, side, boardWidth) {
+  const toolOnLeft = x + side * 1.9 > boardWidth
+  const direction = toolOnLeft ? 1 : -1
+  return {
+    toolOnLeft,
+    left: toolOnLeft ? x - side * 0.9 : x + side * 0.72,
+    ready: -52 * direction,
+    windup: -62 * direction,
+    impact: 28 * direction,
+    rest: 24 * direction,
+  }
+}
 
 // the visitor: tall, thin, dark, with glowing violet eyes and long arms that
 // hold the block out in front. body 64 wide by 150 tall in svg units; the
@@ -78,15 +94,10 @@ export function mine(boardEl, trips, motion, hooks = {}) {
   for (let k = n - 1; k >= 0; k--) {
     const at = rel(trips[k].from)
     const pick = el('div', 'actor pickaxe', PICKAXE)
-    // keep the whole swing inside the board: a right-edge block is struck
-    // from its left shoulder with the same tool mirrored mechanically.
-    const fromLeft = at.x + side * 1.9 > board.width
-    if (fromLeft) pick.classList.add('from-left')
-    const left = fromLeft ? at.x - side * 0.9 : at.x + side * 0.72
-    const ready = fromLeft ? 52 : -52
-    const windup = fromLeft ? 62 : -62
-    const impact = fromLeft ? -28 : 28
-    const rest = fromLeft ? -24 : 24
+    // the head always faces the source. most blocks are struck by a tool on
+    // their right; right-edge blocks use the same swing from their left.
+    const { toolOnLeft, left, ready, windup, impact, rest } = pickaxeSwing(at.x, side, board.width)
+    if (!toolOnLeft) pick.classList.add('from-right')
     pick.style.cssText = `left:${left}px;top:${at.y - side * 0.34}px;width:${side * 1.18}px;height:${side * 1.18}px`
     layer.appendChild(pick)
     const delay = (n - 1 - k) * d

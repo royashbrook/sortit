@@ -4,6 +4,7 @@
 // stable Classic fallback, and flights that start and finish where they say.
 import { SKINS } from '../src/lib/engine/skins.js'
 import { flightKeyframes, flightOptions, landingTimes } from '../src/lib/ui/flight.js'
+import { pickaxeSwing } from '../src/lib/ui/actors.js'
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -152,6 +153,14 @@ if (!CSS.includes('z-index: var(--stack-depth, 1)')) fail('bolts: upper nuts no 
 if (!BOARD.includes('style:--stack-depth={itemIndex + 1}')) fail('bolts: stack order no longer puts upper nuts in front')
 const mine = SKINS.find(skin => skin.key === 'mine')
 if ((mine?.motion.seconds ?? 2) >= 1) fail('mine: performance is no longer sub-one-second')
+const middleStrike = pickaxeSwing(80, 40, 320)
+const edgeStrike = pickaxeSwing(270, 40, 320)
+if (middleStrike.toolOnLeft || middleStrike.impact >= 0) fail('mine: right-side pickaxe no longer faces the source')
+if (!edgeStrike.toolOnLeft || edgeStrike.impact <= 0) fail('mine: edge pickaxe no longer faces the source')
+const mineFrames = flightKeyframes('mine', { ...GEO, spin: 0 })
+if (mineFrames[1].transform !== mineFrames[0].transform || mineFrames[1].offset !== .24) {
+  fail('mine: source block moves before the pickaxe impact')
+}
 
 if (failures) {
   console.error(`${failures} conversion/flight problem(s)`)

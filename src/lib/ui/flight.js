@@ -82,13 +82,13 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
       ]
     case 'mine':
-      // the block is MINED: one impact under the pickaxe, gone at .32, carried
-      // over unseen, set down at .78. the actor tells the rest of the story.
+      // the block stays planted until the pickaxe lands at .27, then recoils
+      // once and vanishes. the actor, not the block, performs the mining.
       // the invisible position swap is the carrier's job, not the block's.
       return [
         { transform: `${start} rotate(0deg) scale(1)`, opacity: 1, offset: 0 },
-        { transform: `translate(${dx - 3}px, ${dy + 1}px) rotate(-3deg) scale(1.03)`, opacity: 1, offset: 0.2 },
-        { transform: `translate(${dx + 2}px, ${dy - 1}px) rotate(2deg) scale(.9)`, opacity: .8, offset: 0.3 },
+        { transform: `${start} rotate(0deg) scale(1)`, opacity: 1, offset: 0.24 },
+        { transform: `translate(${dx + 2}px, ${dy + 1}px) rotate(2deg) scale(.94)`, opacity: .9, offset: 0.28 },
         { transform: `${start} rotate(0deg) scale(.1)`, opacity: 0, offset: 0.32 },
         { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.33 },
         { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.78 },
