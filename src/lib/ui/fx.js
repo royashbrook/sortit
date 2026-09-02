@@ -30,6 +30,8 @@ function fit() {
 const RECIPES = {
   screw: { n: 7, colors: ['#FFE9A8', '#FFD54A', '#FFFFFF'], shape: 'spark', speed: 130, up: .4, grav: 260, life: .28 },
   breakpop: { n: 14, colors: ['#B9A38C', '#75604A', '#D8C7A9'], shape: 'chunk', speed: 125, up: .85, grav: 460, life: .38 },
+  mine: { n: 10, colors: ['#B9A38C', '#75604A', '#D8C7A9'], shape: 'chunk', speed: 90, up: .7, grav: 400, life: .3 },
+  warp: { n: 12, colors: ['#D46BFF', '#7A2BC9', '#F2C6FF'], shape: 'dot', speed: 60, up: 1.2, grav: -90, life: .5 },
   flip: { n: 9, colors: ['#3EF0D0', '#FF4FD8', '#FFFFFF'], shape: 'spark', speed: 165, up: .35, grav: 80, life: .24 },
   roll: { n: 7, colors: ['#FFE63F', '#FF8A00', '#FFFFFF'], shape: 'spark', speed: 120, up: .3, grav: 150, life: .24 },
   fly: { n: 8, colors: ['#3F7BFF', '#3EF0D0', '#FFFFFF'], shape: 'spark', speed: 180, up: .55, grav: 40, life: .3 },

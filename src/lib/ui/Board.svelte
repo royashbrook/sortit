@@ -1,6 +1,7 @@
 <script>
   import { flightKeyframes, flightOptions } from './flight.js'
   import { fx } from './fx.js'
+  import { mine as mineActors } from './actors.js'
 
   let { store } = $props()
 
@@ -89,6 +90,7 @@
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
     const motion = store.skin.motion ?? { seconds: .22, lift: 1, spin: 0, stagger: 0, land: 'drop' }
     let index = 0
+    const trips = [] // what an actor-driven move needs to know about each item
     for (const [uid, from] of before) {
       const node = boardEl.querySelector(`[data-uid="${uid}"]`)
       if (!node) continue
@@ -106,7 +108,7 @@
         spin: motion.spin ?? 0,
       })
       for (const a of node.getAnimations()) a.cancel()
-      node.style.transformOrigin = ['screw', 'roll', 'breakpop'].includes(verb) ? '50% 50%' : '50% 80%'
+      node.style.transformOrigin = ['screw', 'roll', 'breakpop', 'mine'].includes(verb) ? '50% 50%' : '50% 80%'
       node.dataset.flightSeq = flightSeq
       // css-side companions (a nut's turning band) sync to the same clock
       node.style.setProperty('--flight-secs', `${motion.seconds}s`)
@@ -117,10 +119,10 @@
       const anim = node.animate(keyframes, options)
       // a broken block bursts where it BROKE, at the source, when the shudder
       // ends (the flight's own timing), not where it respawns
-      if (burst && verb === 'breakpop') {
+      if (burst && (verb === 'breakpop' || verb === 'mine')) {
         setTimeout(() => {
           if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
-        }, options.delay + options.duration * 0.42)
+        }, options.delay + options.duration * (verb === 'mine' ? 0.28 : 0.42))
       }
       anim.finished.then(() => {
         if (node.dataset.flightSeq !== flightSeq) return
@@ -129,7 +131,15 @@
       }).catch(() => {
         if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
       })
+      trips.push({ from: from.rect, to, svg: node.innerHTML, color: pieceColor(uid) })
       index += 1
+    }
+    // the mine move is PERFORMED: a pickaxe mines the source, a carrier brings
+    // the run over and sets it down. actors ride the pieces' seconds/stagger.
+    if (trips.length && motion.land === 'mine') {
+      mineActors(boardEl, trips, motion, {
+        warp: rect => fx.land(rect, 'warp', ['#D46BFF', '#7A2BC9']),
+      })
     }
     before = new Map()
   })

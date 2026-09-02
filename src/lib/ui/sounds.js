@@ -93,11 +93,20 @@ const MATERIALS = {
     tone({ freq: 300 - i * 18, glide: 210, type: 'triangle', at, len: 0.09, vol: 0.13 })
     noise({ at, len: 0.05, vol: 0.07, freq: 900, q: 0.8 })
   },
-  stone(at) {
-    // the break: two crunches while the source block shudders, then the pop
-    // where it respawns. spacing matches the breakpop keyframes by ear.
-    noise({ at: Math.max(0, at - 0.2), len: 0.06, vol: 0.09, freq: 900, q: 0.7 })
-    noise({ at: Math.max(0, at - 0.1), len: 0.07, vol: 0.11, freq: 600, q: 0.7 })
+  stone(at, i) {
+    // a mined move, timed to the 'mine' keyframes at 1.3s: three pickaxe
+    // clinks while the block shudders (.05 .15 .25 s), the crunch as it
+    // breaks (.36), the carrier's whoosh in and out, then the set-down thud.
+    const t0 = Math.max(0, at - 1.3 * 0.82)
+    for (let c = 0; c < 3; c++) {
+      noise({ at: t0 + 0.05 + c * 0.1, len: 0.035, vol: 0.1, freq: 3400 + c * 300, q: 5 })
+      tone({ freq: 1900 + c * 120, glide: 1500, type: 'triangle', at: t0 + 0.05 + c * 0.1, len: 0.04, vol: 0.04 })
+    }
+    noise({ at: t0 + 0.36, len: 0.09, vol: 0.12, freq: 600, q: 0.7 })
+    if (i === 0) {
+      tone({ freq: 260, glide: 900, type: 'sine', at: t0 + 0.42, len: 0.16, vol: 0.05 })
+      tone({ freq: 900, glide: 260, type: 'sine', at: at + 0.16, len: 0.16, vol: 0.05 })
+    }
     tone({ freq: 150, glide: 90, type: 'sine', at, len: 0.12, vol: 0.16 })
     noise({ at, len: 0.09, vol: 0.1, freq: 420, q: 0.6 })
   },

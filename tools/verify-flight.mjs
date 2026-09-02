@@ -10,7 +10,7 @@ let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
 const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60 }
-const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish', 'tumble'])
+const VERBS = new Set(['drop', 'screw', 'breakpop', 'mine', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish', 'tumble'])
 const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
 const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
@@ -43,7 +43,7 @@ function verifyFlight(verb, motion, id) {
     fail(`${id}: lands tilted (${keyframes.at(-1).transform})`)
   }
 
-  if (verb === 'breakpop') {
+  if (verb === 'breakpop' || verb === 'mine') {
     const hiddenAtDestination = keyframes.some(frame => {
       const point = translateOf(frame.transform)
       return frame.opacity === 0 && point?.x === 0 && point?.y === 0

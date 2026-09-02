@@ -45,7 +45,9 @@ export const SKINS = [
     title: 'Block Mine',
     pieces: mine.pieces,
     hidden: mine.hidden,
-    motion: { seconds: .62, lift: 0, spin: 0, stagger: .14, land: 'breakpop' },
+    // a mined move is long on purpose: pickaxe swings, the carrier's trip,
+    // the set-down. stagger is small so a run is one trip, not a queue.
+    motion: { seconds: 1.3, lift: 0, spin: 0, stagger: .08, land: 'mine' },
     sound: 'stone',
     preview: stack(mine.pieces[1].svg, mine.pieces[0].svg),
   },
