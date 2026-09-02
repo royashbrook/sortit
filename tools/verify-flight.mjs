@@ -10,9 +10,9 @@ let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
 const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60 }
-const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish'])
-const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute'])
-const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'tubes']
+const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish', 'tumble'])
+const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
+const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
 
 const translateOf = transform => {

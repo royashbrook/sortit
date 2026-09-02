@@ -119,6 +119,16 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: `translate(0px, -3px) rotate(0deg) scale(.94,1.08)`, easing: 'ease-in-out', offset: 0.9 },
         { transform: `translate(0px, 0px) rotate(${end}deg) scale(1,1)`, offset: 1 },
       ]
+    case 'tumble':
+      // dice: thrown in a spinning arc, hit the felt, skip once, settle
+      return [
+        { transform: `${start} rotate(0deg) scale(1,1)`, easing: LAUNCH, offset: 0 },
+        { transform: `${peak(0.5)} rotate(${spin * 0.45}deg) scale(1,1)`, easing: 'cubic-bezier(.4,0,.9,.6)', offset: 0.42 },
+        { transform: `translate(0px, 0px) rotate(${spin * 0.8}deg) scale(1.1,.88)`, easing: 'ease-out', offset: 0.66 },
+        { transform: `translate(0px, -7px) rotate(${spin * 0.92}deg) scale(.96,1.04)`, easing: 'ease-in', offset: 0.8 },
+        { transform: `translate(0px, 0px) rotate(${end}deg) scale(1.05,.94)`, easing: 'ease-out', offset: 0.9 },
+        { transform: `translate(0px, 0px) rotate(${end}deg) scale(1,1)`, offset: 1 },
+      ]
     case 'zig':
       return [
         { transform: `${start} rotate(0deg)`, easing: 'linear', offset: 0 },
@@ -165,6 +175,7 @@ export function landingTimes(motion, count, verb = motion.land) {
     hover: 0.88,
     zig: 1,
     squish: 0.78,
+    tumble: 0.66,
     bounce: 0.78,
     slide: 0.92,
     zip: 1,

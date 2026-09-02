@@ -108,6 +108,14 @@ const MATERIALS = {
   pop(at, i) {
     tone({ freq: 340 + i * 30, glide: 150, type: 'sine', at, len: 0.14 })
   },
+  dice(at, i) {
+    // the clatter: a hard knock on the felt, a skip, and a settle click,
+    // timed to the tumble keyframes (hit at the beat, skip lands ~.12s later)
+    noise({ at, len: 0.05, vol: 0.12, freq: 2600 + i * 200, q: 2.5 })
+    tone({ freq: 240, glide: 150, type: 'triangle', at, len: 0.07, vol: 0.09 })
+    noise({ at: at + 0.12, len: 0.04, vol: 0.08, freq: 3200, q: 3 })
+    noise({ at: at + 0.18, len: 0.03, vol: 0.05, freq: 3800, q: 3 })
+  },
   cute(at, i) {
     // a squeak on the crouch, a "pomf" on the splat, a tiny rising chirp as
     // it wobbles back: three beats that follow the squish keyframes

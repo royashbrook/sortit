@@ -41,6 +41,7 @@ const RECIPES = {
   zip: { n: 9, colors: ['#3EF0D0', '#FF4FD8', '#FFFFFF'], shape: 'spark', speed: 170, up: .3, grav: 60, life: .22 },
   float: { n: 8, colors: ['#FFD7E8', '#BFE8FF', '#FFF6C9'], shape: 'dot', speed: 70, up: 1, grav: -60, life: .45 },
   squish: { n: 9, colors: ['#FF8FB1', '#FFD7E8', '#FFFFFF'], shape: 'dot', speed: 85, up: 1.1, grav: -40, life: .5 },
+  tumble: { n: 8, colors: ['#FFF3C9', '#FFD54A', '#FFFFFF'], shape: 'spark', speed: 120, up: .5, grav: 300, life: .26 },
 }
 
 function loop(now) {
