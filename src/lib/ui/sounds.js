@@ -108,6 +108,14 @@ const MATERIALS = {
   pop(at, i) {
     tone({ freq: 340 + i * 30, glide: 150, type: 'sine', at, len: 0.14 })
   },
+  cute(at, i) {
+    // a squeak on the crouch, a "pomf" on the splat, a tiny rising chirp as
+    // it wobbles back: three beats that follow the squish keyframes
+    tone({ freq: 700 + i * 40, glide: 1100, type: 'sine', at: Math.max(0, at - 0.3), len: 0.07, vol: 0.06 })
+    noise({ at, len: 0.07, vol: 0.09, freq: 380, q: 0.5 })
+    tone({ freq: 520 + i * 40, glide: 780, type: 'triangle', at: at + 0.04, len: 0.1, vol: 0.1 })
+    tone({ freq: 1040 + i * 40, glide: 1400, type: 'sine', at: at + 0.11, len: 0.07, vol: 0.05 })
+  },
 }
 
 export const sound = {

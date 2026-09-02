@@ -332,6 +332,26 @@ h1 {
 [data-skin="dash"] .tube.done { box-shadow: 0 0 0 3px #3EF0D0, 0 0 18px 5px rgb(62 240 208 / .6); }
 
 
+/* kawaii pop: a pastel nursery. soft rounded cups, a candy-striped floor,
+   and the friends' own bodies do the rest. an aesthetic tribute. */
+#board[data-skin="kawaii"] {
+  background:
+    radial-gradient(circle at 15% 12%, rgb(255 255 255 / .8), transparent 18%),
+    radial-gradient(circle at 85% 20%, rgb(255 255 255 / .7), transparent 14%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .35) 0 14px, transparent 14px 28px) 0 100% / 100% 12% no-repeat,
+    linear-gradient(180deg, #FFE3EE 0 88%, #FFC9DD 88%) !important;
+}
+[data-skin="kawaii"] .tube {
+  border: .22rem solid #E8A9C4;
+  border-radius: 1.3rem;
+  background: linear-gradient(180deg, rgb(255 246 250 / .95), rgb(255 226 238 / .8));
+  box-shadow: inset 0 4px 8px -4px rgb(255 255 255 / .95), 0 5px 8px -4px rgb(232 169 196 / .7);
+}
+[data-skin="kawaii"] .item { position: relative; padding: 0; filter: drop-shadow(0 3px 2px rgb(232 169 196 / .5)); }
+[data-skin="kawaii"] .item svg { scale: .94; }
+[data-skin="kawaii"] .tube.sel { box-shadow: 0 .35rem 0 #E8A9C4; }
+[data-skin="kawaii"] .tube.done { box-shadow: 0 0 0 3px #FF8FB1, 0 0 16px 4px rgb(255 143 177 / .55); }
+
 /* the selected lift and done cues stay identical across skins on purpose:
    the READING of the board never changes, only its world */
 

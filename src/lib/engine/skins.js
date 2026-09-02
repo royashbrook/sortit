@@ -19,6 +19,7 @@
 import bolts from './skinart/bolts.js'
 import mine from './skinart/mine.js'
 import dash from './skinart/dash.js'
+import kawaii from './skinart/kawaii.js'
 
 // a LOOKS card: two of the skin's own pieces stacked, so the card is the skin
 const stack = (a, b) =>
@@ -55,6 +56,17 @@ export const SKINS = [
     preview:
       `<rect x="2" y="2" width="60" height="60" rx="6" fill="#141A2E"/>` +
       stack(dash.pieces[0].svg, dash.pieces[1].svg),
+  },
+  {
+    key: 'kawaii',
+    title: 'Kawaii Pop',
+    pieces: kawaii.pieces,
+    hidden: kawaii.hidden,
+    motion: { seconds: .5, lift: 1.4, spin: 0, stagger: .08, land: 'squish' },
+    sound: 'cute',
+    preview:
+      `<rect x="2" y="2" width="60" height="60" rx="14" fill="#FFE3EE"/>` +
+      stack(kawaii.pieces[0].svg, kawaii.pieces[2].svg),
   },
   {
     key: 'tubes',

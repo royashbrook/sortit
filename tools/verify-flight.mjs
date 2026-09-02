@@ -10,9 +10,9 @@ let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
 const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60 }
-const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig'])
-const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop'])
-const CONVERSIONS = ['bolts', 'mine', 'dash', 'tubes']
+const VERBS = new Set(['drop', 'screw', 'breakpop', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish'])
+const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute'])
+const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'tubes']
 const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
 
 const translateOf = transform => {
@@ -127,4 +127,4 @@ if (failures) {
   console.error(`${failures} conversion/flight problem(s)`)
   process.exit(1)
 }
-console.log(`flight ok: ${SKINS.length} conversions, ${VERBS.size} verbs, 36 custom pieces proven`)
+console.log(`flight ok: ${SKINS.length} conversions, ${VERBS.size} verbs, ${(SKINS.length - 1) * 12} custom pieces proven`)
