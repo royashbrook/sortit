@@ -110,7 +110,15 @@
       node.dataset.flightSeq = flightSeq
       node.classList.add('flying')
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
-      const anim = node.animate(keyframes, flightOptions(motion, index))
+      const options = flightOptions(motion, index)
+      const anim = node.animate(keyframes, options)
+      // a broken block bursts where it BROKE, at the source, when the shudder
+      // ends (the flight's own timing), not where it respawns
+      if (burst && verb === 'breakpop') {
+        setTimeout(() => {
+          if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
+        }, options.delay + options.duration * 0.42)
+      }
       anim.finished.then(() => {
         if (node.dataset.flightSeq !== flightSeq) return
         node.classList.remove('flying')
@@ -141,6 +149,10 @@
   const artFor = item => item.hid ? (store.skin.hidden ?? HID_ART) : pieceFor(item).svg
   const verbFor = item => pieceFor(item)?.verb ?? store.skin.motion?.land ?? 'drop'
   const artColors = () => (store.skin.pieces ?? store.theme?.items ?? []).map(item => item.color)
+  const pieceColor = uid => {
+    for (const tube of store.tubes) for (const item of tube) if (item.uid === uid) return pieceFor(item).color
+    return '#8A6142'
+  }
 
   // the vanilla rich label: a screen-reader player solves by contents, so name
   // each piece (or "mystery"), or "empty"

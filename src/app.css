@@ -242,8 +242,9 @@ h1 {
 .item.hid svg { opacity: .9; }
 
 /* ===== skins: total board conversions, picked in LOOKS =====
-   the default rules above ARE Classic. conversion skins provide their own
-   twelve pieces; their css owns only the furniture and presentation. */
+   the default rules above ARE Classic. a conversion skin brings its own
+   twelve pieces (skinart/), so its css owns only the furniture (what the
+   pieces sit on) and the scene (what the board is). */
 
 /* an item mid-flight rides above every container on the board */
 .item.flying { position: relative; z-index: 30; }
@@ -251,63 +252,9 @@ h1 {
 /* the landing-effects canvas: above the board, below the win sheet */
 .fxlayer { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
 
-/* glass: the flagship. a rounded vessel with a lit wall, an elliptical mouth,
-   and a running highlight; pieces become glossy pebbles inside it. */
-[data-skin="glass"] .tube {
-  border: 2px solid rgb(61 50 48 / .55);
-  border-top: 0;
-  border-radius: 14px 14px 22px 22px;
-  background:
-    linear-gradient(100deg, rgb(255 255 255 / .85) 4%, rgb(255 255 255 / .25) 22%, rgb(190 214 228 / .28) 60%, rgb(120 150 170 / .38) 96%);
-  box-shadow:
-    inset 4px 0 6px -3px rgb(255 255 255 / .9),
-    inset -5px 0 8px -3px rgb(70 100 125 / .45),
-    inset 0 -8px 10px -6px rgb(70 100 125 / .5),
-    0 6px 10px -4px rgb(61 50 48 / .35);
-}
-[data-skin="glass"] .tube::before { /* the mouth: an open ellipse at the rim */
-  content: '';
-  position: absolute;
-  top: -5px; left: 6%;
-  width: 88%; height: 10px;
-  border-radius: 50%;
-  border: 2px solid rgb(61 50 48 / .5);
-  background: linear-gradient(180deg, rgb(210 228 238 / .8), rgb(255 255 255 / .35));
-}
-[data-skin="glass"] .tube::after { /* the standing highlight streak */
-  content: '';
-  position: absolute;
-  top: 8%; left: 14%;
-  width: 9%; height: 82%;
-  border-radius: 99px;
-  background: linear-gradient(180deg, rgb(255 255 255 / .95), rgb(255 255 255 / .1));
-  pointer-events: none;
-}
-[data-skin="glass"] .item { position: relative; }
-[data-skin="glass"] .item::before { /* a glossy pebble under the face */
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 26%, rgb(255 255 255 / .95) 0 18%, rgb(255 255 255 / 0) 42%),
-    radial-gradient(circle at 50% 115%, rgb(61 50 48 / .28) 0 45%, rgb(61 50 48 / 0) 70%),
-    #F4EFE7;
-  border: 2px solid rgb(61 50 48 / .6);
-  box-shadow: 0 3px 4px -2px rgb(61 50 48 / .4);
-}
-[data-skin="glass"] .item svg { position: relative; scale: .78; }
-[data-skin="glass"] .tube.sel {
-  transform: translateY(-4px);
-  box-shadow:
-    inset 4px 0 6px -3px rgb(255 255 255 / .9),
-    inset -5px 0 8px -3px rgb(70 100 125 / .45),
-    0 10px 14px -5px rgb(61 50 48 / .45);
-}
-
-/* nuts & bolts: a machined bolt up the middle, real hex nuts riding it.
-   the shaft's angled thread and the nut's turned bevel are what make the
-   screw-down landing read as threading, not spinning. */
+/* nuts & bolts: a machined bolt up the middle, coloured hex nuts riding it.
+   the shaft's angled thread and the nut's own bevel (in its svg) are what
+   make the screw-down landing read as threading, not spinning. */
 [data-skin="bolts"] .tube {
   border-color: transparent;
   border-bottom: .3rem solid var(--line);
@@ -338,155 +285,34 @@ h1 {
   border: 2px solid var(--line);
   border-radius: 4px;
 }
-[data-skin="bolts"] .item { position: relative; z-index: 1; padding: 1px; }
-[data-skin="bolts"] .item::before { /* a turned hex nut: brushed faces, bevel */
-  content: '';
-  position: absolute;
-  inset: 1px;
-  clip-path: polygon(25% 3%, 75% 3%, 98% 50%, 75% 97%, 25% 97%, 2% 50%);
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / .85) 0 12%, rgb(255 255 255 / 0) 40%),
-    linear-gradient(0deg, rgb(0 0 0 / .28) 0 14%, rgb(0 0 0 / 0) 34%),
-    linear-gradient(90deg, #DDD5CB 0 25%, #C2B9AF 25% 75%, #9E958B 75%),
-    #C2B9AF;
-}
-[data-skin="bolts"] .item::after { /* the threaded bore behind the face */
-  content: '';
-  position: absolute;
-  inset: 26%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #7A726A, #4A443E 70%);
-  box-shadow: inset 0 2px 3px rgb(0 0 0 / .5), inset 0 -1px 2px rgb(255 255 255 / .25);
-}
-[data-skin="bolts"] .item svg { position: relative; z-index: 1; scale: .68; }
+[data-skin="bolts"] .item { position: relative; z-index: 1; padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
+[data-skin="bolts"] .item svg { scale: .96; }
 [data-skin="bolts"] .tube.sel { box-shadow: none; }
 
-/* beads & sticks: a lathed wooden dowel, lacquered beads with a sheen */
-[data-skin="beads"] .tube {
+/* block mine: a bright day over dug shafts. the pieces are 2.5d cubes with
+   their own faces, so the scene only has to be sky, a grass horizon, and
+   the dark of the columns. an aesthetic tribute. */
+#board[data-skin="mine"] {
+  background:
+    radial-gradient(circle at 78% 10%, rgb(255 240 170 / .55), transparent 16%),
+    linear-gradient(180deg, #8FD0F7 0 24%, #B9E4FF 24% 30%, #7FBF4E 30% 32.5%, #5A3F2C 32.5% 100%) !important;
+}
+[data-skin="mine"] .tube {
   border-color: transparent;
-  border-bottom: .3rem solid var(--line);
+  border-bottom: .35rem solid #2B2118;
   border-radius: 0;
-  background: transparent;
+  background: linear-gradient(90deg, rgb(0 0 0 / .22), rgb(0 0 0 / .08) 30% 70%, rgb(0 0 0 / .26));
+  padding: 0 1px 5px;
 }
-[data-skin="beads"] .tube::before {
-  content: '';
-  position: absolute;
-  inset: 4px auto 5px 50%;
-  width: 8px;
-  translate: -50% 0;
-  background: linear-gradient(90deg, #C8B091 0 30%, #A98F71 55%, #7E6850);
-  border: 2px solid var(--line);
-  border-radius: 4px;
-  box-shadow: 2px 0 4px -1px rgb(61 50 48 / .35);
+[data-skin="mine"] .item {
+  padding: 0;
+  filter: drop-shadow(0 4px 2px rgb(26 20 16 / .38));
 }
-[data-skin="beads"] .tube::after { /* the dowel's rounded tip */
-  content: '';
-  position: absolute;
-  top: -2px; left: 50%;
-  width: 14px; height: 12px;
-  translate: -50% 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #D8C4A6, #8A7458 75%);
-  border: 2px solid var(--line);
-}
-[data-skin="beads"] .item { position: relative; z-index: 1; }
-[data-skin="beads"] .item::before {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 26%, rgb(255 255 255 / .9) 0 16%, rgb(255 255 255 / 0) 40%),
-    radial-gradient(circle at 55% 110%, rgb(61 50 48 / .22) 0 45%, rgb(61 50 48 / 0) 70%),
-    #FFF3DD;
-  border: 2.5px solid var(--line);
-  box-shadow: 0 3px 4px -2px rgb(61 50 48 / .4);
-}
-[data-skin="beads"] .item svg { position: relative; scale: .72; }
-[data-skin="beads"] .tube.sel { box-shadow: none; }
+[data-skin="mine"] .item svg { scale: .96; overflow: visible; image-rendering: pixelated; }
+[data-skin="mine"] .tube.done { box-shadow: 0 0 0 3px #8FCC5E, 0 0 16px 4px rgb(143 204 94 / .55); }
 
-/* block stacks: toy bricks with a molded top and a real drop shadow */
-[data-skin="blocks"] .tube {
-  border-color: transparent;
-  border-bottom: .35rem solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  padding: 0 2px 5px;
-}
-[data-skin="blocks"] .item { position: relative; padding: 1px; }
-[data-skin="blocks"] .item::before {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 5px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / .6) 0 12%, rgb(255 255 255 / 0) 30%),
-    linear-gradient(90deg, rgb(255 255 255 / .25) 0 8%, rgb(0 0 0 / 0) 20% 78%, rgb(0 0 0 / .18) 92%),
-    #EDE3D4;
-  border: 3px solid var(--line);
-  box-shadow:
-    inset 0 -6px 0 -2px rgb(61 50 48 / .22),
-    0 4px 5px -3px rgb(61 50 48 / .45);
-}
-[data-skin="blocks"] .item::after { /* two molded studs on the top edge */
-  content: '';
-  position: absolute;
-  top: 4px; left: 24%;
-  width: 52%; height: 6px;
-  background:
-    radial-gradient(circle at 25% 50%, rgb(255 255 255 / .8) 0 22%, rgb(61 50 48 / .3) 30% 40%, transparent 45%),
-    radial-gradient(circle at 75% 50%, rgb(255 255 255 / .8) 0 22%, rgb(61 50 48 / .3) 30% 40%, transparent 45%);
-}
-[data-skin="blocks"] .item svg { position: relative; scale: .68; }
-
-/* voxel mine: 2.5d dirt cubes, grass-capped. every block's top face pokes up
-   into the block above and gets covered by it, so only the top of each stack
-   shows grass, exactly like a dug column. an aesthetic tribute. */
-/* both full-scene boards must beat the inline theme tint Board.svelte sets */
-#board[data-skin="voxel"] {
-  background: linear-gradient(180deg, #BFE0F5 0 26%, #9BC7E8 32%, #7B5B41 38%, #5C4430 100%) !important;
-}
-[data-skin="voxel"] .tube {
-  border-color: transparent;
-  border-bottom: .35rem solid #3A2C1F;
-  border-radius: 0;
-  background: transparent;
-  padding: 0 2px 5px;
-}
-[data-skin="voxel"] .item { position: relative; padding: 0; }
-[data-skin="voxel"] .item::before { /* the front face: coarse dirt, hard light */
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border: 2px solid var(--line);
-  background:
-    linear-gradient(90deg, rgb(255 255 255 / .16) 0 10%, rgb(0 0 0 / 0) 24% 70%, rgb(0 0 0 / .28) 88%),
-    repeating-conic-gradient(#8A6142 0% 25%, #7A5238 25% 50%) 0 0 / 8px 8px;
-  box-shadow: inset 0 -5px 0 rgb(0 0 0 / .25);
-  image-rendering: pixelated;
-}
-/* only the TOP block of a stack wears grass: what a dug column looks like.
-   items stack bottom-up in a column-reverse flex, so the stack top is the
-   last child. */
-[data-skin="voxel"] .item:last-child::before {
-  background:
-    linear-gradient(0deg, rgb(0 0 0 / 0) 72%, #6FA644 72% 82%, #7FBF4E 82%),
-    linear-gradient(90deg, rgb(255 255 255 / .16) 0 10%, rgb(0 0 0 / 0) 24% 70%, rgb(0 0 0 / .28) 88%),
-    repeating-conic-gradient(#8A6142 0% 25%, #7A5238 25% 50%) 0 0 / 8px 8px;
-}
-[data-skin="voxel"] .item:last-child::after { /* its 2.5d grass lid, set back-right */
-  content: '';
-  position: absolute;
-  top: -5px; left: 5px; right: -3px;
-  height: 7px;
-  transform: skewX(-38deg);
-  background: linear-gradient(90deg, #8FCC5E 0 55%, #6FA644 55%);
-  border: 2px solid var(--line);
-}
-[data-skin="voxel"] .item svg { position: relative; z-index: 1; scale: .64; }
-[data-skin="voxel"] .tube.done { box-shadow: 0 0 0 3px #46A758, 0 0 16px 4px rgb(70 167 88 / .55); }
-
-/* neon dash: dark grid, glowing cube outlines, an aesthetic tribute */
+/* neon dash: dark grid, glowing lanes, icons with their own glow. an
+   aesthetic tribute. */
 #board[data-skin="dash"] {
   background:
     linear-gradient(rgb(62 240 208 / .06) 1px, transparent 1px) 0 0 / 100% 28px,
@@ -500,78 +326,11 @@ h1 {
   background: linear-gradient(180deg, rgb(27 35 64 / .35), rgb(27 35 64 / .85));
   box-shadow: inset 0 0 12px rgb(62 240 208 / .12);
 }
-[data-skin="dash"] .item { position: relative; padding: 2px; }
-[data-skin="dash"] .item::before {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 5px;
-  background: linear-gradient(145deg, #232D52, #161D38 60%);
-  border: 2.5px solid #3EF0D0;
-  box-shadow: 0 0 8px rgb(62 240 208 / .55), inset 0 0 6px rgb(62 240 208 / .3);
-}
-[data-skin="dash"] .item:nth-child(even)::before { border-color: #FF4FD8; box-shadow: 0 0 8px rgb(255 79 216 / .5), inset 0 0 6px rgb(255 79 216 / .3); }
+[data-skin="dash"] .item { position: relative; padding: 0; }
+[data-skin="dash"] .item svg { scale: .92; filter: drop-shadow(0 0 5px rgb(62 240 208 / .38)); }
 [data-skin="dash"] .item.flying { filter: drop-shadow(0 0 8px rgb(62 240 208 / .8)); }
-[data-skin="dash"] .item svg { position: relative; scale: .68; }
 [data-skin="dash"] .tube.done { box-shadow: 0 0 0 3px #3EF0D0, 0 0 18px 5px rgb(62 240 208 / .6); }
 
-/* kawaii pop: chunky pastel squircles, soft everything, an aesthetic tribute */
-[data-skin="kawaii"] .tube {
-  border: .22rem solid #E8A9C4;
-  border-radius: 1.3rem;
-  background: linear-gradient(180deg, rgb(255 236 244 / .9), rgb(255 214 231 / .75));
-  box-shadow: inset 0 4px 8px -4px rgb(255 255 255 / .9), 0 5px 8px -4px rgb(232 169 196 / .7);
-}
-[data-skin="kawaii"] .item { position: relative; }
-[data-skin="kawaii"] .item::before {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 38%;
-  background:
-    radial-gradient(circle at 32% 24%, rgb(255 255 255 / .95) 0 20%, rgb(255 255 255 / 0) 46%),
-    #FFF6FA;
-  border: 2.5px solid #E8A9C4;
-  box-shadow: inset 0 -4px 0 rgb(232 169 196 / .35), 0 3px 5px -2px rgb(232 169 196 / .8);
-}
-[data-skin="kawaii"] .item svg { position: relative; scale: .74; }
-[data-skin="kawaii"] .tube.sel { box-shadow: 0 .35rem 0 #E8A9C4; }
-
-/* v1 total conversions. The earlier costume selectors stay harmless while
-   the branch is in flight; these later rules remove their shared backings so
-   each conversion's SVG is the complete piece, not a theme face on a prop. */
-[data-skin="bolts"] .item::before,
-[data-skin="bolts"] .item::after,
-[data-skin="dash"] .item::before,
-[data-skin="dash"] .item::after { content: none; }
-
-[data-skin="bolts"] .item { padding: 0; filter: drop-shadow(0 3px 2px rgb(42 34 32 / .35)); }
-[data-skin="bolts"] .item svg { scale: .96; }
-
-#board[data-skin="mine"] {
-  background:
-    radial-gradient(circle at 22% 8%, rgb(255 226 145 / .2), transparent 28%),
-    linear-gradient(180deg, #547188 0 22%, #3D5363 22% 31%, #6B503A 31% 100%) !important;
-}
-[data-skin="mine"] .tube {
-  border-color: transparent;
-  border-bottom: .35rem solid #2B2118;
-  border-radius: 0;
-  background: linear-gradient(90deg, rgb(0 0 0 / .12), transparent 35% 65%, rgb(0 0 0 / .18));
-  padding: 0 1px 5px;
-}
-[data-skin="mine"] .item {
-  padding: 0;
-  filter: drop-shadow(0 4px 2px rgb(26 20 16 / .38));
-}
-[data-skin="mine"] .item svg { scale: .96; overflow: visible; image-rendering: pixelated; }
-[data-skin="mine"] .tube.done { box-shadow: 0 0 0 3px #8FCC5E, 0 0 16px 4px rgb(143 204 94 / .55); }
-
-[data-skin="dash"] .item { padding: 0; }
-[data-skin="dash"] .item svg {
-  scale: .92;
-  filter: drop-shadow(0 0 5px rgb(62 240 208 / .38));
-}
 
 /* the selected lift and done cues stay identical across skins on purpose:
    the READING of the board never changes, only its world */

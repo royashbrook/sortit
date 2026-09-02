@@ -94,6 +94,10 @@ const MATERIALS = {
     noise({ at, len: 0.05, vol: 0.07, freq: 900, q: 0.8 })
   },
   stone(at) {
+    // the break: two crunches while the source block shudders, then the pop
+    // where it respawns. spacing matches the breakpop keyframes by ear.
+    noise({ at: Math.max(0, at - 0.2), len: 0.06, vol: 0.09, freq: 900, q: 0.7 })
+    noise({ at: Math.max(0, at - 0.1), len: 0.07, vol: 0.11, freq: 600, q: 0.7 })
     tone({ freq: 150, glide: 90, type: 'sine', at, len: 0.12, vol: 0.16 })
     noise({ at, len: 0.09, vol: 0.1, freq: 420, q: 0.6 })
   },

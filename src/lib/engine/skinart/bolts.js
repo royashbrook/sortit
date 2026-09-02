@@ -62,7 +62,7 @@ function nut(key, face, lit, shade, mark) {
     // the crown: a flatter inner hex catching the light
     `<path d="${INNER}" fill="url(#${g}-c)" stroke="${shade}" stroke-width="1.5" stroke-linejoin="round" opacity=".95"/>` +
     // the stamped mark, engraved into the crown
-    `<path d="${MARKS[mark]}" fill="${shade}" opacity=".85" transform="translate(0 -13) scale(.72) translate(12.5 12.5)"/>` +
+    `<path d="${MARKS[mark]}" fill="#1E1B19" opacity=".8" transform="translate(0 -12.5) scale(.95) translate(1.7 1.7)"/>` +
     // the threaded bore
     `<circle cx="32" cy="36" r="9.5" fill="url(#${g}-b)" stroke="#1E1B19" stroke-width="1.5"/>` +
     `<circle cx="32" cy="36" r="6.5" fill="none" stroke="#8C847C" stroke-width="1.2" stroke-dasharray="2.2 1.6" opacity=".8"/>` +
