@@ -75,9 +75,18 @@
       })
     }
   })
+  // the running actor performance, if any. it belongs to ONE move sequence:
+  // any later sequence (a second move, undo, reset, a skin change) or an
+  // unmount tears it down before it can keep performing over a board that no
+  // longer has that move.
+  let actorRun = null
+  $effect(() => () => { actorRun?.cancel(); actorRun = null }) // unmount only
   $effect(() => {
     const flightSeq = String(store.moveSeq)
     if (!boardEl) return
+    // a re-run for the SAME sequence (a resize re-measuring `side`) keeps the
+    // performance; only a new sequence ends it
+    if (actorRun && actorRun.seq !== flightSeq) { actorRun.cancel(); actorRun = null }
     // A rapid second move or undo owns the node now. Cancel the old compositor
     // work before starting (or declining) this sequence; its settled promise
     // is sequence-guarded below so it cannot tear down the new flight's cue.
@@ -137,9 +146,11 @@
     // the mine move is PERFORMED: a pickaxe mines the source, a carrier brings
     // the run over and sets it down. actors ride the pieces' seconds/stagger.
     if (trips.length && motion.land === 'mine') {
-      mineActors(boardEl, trips, motion, {
+      actorRun = mineActors(boardEl, trips, motion, {
         warp: rect => fx.land(rect, 'warp', ['#D46BFF', '#7A2BC9']),
       })
+      actorRun.seq = flightSeq
+      actorRun.done.then(() => { if (actorRun?.seq === flightSeq) actorRun = null })
     }
     before = new Map()
   })
