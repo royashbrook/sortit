@@ -14,6 +14,7 @@ const VERBS = new Set(['drop', 'screw', 'breakpop', 'mine', 'flip', 'roll', 'fly
 const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
 const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
+const BOARD = readFileSync(new URL('../src/lib/ui/Board.svelte', import.meta.url), 'utf8')
 
 const translateOf = transform => {
   const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(transform)
@@ -135,10 +136,20 @@ for (const skin of SKINS) {
 }
 
 const bolts = SKINS.find(skin => skin.key === 'bolts')
-if (bolts?.pieceRatio !== .625 || bolts?.pieceViewBox !== '0 0 64 40' || bolts?.tubeLip !== 22) {
+if (bolts?.pieceRatio !== .625 || bolts?.pieceViewBox !== '0 0 64 40' || bolts?.tubeLip !== 34) {
   fail('bolts: squat nut geometry contract drifted')
 }
 if ((bolts?.motion.seconds ?? 1) > .5) fail('bolts: single-nut move exceeds half a second')
+for (const [index, piece] of (bolts?.pieces ?? []).entries()) {
+  if (!piece.svg.includes('class="nut-shell"')) fail(`bolts: piece ${index} has no mounted shell`)
+  if (piece.svg.includes('nut-bore') || /<ellipse\b/.test(piece.svg)) fail(`bolts: piece ${index} exposes a fake top hole`)
+  const shell = /class="nut-shell" d="([^"]+)"/.exec(piece.svg)?.[1] ?? ''
+  if (!shell.includes('L9 -5') || !shell.includes('L55 45')) fail(`bolts: piece ${index} no longer overlaps the nut below`)
+}
+if (!CSS.includes('#board[data-skin="bolts"] { gap: 2px; }')) fail('bolts: row gap is no longer compact')
+if (!CSS.includes('* -62 / 64')) fail('bolts: the side band no longer completes a scaled mechanical turn')
+if (!CSS.includes('z-index: var(--stack-depth, 1)')) fail('bolts: upper nuts no longer paint over lower nuts')
+if (!BOARD.includes('style:--stack-depth={itemIndex + 1}')) fail('bolts: stack order no longer puts upper nuts in front')
 const mine = SKINS.find(skin => skin.key === 'mine')
 if ((mine?.motion.seconds ?? 2) >= 1) fail('mine: performance is no longer sub-one-second')
 

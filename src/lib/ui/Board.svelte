@@ -216,13 +216,14 @@
           onclick={() => store.tap(index)}
           aria-label={tubeLabel(index)}
         >
-          {#each store.tubes[index] as item (item.uid)}
+          {#each store.tubes[index] as item, itemIndex (item.uid)}
             <span
               class="item"
               class:hid={item.hid}
               class:lift={isLifted(index, item)}
               data-uid={item.uid}
               data-verb={verbFor(item)}
+              style:--stack-depth={itemIndex + 1}
             >
               <svg viewBox={store.skin.pieceViewBox ?? '0 0 64 64'} aria-hidden="true">{@html artFor(item)}</svg>
             </span>
