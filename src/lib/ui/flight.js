@@ -108,6 +108,17 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: 'translate(0px, -4px) rotate(0deg)', easing: 'ease-out', offset: 0.88 },
         { transform: 'translate(0px, 0px) rotate(0deg)', offset: 1 },
       ]
+    case 'squish':
+      // kawaii: crouch, spring, stretch through the hop, splat on landing and
+      // wobble back to round. the squash lives in scale, the trip in translate.
+      return [
+        { transform: `${start} rotate(0deg) scale(1,1)`, easing: 'ease-in', offset: 0 },
+        { transform: `${start} rotate(0deg) scale(1.22,.78)`, easing: 'cubic-bezier(.3,0,.5,1)', offset: 0.14 },
+        { transform: `${peak(0.5)} rotate(${spin * 0.5}deg) scale(.86,1.16)`, easing: CRUISE, offset: 0.5 },
+        { transform: `translate(0px, 0px) rotate(${end}deg) scale(1.28,.72)`, easing: 'ease-out', offset: 0.78 },
+        { transform: `translate(0px, -3px) rotate(0deg) scale(.94,1.08)`, easing: 'ease-in-out', offset: 0.9 },
+        { transform: `translate(0px, 0px) rotate(${end}deg) scale(1,1)`, offset: 1 },
+      ]
     case 'zig':
       return [
         { transform: `${start} rotate(0deg)`, easing: 'linear', offset: 0 },
@@ -153,6 +164,7 @@ export function landingTimes(motion, count, verb = motion.land) {
     fly: 1,
     hover: 0.88,
     zig: 1,
+    squish: 0.78,
     bounce: 0.78,
     slide: 0.92,
     zip: 1,

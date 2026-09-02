@@ -40,6 +40,7 @@ const RECIPES = {
   slide: { n: 6, colors: ['#D8C4A6', '#B79A76', '#FFF3DD'], shape: 'chunk', speed: 90, up: .7, grav: 380, life: .26 },
   zip: { n: 9, colors: ['#3EF0D0', '#FF4FD8', '#FFFFFF'], shape: 'spark', speed: 170, up: .3, grav: 60, life: .22 },
   float: { n: 8, colors: ['#FFD7E8', '#BFE8FF', '#FFF6C9'], shape: 'dot', speed: 70, up: 1, grav: -60, life: .45 },
+  squish: { n: 9, colors: ['#FF8FB1', '#FFD7E8', '#FFFFFF'], shape: 'dot', speed: 85, up: 1.1, grav: -40, life: .5 },
 }
 
 function loop(now) {
