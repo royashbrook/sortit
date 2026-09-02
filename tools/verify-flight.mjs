@@ -56,6 +56,17 @@ function verifyFlight(verb, motion, id) {
     }
   }
 
+  if (verb === 'screw') {
+    const backedOff = translateOf(keyframes[1].transform)
+    const linedUp = translateOf(keyframes.at(-2).transform)
+    if (!backedOff || backedOff.x !== GEO.dx || backedOff.y >= GEO.dy) {
+      fail(`${id}: nut does not back straight off the source post`)
+    }
+    if (!linedUp || linedUp.x !== 0 || linedUp.y !== GEO.rimRel) {
+      fail(`${id}: nut does not line up on the destination post before seating`)
+    }
+  }
+
   if (keyframes[0].offset !== 0) fail(`${id}: first offset is not 0`)
   if (keyframes.at(-1).offset !== 1) fail(`${id}: last offset is not 1`)
   let previous = -1
@@ -122,6 +133,14 @@ for (const skin of SKINS) {
   if (options.fill !== 'backwards') fail(`${id}: stagger does not hold the launch pose`)
   if (options.easing !== 'linear') fail(`${id}: effect easing would desync audio from keyframe offsets`)
 }
+
+const bolts = SKINS.find(skin => skin.key === 'bolts')
+if (bolts?.pieceRatio !== .625 || bolts?.pieceViewBox !== '0 0 64 40' || bolts?.tubeLip !== 22) {
+  fail('bolts: squat nut geometry contract drifted')
+}
+if ((bolts?.motion.seconds ?? 1) > .5) fail('bolts: single-nut move exceeds half a second')
+const mine = SKINS.find(skin => skin.key === 'mine')
+if ((mine?.motion.seconds ?? 2) >= 1) fail('mine: performance is no longer sub-one-second')
 
 if (failures) {
   console.error(`${failures} conversion/flight problem(s)`)

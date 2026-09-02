@@ -21,6 +21,8 @@
     const availHTotal = boardEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
     const count = store.tubes.length
     const capacity = store.capacity
+    const pieceRatio = store.skin.pieceRatio ?? 1
+    const tubeLip = store.skin.tubeLip ?? LIP
     if (!count) return
     // the tube button is the tap target and never goes below 44px (its min-width
     // in css). so a row layout is only feasible if that many 44px tubes fit the
@@ -32,7 +34,7 @@
       const widest = Math.ceil(count / rc)
       if (widest * TUBE_MIN + (widest - 1) * GAP > availW) continue // 44px tubes don't fit this row count
       const availH = availHTotal - (rc - 1) * GAP
-      const bySide = (availH / rc - LIP - PAD) / capacity
+      const bySide = (availH / rc - tubeLip - PAD) / (capacity * pieceRatio)
       const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
       const s = Math.min(64, bySide, byWidth)
       if (!best || s > best.s) best = { rc, s }
@@ -40,7 +42,7 @@
     if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
     rowCount = best.rc
     side = Math.max(20, Math.min(64, best.s))
-    tubeH = side * capacity + LIP + PAD
+    tubeH = side * capacity * pieceRatio + tubeLip + PAD
     rowCount = best.rc
   }
 
@@ -93,7 +95,7 @@
     for (const node of boardEl.querySelectorAll('.item.flying')) {
       if (node.dataset.flightSeq === flightSeq) continue
       for (const animation of node.getAnimations()) animation.cancel()
-      node.classList.remove('flying', 'threading')
+      node.classList.remove('flying')
     }
     if (!before.size) return
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
@@ -131,21 +133,14 @@
       if (burst && (verb === 'breakpop' || verb === 'mine')) {
         setTimeout(() => {
           if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
-        }, options.delay + options.duration * (verb === 'mine' ? 0.28 : 0.42))
-      }
-      // a screwing nut flies bare, then THREADS: the descent beat of the screw
-      // keyframes (offset .52) is where the rod appears through it and it turns
-      if (verb === 'screw') {
-        setTimeout(() => {
-          if (node.dataset.flightSeq === flightSeq && node.classList.contains('flying')) node.classList.add('threading')
-        }, options.delay + options.duration * 0.52)
+        }, options.delay + options.duration * (verb === 'mine' ? 0.32 : 0.42))
       }
       anim.finished.then(() => {
         if (node.dataset.flightSeq !== flightSeq) return
-        node.classList.remove('flying', 'threading')
+        node.classList.remove('flying')
         if (burst) fx.land(node.getBoundingClientRect(), verb, artColors())
       }).catch(() => {
-        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying', 'threading')
+        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
       })
       trips.push({ from: from.rect, to, svg: node.innerHTML, color: pieceColor(uid) })
       index += 1
@@ -205,6 +200,7 @@
   bind:this={boardEl}
   data-skin={store.skin.key}
   style:--side="{side}px"
+  style:--item-h="{side * (store.skin.pieceRatio ?? 1)}px"
   style:--tube-h="{tubeH}px"
   style:background={store.theme?.tint}
   aria-label="sorting board"
@@ -228,7 +224,7 @@
               data-uid={item.uid}
               data-verb={verbFor(item)}
             >
-              <svg viewBox="0 0 64 64" aria-hidden="true">{@html artFor(item)}</svg>
+              <svg viewBox={store.skin.pieceViewBox ?? '0 0 64 64'} aria-hidden="true">{@html artFor(item)}</svg>
             </span>
           {/each}
         </button>

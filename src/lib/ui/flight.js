@@ -21,15 +21,19 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
   const end = settled(spin)
 
   switch (verb) {
-    case 'screw':
-      // arrive above the shaft, then wind down it: rotation runs through the
-      // whole descent at a steady rate, which is what sells the threading.
+    case 'screw': {
+      // back straight off the source thread, travel as a bare nut, then line
+      // up over the destination and wind straight down. the nested nut-band
+      // reverses with these same beats, so the motion reads mechanically.
+      const rise = Math.min(16, Math.max(7, Math.abs(peakRel - dy) * .12))
       return [
         { transform: `${start} rotate(0deg)`, easing: LAUNCH, offset: 0 },
-        { transform: `${peak(0.55)} rotate(${spin * 0.25}deg)`, easing: CRUISE, offset: 0.34 },
-        { transform: `translate(0px, ${rimRel}px) rotate(${spin * 0.45}deg)`, easing: 'linear', offset: 0.52 },
+        { transform: `translate(${dx}px, ${dy - rise}px) rotate(0deg)`, easing: 'ease-out', offset: 0.22 },
+        { transform: `translate(0px, ${Math.min(peakRel, rimRel - rise)}px) rotate(0deg)`, easing: CRUISE, offset: 0.58 },
+        { transform: `translate(0px, ${rimRel}px) rotate(0deg)`, easing: 'linear', offset: 0.72 },
         { transform: `translate(0px, 0px) rotate(${end}deg)`, offset: 1 },
       ]
+    }
     case 'bounce':
       // gravity landing: squash at touch, spring back
       return [
@@ -78,18 +82,17 @@ export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
       ]
     case 'mine':
-      // the block is MINED: three shudders under the pickaxe (actors.js swings
-      // on the same beats), gone at .28, carried over unseen, set down at .82.
+      // the block is MINED: one impact under the pickaxe, gone at .32, carried
+      // over unseen, set down at .78. the actor tells the rest of the story.
       // the invisible position swap is the carrier's job, not the block's.
       return [
         { transform: `${start} rotate(0deg) scale(1)`, opacity: 1, offset: 0 },
-        { transform: `translate(${dx - 3}px, ${dy + 1}px) rotate(-3deg) scale(1.02)`, opacity: 1, offset: 0.08 },
-        { transform: `translate(${dx + 3}px, ${dy - 1}px) rotate(3deg) scale(1)`, opacity: 1, offset: 0.16 },
-        { transform: `translate(${dx - 2}px, ${dy + 1}px) rotate(-3deg) scale(.96)`, opacity: 1, offset: 0.23 },
-        { transform: `${start} rotate(0deg) scale(.1)`, opacity: 0, offset: 0.28 },
-        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.29 },
-        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.82 },
-        { transform: 'translate(0px, 0px) rotate(0deg) scale(1.12)', opacity: 1, easing: 'ease-out', offset: 0.92 },
+        { transform: `translate(${dx - 3}px, ${dy + 1}px) rotate(-3deg) scale(1.03)`, opacity: 1, offset: 0.2 },
+        { transform: `translate(${dx + 2}px, ${dy - 1}px) rotate(2deg) scale(.9)`, opacity: .8, offset: 0.3 },
+        { transform: `${start} rotate(0deg) scale(.1)`, opacity: 0, offset: 0.32 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.33 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.1)', opacity: 0, offset: 0.78 },
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(1.1)', opacity: 1, easing: 'ease-out', offset: 0.88 },
         { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, offset: 1 },
       ]
     case 'flip':
@@ -184,7 +187,7 @@ export function landingTimes(motion, count, verb = motion.land) {
   const beat = {
     screw: 0.52,
     breakpop: 0.76,
-    mine: 0.82,
+    mine: 0.78,
     flip: 0.82,
     roll: 0.88,
     fly: 1,
