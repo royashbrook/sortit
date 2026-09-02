@@ -46,7 +46,11 @@ function visitor(blockSvg) {
 }
 
 // trips: [{ from: DOMRect, to: DOMRect, svg, color }] bottom-to-top of the
-// moved run. motion: the skin's motion. returns a promise for the layer's end.
+// moved run. motion: the skin's motion. returns a handle: `done` settles when
+// the layer has removed itself, `cancel()` tears the performance down early
+// (undo, reset, a skin change, unmount): every animation cancelled, every
+// pending warp timer cleared, the layer gone, so nothing keeps performing
+// over a board that no longer has that move.
 export function mine(boardEl, trips, motion, hooks = {}) {
   const board = boardEl.getBoundingClientRect()
   const S = motion.seconds * 1000
@@ -58,6 +62,16 @@ export function mine(boardEl, trips, motion, hooks = {}) {
   const rel = r => ({ x: r.left - board.left, y: r.top - board.top })
 
   const settled = []
+  const animations = []
+  const timers = []
+  let live = true
+  const cancel = () => {
+    if (!live) return
+    live = false
+    for (const a of animations) a.cancel()
+    for (const t of timers) clearTimeout(t)
+    layer.remove()
+  }
 
   // the pickaxe swings at each block from the top of the run down. a swing
   // is three quick chops across the block's own shudder window (0 .. .28S)
@@ -79,6 +93,7 @@ export function mine(boardEl, trips, motion, hooks = {}) {
       { transform: 'rotate(30deg)', opacity: 1, offset: 0.96 },
       { transform: 'rotate(30deg)', opacity: 0, offset: 1 },
     ], { duration: S * 0.3, delay, easing: 'linear', fill: 'both' })
+    animations.push(a)
     settled.push(a.finished)
   }
 
@@ -108,21 +123,25 @@ export function mine(boardEl, trips, motion, hooks = {}) {
     { transform: `translate(${dx}px, ${dy}px)`, opacity: 1, offset: gone / total },
     { transform: `translate(${dx}px, ${dy - 10}px)`, opacity: 0, offset: 1 },
   ], { duration: total, easing: 'linear', fill: 'both' })
+  animations.push(w)
   settled.push(w.finished)
   // the held stack lets go as the blocks pop into place
   const held = who.querySelector('.held')
   if (held) {
-    settled.push(held.animate([
+    const h = held.animate([
       { opacity: 1, offset: 0 },
       { opacity: 1, offset: arrive / total },
       { opacity: 0, offset: (arrive + S * 0.06) / total },
       { opacity: 0, offset: 1 },
-    ], { duration: total, easing: 'linear', fill: 'both' }).finished)
+    ], { duration: total, easing: 'linear', fill: 'both' })
+    animations.push(h)
+    settled.push(h.finished)
   }
   if (hooks.warp) {
-    setTimeout(() => hooks.warp(top.from), appear)
-    setTimeout(() => hooks.warp(dest.to), gone)
+    timers.push(setTimeout(() => { if (live) hooks.warp(top.from) }, appear))
+    timers.push(setTimeout(() => { if (live) hooks.warp(dest.to) }, gone))
   }
 
-  return Promise.allSettled(settled).then(() => layer.remove())
+  const done = Promise.allSettled(settled).then(() => { if (live) { live = false; layer.remove() } })
+  return { done, cancel }
 }
