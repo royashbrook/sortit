@@ -1,86 +1,14 @@
-// icon set for Sort It: a tube with three sorted balls, one wearing the face.
-// zero dependencies (node zlib writes the png). adapted from the kidgames
-// template's make-icons.mjs; the sizes and maskable safe-zone maths are kept.
-//
-//   node tools/make-icons.mjs
-import { deflateSync } from 'node:zlib'
-import { writeFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+// Build the install icons from Roy's selected Sort Stream source art.
+// Plain Node keeps this reproducible without adding an image dependency.
+import { deflateSync, inflateSync } from 'node:zlib'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..')
-
-const COLORS = {
-  bg: [0xff, 0xb0, 0x3a, 0xff],
-  tube: [0xff, 0xf6, 0xe5, 0xff],
-  ink: [0x3d, 0x32, 0x30, 0xff],
-  red: [0xe5, 0x48, 0x4d, 0xff],
-  green: [0x46, 0xa7, 0x58, 0xff],
-  blue: [0x3e, 0x63, 0xdd, 0xff],
-}
-
-// a maskable icon can be cropped to a circle by the launcher, so everything
-// that must survive lives inside the centre 80%.
-const CONTENT = { normal: 0.72, maskable: 0.56 }
-const SS = 4
-
-function canvas(size) {
-  return { size, data: new Uint8ClampedArray(size * size * 4) }
-}
-
-function blend(c, index, [r, g, b, a], coverage) {
-  const alpha = (a / 255) * coverage
-  if (alpha <= 0) return
-  const i = index * 4
-  c.data[i] = c.data[i] * (1 - alpha) + r * alpha
-  c.data[i + 1] = c.data[i + 1] * (1 - alpha) + g * alpha
-  c.data[i + 2] = c.data[i + 2] * (1 - alpha) + b * alpha
-  c.data[i + 3] = c.data[i + 3] * (1 - alpha) + 255 * alpha
-}
-
-function fill(c, color, test) {
-  for (let y = 0; y < c.size; y++) {
-    for (let x = 0; x < c.size; x++) {
-      if (test(x + 0.5, y + 0.5)) blend(c, y * c.size + x, color, 1)
-    }
-  }
-}
-
-const roundedRect = (x, y, w, h, r) => (px, py) => {
-  if (px < x || py < y || px > x + w || py > y + h) return false
-  const dx = Math.max(x + r - px, 0, px - (x + w - r))
-  const dy = Math.max(y + r - py, 0, py - (y + h - r))
-  return dx * dx + dy * dy <= r * r
-}
-
-const circle = (cx, cy, r) => (px, py) => (px - cx) ** 2 + (py - cy) ** 2 <= r * r
-
-const arc = (cx, cy, r, thickness, from, to) => (px, py) => {
-  const d = Math.hypot(px - cx, py - cy)
-  if (Math.abs(d - r) > thickness / 2) return false
-  let a = Math.atan2(py - cy, px - cx)
-  if (a < 0) a += Math.PI * 2
-  return a >= from && a <= to
-}
-
-function downsample(big, size) {
-  const out = canvas(size)
-  const n = SS * SS
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let r = 0, g = 0, b = 0, a = 0
-      for (let sy = 0; sy < SS; sy++) {
-        for (let sx = 0; sx < SS; sx++) {
-          const i = ((y * SS + sy) * big.size + (x * SS + sx)) * 4
-          r += big.data[i]; g += big.data[i + 1]; b += big.data[i + 2]; a += big.data[i + 3]
-        }
-      }
-      const i = (y * size + x) * 4
-      out.data[i] = r / n; out.data[i + 1] = g / n; out.data[i + 2] = b / n; out.data[i + 3] = a / n
-    }
-  }
-  return out
-}
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const STATIC = join(ROOT, 'static')
+const SOURCE = join(ROOT, 'assets', 'branding', 'sort-stream-source.png')
+const MASKABLE_SOURCE = join(ROOT, 'assets', 'branding', 'sort-stream-maskable-source.png')
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n
@@ -103,17 +31,94 @@ function chunk(type, body) {
   return Buffer.concat([length, typed, crc])
 }
 
-function png(c) {
+function paeth(a, b, c) {
+  const p = a + b - c
+  const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c)
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+}
+
+function readPng(file) {
+  const input = readFileSync(file)
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  if (!input.subarray(0, 8).equals(signature)) throw new Error(`${file}: not a PNG`)
+
+  let width, height, bitDepth, colorType, interlace
+  const idat = []
+  for (let offset = 8; offset < input.length;) {
+    const length = input.readUInt32BE(offset)
+    const type = input.toString('ascii', offset + 4, offset + 8)
+    const body = input.subarray(offset + 8, offset + 8 + length)
+    if (type === 'IHDR') {
+      width = body.readUInt32BE(0)
+      height = body.readUInt32BE(4)
+      bitDepth = body[8]
+      colorType = body[9]
+      interlace = body[12]
+    } else if (type === 'IDAT') idat.push(body)
+    offset += length + 12
+  }
+  if (bitDepth !== 8 || colorType !== 2 || interlace !== 0) {
+    throw new Error(`${file}: expected non-interlaced 8-bit RGB PNG`)
+  }
+
+  const stride = width * 3
+  const raw = inflateSync(Buffer.concat(idat))
+  const pixels = Buffer.alloc(stride * height)
+  for (let y = 0, from = 0; y < height; y++) {
+    const filter = raw[from++]
+    const row = y * stride
+    for (let x = 0; x < stride; x++) {
+      const value = raw[from++]
+      const left = x >= 3 ? pixels[row + x - 3] : 0
+      const up = y ? pixels[row - stride + x] : 0
+      const upperLeft = y && x >= 3 ? pixels[row - stride + x - 3] : 0
+      const predictor = filter === 0 ? 0
+        : filter === 1 ? left
+          : filter === 2 ? up
+            : filter === 3 ? Math.floor((left + up) / 2)
+              : filter === 4 ? paeth(left, up, upperLeft)
+                : (() => { throw new Error(`${file}: unsupported PNG filter ${filter}`) })()
+      pixels[row + x] = (value + predictor) & 0xff
+    }
+  }
+  return { width, height, pixels }
+}
+
+function resize(source, size) {
+  const pixels = Buffer.alloc(size * size * 3)
+  for (let y = 0; y < size; y++) {
+    const sy = (y + 0.5) * source.height / size - 0.5
+    const y0 = Math.max(0, Math.floor(sy)), y1 = Math.min(source.height - 1, y0 + 1)
+    const fy = Math.max(0, sy - y0)
+    for (let x = 0; x < size; x++) {
+      const sx = (x + 0.5) * source.width / size - 0.5
+      const x0 = Math.max(0, Math.floor(sx)), x1 = Math.min(source.width - 1, x0 + 1)
+      const fx = Math.max(0, sx - x0)
+      for (let channel = 0; channel < 3; channel++) {
+        const a = source.pixels[(y0 * source.width + x0) * 3 + channel]
+        const b = source.pixels[(y0 * source.width + x1) * 3 + channel]
+        const c = source.pixels[(y1 * source.width + x0) * 3 + channel]
+        const d = source.pixels[(y1 * source.width + x1) * 3 + channel]
+        pixels[(y * size + x) * 3 + channel] = Math.round(
+          (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy,
+        )
+      }
+    }
+  }
+  return { width: size, height: size, pixels }
+}
+
+function png(image) {
   const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(c.size, 0)
-  ihdr.writeUInt32BE(c.size, 4)
+  ihdr.writeUInt32BE(image.width, 0)
+  ihdr.writeUInt32BE(image.height, 4)
   ihdr[8] = 8
-  ihdr[9] = 6
-  const raw = Buffer.alloc(c.size * (c.size * 4 + 1))
-  for (let y = 0; y < c.size; y++) {
-    const from = y * c.size * 4
-    raw[y * (c.size * 4 + 1)] = 0
-    Buffer.from(c.data.subarray(from, from + c.size * 4)).copy(raw, y * (c.size * 4 + 1) + 1)
+  ihdr[9] = 2
+  const stride = image.width * 3
+  const raw = Buffer.alloc(image.height * (stride + 1))
+  for (let y = 0; y < image.height; y++) {
+    raw[y * (stride + 1)] = 0
+    image.pixels.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride)
   }
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -123,82 +128,10 @@ function png(c) {
   ])
 }
 
-// ------------------------------------------------------------- the artwork
-// one description, drawn as pixels and as svg, so the two never drift.
-
-function parts(size, kind) {
-  const content = size * CONTENT[kind]
-  const cx = size / 2
-  const cy = size / 2
-  const tubeW = content * 0.52
-  const tubeH = content * 0.94
-  const edge = Math.max(2, size * 0.018)
-  const ballR = tubeW * 0.335
-  const x0 = cx - tubeW / 2
-  const y0 = cy - tubeH / 2
-  const balls = [0, 1, 2].map(i => ({
-    cx,
-    cy: y0 + tubeH - ballR - i * (ballR * 2 + edge * 0.6) - edge * 2,
-    r: ballR,
-  }))
-  return { cx, cy, tubeW, tubeH, x0, y0, edge, balls }
+const source = readPng(SOURCE)
+for (const size of [180, 192, 512]) {
+  writeFileSync(join(STATIC, `icon-${size}.png`), png(resize(source, size)))
 }
-
-function draw(size, kind) {
-  const big = canvas(size * SS)
-  const s = size * SS
-  const p = parts(s, kind)
-  const e = p.edge
-
-  if (kind === 'maskable') fill(big, COLORS.bg, () => true)
-  else fill(big, COLORS.bg, roundedRect(s * 0.04, s * 0.04, s * 0.92, s * 0.92, s * 0.22))
-
-  // tube: ink outline then cream inner
-  const r = p.tubeW * 0.42
-  fill(big, COLORS.ink, roundedRect(p.x0 - e * 2, p.y0 - e * 2, p.tubeW + e * 4, p.tubeH + e * 4, r))
-  fill(big, COLORS.tube, roundedRect(p.x0, p.y0, p.tubeW, p.tubeH, r - e))
-
-  const ballColors = [COLORS.red, COLORS.green, COLORS.blue]
-  p.balls.forEach((ball, i) => {
-    fill(big, COLORS.ink, circle(ball.cx, ball.cy, ball.r + e * 1.6))
-    fill(big, ballColors[i], circle(ball.cx, ball.cy, ball.r))
-  })
-
-  // face on the top ball
-  const top = p.balls[2]
-  const er = top.r * 0.14
-  fill(big, COLORS.ink, circle(top.cx - top.r * 0.36, top.cy - top.r * 0.12, er))
-  fill(big, COLORS.ink, circle(top.cx + top.r * 0.36, top.cy - top.r * 0.12, er))
-  fill(big, COLORS.ink, arc(top.cx, top.cy - top.r * 0.05, top.r * 0.5, top.r * 0.16, 0.45, Math.PI - 0.45))
-
-  return downsample(big, size)
-}
-
-function svg(size = 512) {
-  const p = parts(size, 'normal')
-  const hex = ([r, g, b]) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
-  const e = p.edge
-  const r = p.tubeW * 0.42
-  const ballColors = [COLORS.red, COLORS.green, COLORS.blue]
-  const top = p.balls[2]
-  const balls = p.balls.map((ball, i) =>
-    `  <circle cx="${ball.cx.toFixed(1)}" cy="${ball.cy.toFixed(1)}" r="${ball.r.toFixed(1)}" fill="${hex(ballColors[i])}" stroke="${hex(COLORS.ink)}" stroke-width="${(e * 2.2).toFixed(1)}"/>`,
-  ).join('\n')
-  const smile = { r: top.r * 0.5, y: top.cy - top.r * 0.05 }
-  const from = { x: top.cx + smile.r * Math.cos(0.45), y: smile.y + smile.r * Math.sin(0.45) }
-  const to = { x: top.cx + smile.r * Math.cos(Math.PI - 0.45), y: smile.y + smile.r * Math.sin(Math.PI - 0.45) }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">
-  <rect x="${size * 0.04}" y="${size * 0.04}" width="${size * 0.92}" height="${size * 0.92}" rx="${size * 0.22}" fill="${hex(COLORS.bg)}"/>
-  <rect x="${(p.x0 - e).toFixed(1)}" y="${(p.y0 - e).toFixed(1)}" width="${(p.tubeW + e * 2).toFixed(1)}" height="${(p.tubeH + e * 2).toFixed(1)}" rx="${r.toFixed(1)}" fill="${hex(COLORS.tube)}" stroke="${hex(COLORS.ink)}" stroke-width="${(e * 2.4).toFixed(1)}"/>
-${balls}
-  <circle cx="${(top.cx - top.r * 0.36).toFixed(1)}" cy="${(top.cy - top.r * 0.12).toFixed(1)}" r="${(top.r * 0.14).toFixed(1)}" fill="${hex(COLORS.ink)}"/>
-  <circle cx="${(top.cx + top.r * 0.36).toFixed(1)}" cy="${(top.cy - top.r * 0.12).toFixed(1)}" r="${(top.r * 0.14).toFixed(1)}" fill="${hex(COLORS.ink)}"/>
-  <path d="M ${to.x.toFixed(1)} ${to.y.toFixed(1)} A ${smile.r.toFixed(1)} ${smile.r.toFixed(1)} 0 0 0 ${from.x.toFixed(1)} ${from.y.toFixed(1)}" stroke="${hex(COLORS.ink)}" stroke-width="${(top.r * 0.16).toFixed(1)}" stroke-linecap="round" fill="none"/>
-</svg>
-`
-}
-
-writeFileSync(join(OUT, 'icon.svg'), svg())
-for (const size of [180, 192, 512]) writeFileSync(join(OUT, `icon-${size}.png`), png(draw(size, 'normal')))
-writeFileSync(join(OUT, 'icon-maskable-512.png'), png(draw(512, 'maskable')))
-console.log('wrote icon.svg, icon-180.png, icon-192.png, icon-512.png, icon-maskable-512.png')
+writeFileSync(join(STATIC, 'icon-maskable-512.png'), png(resize(readPng(MASKABLE_SOURCE), 512)))
+rmSync(join(STATIC, 'icon.svg'), { force: true })
+console.log('wrote Sort Stream icon-180.png, icon-192.png, icon-512.png, icon-maskable-512.png')

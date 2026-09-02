@@ -32,7 +32,7 @@ npm run serve   # http://localhost:4310
 
 ```sh
 npm run verify   # prove every level + 3 years of dailies solvable, twice
-npm run icons    # regenerate icon.svg + pngs from tools/make-icons.mjs
+npm run icons    # regenerate install PNGs from assets/branding source art
 node tools/validate-art.mjs   # mechanical half of the art spec
 ```
 
