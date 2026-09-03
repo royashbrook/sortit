@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
-const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60 }
+const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60, sourceClearRel: -90 }
 const VERBS = new Set(['drop', 'screw', 'breakpop', 'mine', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish', 'tumble'])
 const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
 const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
@@ -61,8 +61,12 @@ function verifyFlight(verb, motion, id) {
   if (verb === 'screw') {
     const backedOff = translateOf(keyframes[1].transform)
     const linedUp = translateOf(keyframes.at(-2).transform)
-    if (!backedOff || backedOff.x !== GEO.dx || backedOff.y >= GEO.dy) {
-      fail(`${id}: nut does not back straight off the source post`)
+    const firstTravel = keyframes.findIndex(frame => translateOf(frame.transform)?.x !== GEO.dx)
+    if (!backedOff || backedOff.x !== GEO.dx || backedOff.y > GEO.sourceClearRel) {
+      fail(`${id}: nut does not fully clear the source post`)
+    }
+    if (firstTravel < 2 || translateOf(keyframes[firstTravel - 1].transform)?.y > GEO.sourceClearRel) {
+      fail(`${id}: nut travels sideways before clearing the source post`)
     }
     if (!linedUp || linedUp.x !== 0 || linedUp.y !== GEO.rimRel) {
       fail(`${id}: nut does not line up on the destination post before seating`)
@@ -149,6 +153,7 @@ for (const [index, piece] of (bolts?.pieces ?? []).entries()) {
 }
 if (!CSS.includes('#board[data-skin="bolts"] { gap: 2px; }')) fail('bolts: row gap is no longer compact')
 if (!CSS.includes('* -62 / 64')) fail('bolts: the side band no longer completes a scaled mechanical turn')
+if (!CSS.includes('linear var(--flight-delay, 0s) 1 backwards')) fail('bolts: queued nuts turn before their own unscrew starts')
 if (!CSS.includes('z-index: var(--stack-depth, 1)')) fail('bolts: upper nuts no longer paint over lower nuts')
 if (!BOARD.includes('style:--stack-depth={itemIndex + 1}')) fail('bolts: stack order no longer puts upper nuts in front')
 const boltShaft = /\[data-skin="bolts"\] \.tube::before \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? ''

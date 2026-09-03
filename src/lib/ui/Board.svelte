@@ -111,11 +111,14 @@
       // the arc peaks above BOTH mouths, so a trip between rows still clears
       const peakRel = Math.min(from.tubeTop, destTop) - to.top - motion.lift * side
       const rimRel = Math.min(-2, destTop - to.top)
+      // screen-space bottom of the moving nut clears the source shaft before
+      // the screw flight is allowed to change x
+      const sourceClearRel = from.tubeTop - to.top - to.height - 2
       const verb = from.verb || motion.land
       const keyframes = flightKeyframes(verb, {
         dx: from.rect.left - to.left,
         dy: from.rect.top - to.top,
-        peakRel, rimRel,
+        peakRel, rimRel, sourceClearRel,
         spin: motion.spin ?? 0,
       })
       for (const a of node.getAnimations()) a.cancel()

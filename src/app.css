@@ -326,12 +326,12 @@ h1 {
    it backs off the source thread, holds while crossing, then winds onto the
    destination. no per-piece rod means no doubled shafts or fake gaps. */
 [data-skin="bolts"] .item.flying .nut-band {
-  animation: nutspin var(--flight-secs, .48s) linear 1;
+  animation: nutspin var(--flight-secs, .48s) linear var(--flight-delay, 0s) 1 backwards;
 }
 @keyframes nutspin {
   from { transform: translateX(0); }
-  22% { transform: translateX(calc(var(--side, 44px) * -62 / 64)); }
-  58% { transform: translateX(calc(var(--side, 44px) * -62 / 64)); }
+  30% { transform: translateX(calc(var(--side, 44px) * -62 / 64)); }
+  62% { transform: translateX(calc(var(--side, 44px) * -62 / 64)); }
   to { transform: translateX(0); }
 }
 [data-skin="bolts"] .tube.sel { box-shadow: none; }

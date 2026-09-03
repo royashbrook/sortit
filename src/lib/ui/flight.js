@@ -15,22 +15,21 @@ const CRUISE = 'cubic-bezier(.35,.5,.45,1)'  // ease over the top of the arc
 // mid-flight wobble that returns to zero.
 const settled = spin => (spin % 360 === 0 ? spin : 0)
 
-export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, spin }) {
+export function flightKeyframes(verb, { dx, dy, peakRel, rimRel, sourceClearRel = peakRel, spin }) {
   const start = `translate(${dx}px, ${dy}px)`
   const peak = (at = 0.5) => `translate(${dx * (1 - at)}px, ${peakRel}px)`
   const end = settled(spin)
 
   switch (verb) {
     case 'screw': {
-      // back straight off the source thread, travel as a bare nut, then line
-      // up over the destination and wind straight down. the nested nut-band
-      // reverses with these same beats, so the motion reads mechanically.
-      const rise = Math.min(16, Math.max(7, Math.abs(peakRel - dy) * .12))
+      // back all the way off the source thread before any sideways travel,
+      // then cross above both posts and wind straight onto the destination.
+      const travelY = Math.min(peakRel, sourceClearRel)
       return [
         { transform: `${start} rotate(0deg)`, easing: LAUNCH, offset: 0 },
-        { transform: `translate(${dx}px, ${dy - rise}px) rotate(0deg)`, easing: 'ease-out', offset: 0.22 },
-        { transform: `translate(0px, ${Math.min(peakRel, rimRel - rise)}px) rotate(0deg)`, easing: CRUISE, offset: 0.58 },
-        { transform: `translate(0px, ${rimRel}px) rotate(0deg)`, easing: 'linear', offset: 0.72 },
+        { transform: `translate(${dx}px, ${sourceClearRel}px) rotate(0deg)`, easing: 'ease-out', offset: 0.3 },
+        { transform: `translate(0px, ${travelY}px) rotate(0deg)`, easing: CRUISE, offset: 0.62 },
+        { transform: `translate(0px, ${rimRel}px) rotate(0deg)`, easing: 'linear', offset: 0.74 },
         { transform: `translate(0px, 0px) rotate(${end}deg)`, offset: 1 },
       ]
     }
