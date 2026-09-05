@@ -201,6 +201,9 @@
   }
 </script>
 
+<!-- only classic tints the card with its world's art. a conversion skin paints
+     its own scene in css or leaves the board to the shell theme, so a dark
+     theme actually darkens it -->
 <div
   id="board"
   bind:this={boardEl}
@@ -208,7 +211,7 @@
   style:--side="{side}px"
   style:--item-h="{side * (store.skin.pieceRatio ?? 1)}px"
   style:--tube-h="{tubeH}px"
-  style:background={store.theme?.tint}
+  style:background={store.skin.pieces ? null : store.theme?.tint}
   aria-label="sorting board"
 >
   {#each rows as row}
