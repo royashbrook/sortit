@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import { compileModule } from 'svelte/compiler'
 import { createPlayClock, createSessionClock, formatPlayTime } from '../src/lib/ui/play-clock.js'
+import { levelBoard } from '../src/lib/engine/levels.js'
+import { optimal } from '../src/lib/engine/solver.js'
 
 let now = 1_000
 const clock = createPlayClock(() => now)
@@ -218,6 +220,47 @@ store.setVisible(true)
 now += 1_000
 store.setVisible(true)
 if (store.clock !== '0:12') fail(`the reopened board did not resume once the tab showed: ${store.clock}`)
+
+// the in-progress slot scores the board it holds, not the level table. level 2
+// was redealt (a new first salt) after this save shape shipped, so a board saved
+// under the old deal must restore with its own best possible, and a fresh deal
+// keeps the table's
+const settle = () => new Promise(resolve => setTimeout(resolve, 20)) // par lands on a later tick
+const oldTwo = [[0, 1, 0], [1, 0, 1], [], []]
+const oldPar = optimal(oldTwo, 3).length
+const newPar = optimal(levelBoard(2).tubes, 3).length
+if (oldPar === newPar) fail('this check needs the redealt level 2 to have a different best possible')
+let uid = 0
+const items = tubes => tubes.map(t => t.map(c => ({ c, uid: uid++, hid: false })))
+const oldSave = { kind: 'level', n: 2, tubes: items(oldTwo), moves: 0, history: [], elapsed: 5_000, seen: [] }
+stored.set('sortit:game', JSON.stringify(oldSave))
+store = open()
+await settle()
+if (JSON.stringify(store.tubes.map(t => t.map(i => i.c))) !== JSON.stringify(oldTwo)) fail('the old level 2 board did not restore as saved')
+if (store.board.par !== oldPar) fail(`a restored old board advertised the table par: ${store.board.par}, its own best possible is ${oldPar}`)
+
+// mid-game, the undo stack's first entry is the dealt board and sets the par
+const played = { ...oldSave, tubes: items([[0, 1], [1, 0, 1], [0], []]), moves: 1, history: [{ tubes: items(oldTwo), moves: 0 }] }
+stored.set('sortit:game', JSON.stringify(played))
+store = open()
+await settle()
+if (store.board.par !== oldPar) fail(`a moved old board did not score its dealt position: ${store.board.par}, want ${oldPar}`)
+
+// a save that carries its par restores with it, whatever the table says now
+stored.set('sortit:game', JSON.stringify({ ...oldSave, par: 7 }))
+store = open()
+await settle()
+if (store.board.par !== 7) fail(`a save's own par was not preferred: ${store.board.par}`)
+
+// a fresh level 2 reads the table, and its save carries the par once it lands
+store.startLevel(2)
+await settle()
+if (store.board.par !== newPar) fail(`a fresh level 2 did not read the table: ${store.board.par}, want ${newPar}`)
+store.tap(0); store.tap(2)
+if (JSON.parse(stored.get('sortit:game')).par !== newPar) fail('a played board saved without its par')
+store = open()
+await settle()
+if (store.board.par !== newPar) fail(`a current board restored with the wrong par: ${store.board.par}`)
 
 const page = readFileSync(new URL('../src/routes/+page.svelte', import.meta.url), 'utf8')
 if (!page.includes('<button onclick={() => store.replay()}>RESET</button>')) fail('RESET is not a direct game control')

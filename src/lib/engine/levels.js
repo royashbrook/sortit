@@ -18,6 +18,13 @@ export const WORLD_COUNT = LEVEL_COUNT / WORLD_SIZE
 const SOLVE_BUDGET = { maxNodes: 120000 }
 const MAX_SALT = 64
 
+// where a level's salt walk starts. level 2 dealt from salt 0 was level 1 with
+// the colours swapped, so the second board a kid ever saw was the first one
+// again; from salt 3 it opens with a pair on top, the first board that shows a
+// run moving as one. an entry here replaces that level's board for everyone,
+// so it is set once and never touched (see header).
+const FIRST_SALT = { 2: 3 }
+
 // difficulty curve. hand-tuned opening so the first session teaches itself,
 // then one more colour every 30 levels until the full 12, then variety comes
 // from capacity-5 tubes, hidden ("mystery") boards, and the colour rotation.
@@ -63,8 +70,8 @@ function acceptable(tubes, params) {
 
 // walk salts until the solver signs off. deterministic: every device walks the
 // same salts with the same budget and stops at the same board.
-function findBoard(params, seedFor) {
-  for (let salt = 0; salt < MAX_SALT; salt++) {
+function findBoard(params, seedFor, from = 0) {
+  for (let salt = from; salt < MAX_SALT; salt++) {
     const tubes = deal(params, seedFor(salt))
     if (!acceptable(tubes, params)) continue
     const result = solve(tubes, params.capacity, SOLVE_BUDGET)
@@ -77,7 +84,7 @@ function findBoard(params, seedFor) {
 
 export function levelBoard(n) {
   const params = paramsFor(n)
-  const found = findBoard(params, salt => levelSeed(n, salt))
+  const found = findBoard(params, salt => levelSeed(n, salt), FIRST_SALT[n] ?? 0)
   return { kind: 'level', n, params, ...found }
 }
 

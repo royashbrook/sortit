@@ -77,61 +77,64 @@ const stoneSpeck = `
   .L......
   ....D...`
 
-function ore(name, color, glint, shape) {
-  // shape: the pixel footprint of one ore chunk, repeated at four spots
-  const chunks = {
-    blob: `
+// an ore is stone with one big seam of its mineral on the front and its own
+// tint on the top face. two cues at once: the seam is a silhouette (lump,
+// bar, nugget, gem, cross) and the top face is a colour, so on a dense board
+// of 41px cubes the greys still read apart, which scattered speckles did not.
+function ore(name, color, glint, top, shape) {
+  const seams = {
+    lump: `
       ........
-      .OO...O.
-      .OGO..OO
-      ..O.....
-      .....OO.
-      O...OGO.
-      OG...O..
-      .O......`,
-    round: `
+      ..OOO...
+      .OGOOOO.
+      OOOOOOOO
+      .OOOOOO.
+      ..OOOOO.
+      ...OOO..
+      ........`,
+    bar: `
       ........
-      ..OO....
-      .OGGO...
-      ..OO..O.
-      .....OGO
-      .OO...O.
-      OGGO....
-      .OO.....`,
-    square: `
       ........
-      .OO..OO.
-      .OG..GO.
+      .OOOOOO.
+      .OGGGGO.
+      .OOOOOO.
+      .OOOOOO.
       ........
-      ...OO...
-      ...GO...
-      .OO..OO.
-      .GO..OG.`,
-    rhomb: `
+      ........`,
+    nugget: `
+      ........
+      .OOOOO..
+      .OGGOO..
+      .OGOOO..
+      .OOOOO..
+      .OOOOO..
+      ........
+      ........`,
+    gem: `
       ...O....
       ..OGO...
-      ...O..O.
-      .....OGO
-      .O....O.
-      OGO.....
-      .O...O..
-      ....OGO.`,
+      .OGOOO..
+      OOOOOOO.
+      .OOOOO..
+      ..OOO...
+      ...O....
+      ........`,
     cross: `
-      ..O.....
-      .OGO..O.
-      ..O..OGO
-      ......O.
-      ..O.....
-      .OGO..O.
-      ..O..OGO
-      ......O.`,
+      ...OO...
+      ...OO...
+      .OOOGOO.
+      .OOOOOO.
+      ...OO...
+      ...OO...
+      ........
+      ........`,
   }
   return {
     key: `${name} ore`,
     color,
     svg: cube({
-      frontBase: STONE.base, topBase: STONE.light, rightBase: STONE.dark,
-      frontPattern: chunks[shape], topPattern: stoneSpeck, rightPattern: stoneSpeck,
+      frontBase: STONE.base, topBase: top, rightBase: STONE.dark,
+      frontPattern: seams[shape], topPattern: stoneSpeck, rightPattern: stoneSpeck,
       palette: { O: color, G: glint, L: STONE.light, D: STONE.dark },
     }),
   }
@@ -183,19 +186,21 @@ const pieces = [
     svg: cube({ frontBase: STONE.base, topBase: STONE.light, rightBase: STONE.dark, frontPattern: stoneSpeck, palette: { L: STONE.light, D: STONE.dark } }),
   },
   {
-    key: 'cobble block', color: '#7A7F86',
+    key: 'cobble block', color: '#6F7783',
     svg: cube({
-      frontBase: '#7A7F86', topBase: '#979CA3', rightBase: '#5C6167',
+      frontBase: '#6F7783', topBase: '#8B95A3', rightBase: '#505863',
+      // a mortar grid of offset stones: a lattice reads at 41px where the old
+      // scatter of light and dark cells read as plain stone
       frontPattern: `
-        LLL.DLL.
-        L..D.L.D
-        .DD..DD.
-        L..LL..L
-        .DD..D.L
-        LL.D.LL.
-        ..DD..D.
-        LL..LL..`,
-      palette: { L: '#979CA3', D: '#4F545A' },
+        L.LD.LLD
+        ...D...D
+        DDDDDDDD
+        .LLD.L.D
+        ...D...D
+        DDDDDDDD
+        L..DL..D
+        ...D...D`,
+      palette: { L: '#8B95A3', D: '#3E444C' },
     }),
   },
   {
@@ -250,11 +255,11 @@ const pieces = [
       palette: { D: '#C4B486', L: '#FBF3D6' },
     }),
   },
-  ore('coal', '#2B2B2B', '#4A4A4A', 'blob'),
-  ore('iron', '#D9A878', '#F1CBA5', 'round'),
-  ore('gold', '#F5C542', '#FFE795', 'square'),
-  ore('diamond', '#5FE3E0', '#BDFFFC', 'rhomb'),
-  ore('redstone', '#E0342C', '#FF7A72', 'cross'),
+  ore('coal', '#2B2B2B', '#4A4A4A', '#6B6B6B', 'lump'),
+  ore('iron', '#D9A878', '#F1CBA5', '#E8C9AC', 'bar'),
+  ore('gold', '#F5C542', '#FFE795', '#F9DD8E', 'nugget'),
+  ore('diamond', '#5FE3E0', '#BDFFFC', '#B5EFED', 'gem'),
+  ore('redstone', '#E0342C', '#FF7A72', '#EFA39D', 'cross'),
 ]
 
 export default {

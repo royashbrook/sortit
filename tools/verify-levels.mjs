@@ -46,6 +46,21 @@ for (let n = 1; n <= LEVEL_COUNT; n++) {
 }
 console.log('  determinism: second pass identical')
 
+// the opening teaches: level 2 must not be level 1 under another colouring or
+// tube order (a shape is the board with colours renamed and tubes sorted, taken
+// over every renaming, so the check cannot be fooled by a swap)
+function shape(tubes) {
+  const colors = [...new Set(tubes.flat())]
+  const perms = colors.length === 1 ? [colors] : colors.flatMap(c => permsOf(colors.filter(o => o !== c)).map(rest => [c, ...rest]))
+  function permsOf(list) { return list.length <= 1 ? [list] : list.flatMap(c => permsOf(list.filter(o => o !== c)).map(rest => [c, ...rest])) }
+  return perms.map(perm => JSON.stringify(tubes.map(t => t.map(c => perm.indexOf(c))).sort())).sort()[0]
+}
+if (shape(levelBoard(1).tubes) === shape(levelBoard(2).tubes)) {
+  console.error('level 2 is level 1 with the colours swapped')
+  process.exit(1)
+}
+console.log('  opening: level 2 is a different shape from level 1')
+
 // the par table: right shape, and EVERY entry re-proved against the exact
 // solver (a fixed sample lets the other 560 drift forever;
 // the full regeneration costs ~95s and exact-table provenance is the promise)
