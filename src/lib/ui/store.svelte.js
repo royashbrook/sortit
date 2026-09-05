@@ -12,7 +12,7 @@ import { dailySeed } from '../engine/seed.js'
 import { sound } from './sounds.js'
 import { confetti } from './confetti.js'
 import { landingTimes } from './flight.js'
-import { createPlayClock, formatPlayTime } from './play-clock.js'
+import { createSessionClock, formatPlayTime } from './play-clock.js'
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
@@ -77,7 +77,7 @@ export function createStore() {
   let history = []                  // undo snapshots (not reactive: read only on undo)
   let seen = new Set()
   let uidNext = 0
-  const playClock = createPlayClock()
+  const playClock = createSessionClock()
   let dialog = $state(null)         // 'howto' | 'looks' | 'about' | null
   let hintTubes = $state([])        // indices the hint button flashes
   let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
@@ -91,6 +91,8 @@ export function createStore() {
     clockText = formatPlayTime(playClock.elapsed())
   }
   if (typeof window !== 'undefined') setInterval(tick, 500)
+  // a tab restored in the background boots hidden; the page reports later changes
+  if (typeof document !== 'undefined') playClock.hold('hidden', document.hidden)
 
   function revealTops(changed) {
     let revealed = false
@@ -134,7 +136,7 @@ export function createStore() {
 
   function finishWin() {
     over = true
-    playClock.stop()
+    playClock.finish()
     tick()
     const stars = starsFor(moves, board.par, board.solution.length)
     let detail = `sorted in ${moves} moves, ${clockText}!`
@@ -170,7 +172,7 @@ export function createStore() {
       localStorage.setItem(GAME_KEY, JSON.stringify({
         kind: board.kind, n: board.n, seed: board.seed,
         tubes: $state.snapshot(tubes), moves, history,
-        elapsed: playClock.elapsed(),
+        started: playClock.started(), elapsed: playClock.elapsed(),
         seen: [...seen],
       }))
     } catch { /* a blocked store only costs the resume */ }
@@ -191,7 +193,11 @@ export function createStore() {
       moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
       history = Array.isArray(raw.history) ? raw.history : []
       seen = new Set(Array.isArray(raw.seen) ? raw.seen : [])
-      playClock.start(Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0, document.hidden)
+      // a board nobody has moved on yet has no time on it, whatever was saved.
+      // undo can take a played board back to zero moves, so the save carries
+      // its own started bit; saves from before that bit only have the count
+      const started = typeof raw.started === 'boolean' ? raw.started : moves > 0
+      if (started) playClock.restore(Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0)
       tick()
       stuck = !anyPlayerMove()
       return true
@@ -221,6 +227,7 @@ export function createStore() {
     next[move.to] = next[move.to].concat(next[move.from].splice(next[move.from].length - move.count, move.count))
     tubes = next
     selected = null
+    playClock.begin()
     moves += 1
     moveSeq += 1
     revealTops(true)
@@ -256,10 +263,11 @@ export function createStore() {
     stuck = false
     won = null
     seen = new Set()
-    playClock.start(0, typeof document !== 'undefined' && document.hidden)
+    playClock.reset()
     clockText = '0:00'
     revealTops(false)
     screen = 'game'
+    playClock.hold('away', false)
     // par is computed off the critical path so the board paints first. the guard has
     // to be a TOKEN, not object identity: `board` is $state, so `board = b` stores a
     // reactive PROXY and `board === b` is always false, which silently dropped every
@@ -307,11 +315,11 @@ export function createStore() {
     isTubeDone: t => isComplete(colorsOf(t), capacity) && !t.some(i => i.hid),
     goGame() {
       screen = 'game'
-      if (typeof document === 'undefined' || !document.hidden) playClock.resume()
+      playClock.hold('away', false)
       tick()
     },
     openLevels() {
-      playClock.pause()
+      playClock.hold('away', true)
       tick()
       saveGame()
       world = Math.floor(((board?.kind === 'level' ? board.n : progress.current) - 1) / WORLD_SIZE)
@@ -331,6 +339,7 @@ export function createStore() {
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
       tubes = last.tubes
       selected = null
+      if (over) playClock.reopen()
       over = false
       moves = last.moves
       won = null
@@ -353,17 +362,12 @@ export function createStore() {
       saveSkin(next)
     },
     setShellTheme(next) { shellTheme = next; saveTheme(next.key); applyTheme(next) },
-    openDialog(d) { dialog = d },
-    closeDialog() { dialog = null },
+    openDialog(d) { dialog = d; playClock.hold('overlay', true); tick() },
+    closeDialog() { dialog = null; playClock.hold('overlay', false); tick() },
     setVisible(visible) {
-      if (!visible) {
-        playClock.pause()
-        tick()
-        saveGame()
-      } else if (screen === 'game' && !over) {
-        playClock.resume()
-        tick()
-      }
+      playClock.hold('hidden', !visible)
+      tick()
+      if (!visible) saveGame()
     },
     // two tabs writing one store: adopt the better of the two rather than clobber
     mergeExternalProgress() {
