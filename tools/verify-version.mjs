@@ -9,4 +9,9 @@ assert.throws(() => formatVersion('v1.2.3.4', '0'))
 assert.throws(() => formatVersion('not-a-version', '0'))
 assert.throws(() => formatVersion('v1.1', '-1'))
 
-console.log('release versions: three-part tags and commit distance verified')
+// kit's own version (version.json, the sw cache name) comes from the same rule
+// as the player-facing stamp: a four-part name here is the regression
+const { default: config } = await import('../svelte.config.js')
+assert.match(config.kit.version.name, /^(\d+\.\d+\.\d+|0\.0\.0-dev)$/, `kit.version.name is ${config.kit.version.name}`)
+
+console.log('release versions: three-part tags, commit distance, and kit.version.name verified')
