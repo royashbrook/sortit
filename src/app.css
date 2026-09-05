@@ -14,6 +14,11 @@
   --accent: #FFB03A;
   --accent-dim: #E89B27;
   --line: #3D3230;
+  --font-mono: ui-monospace, monospace;
+  --shadow-pressed: 0 .05rem 0 var(--line);
+  /* the maker mark's heart: a token so no rule holds a literal, the same value
+     in every theme because the mark is the signature, not part of the paint */
+  --mark-heart: #e0746a;
 
   /* sortit's original names, kept as ALIASES so every existing rule keeps working and
      a theme swap reaches all of them. new css should use the token names above. */
@@ -95,7 +100,7 @@ h1 {
   cursor: pointer;
 }
 
-.big:active { transform: translateY(.25rem); box-shadow: 0 .05rem 0 var(--line); }
+.big:active { transform: translateY(.25rem); box-shadow: var(--shadow-pressed); }
 .big.secondary { background: var(--card); }
 
 .ethos {
@@ -548,7 +553,7 @@ dialog li { margin-bottom: .3rem; }
   border-radius: .8rem;
   background: var(--surface-sunk);
   color: var(--ink);
-  font: .72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: .72rem var(--font-mono);
   user-select: text;
   -webkit-user-select: text;
 }
@@ -634,7 +639,7 @@ dialog li { margin-bottom: .3rem; }
 #about .maker-mark { margin: 0 0 1.2rem; padding-top: .8rem; border-top: .12rem solid rgb(61 50 48 / .15); }
 .maker-mark {
   margin: 1rem 0 .2rem;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: .8rem;
   color: var(--soft, #8b8f99);
   text-align: center;
@@ -653,7 +658,7 @@ dialog li { margin-bottom: .3rem; }
 }
 .maker-mark { line-height: 2.6; }
 .maker-mark a.mark-sponsor { color: #d9a441; }
-.mark-heart { width: .85em; height: .85em; fill: #e0746a; vertical-align: -.1em; }
+.mark-heart { width: .85em; height: .85em; fill: var(--mark-heart); vertical-align: -.1em; }
 .mark-dot { opacity: .45; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
@@ -663,7 +668,7 @@ dialog li { margin-bottom: .3rem; }
   top: calc(6px + env(safe-area-inset-top));
   right: calc(10px + env(safe-area-inset-right));
   z-index: 50;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: .04em;
   color: var(--soft, #8b8f99);
