@@ -2,7 +2,7 @@
 // the engine (solver/levels/stars/skins) and NEVER the other way round, so the
 // node verifiers keep proving the same modules the game runs (shell spec rule 1).
 import { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT, levelBoard, seedBoard } from '../engine/levels.js'
-import { isComplete, isWin, solve } from '../engine/solver.js'
+import { isComplete, isWin, optimal, solve } from '../engine/solver.js'
 import { THEMES, themeForWorld } from '../engine/art/index.js'
 import { STAR_SLACK, parFor, starsFor } from '../engine/stars.js'
 import { SKINS, loadSkin, saveSkin } from '../engine/skins.js'
@@ -142,6 +142,9 @@ export function createStore() {
     let detail = `sorted in ${moves} moves, ${clockText}!`
     let canNext = false
     if (board.kind === 'level') {
+      // a best stays as earned on whichever deal it was played, and the star
+      // goal is always this board's own par: redealing a level never erases
+      // an old best and never rescores it against the new deal
       const best = progress.done[board.n]
       if (best == null || moves < best) {
         progress.done = { ...progress.done, [board.n]: moves }
@@ -170,7 +173,7 @@ export function createStore() {
     try {
       if (!board || over) { localStorage.removeItem(GAME_KEY); return }
       localStorage.setItem(GAME_KEY, JSON.stringify({
-        kind: board.kind, n: board.n, seed: board.seed,
+        kind: board.kind, n: board.n, seed: board.seed, par: board.par,
         tubes: $state.snapshot(tubes), moves, history,
         started: playClock.started(), elapsed: playClock.elapsed(),
         seen: [...seen],
@@ -187,7 +190,18 @@ export function createStore() {
       if (!b) return false
       const okItem = i => i && Number.isInteger(i.uid) && Number.isInteger(i.c) && i.c >= 0 && i.c < b.params.colors && typeof i.hid === 'boolean'
       if (raw.tubes.length !== b.tubes.length || !raw.tubes.every(t => Array.isArray(t) && t.every(okItem))) return false
-      play(b)
+      // the save scores the board it holds, never the level table: a level
+      // redealt after the save (a new first salt) would otherwise advertise a
+      // best possible this board cannot reach. saves before the par field
+      // get it from the exact solver, but only when the dealt board (the undo
+      // stack's first entry, else the tubes) differs from today's deal
+      const first = Array.isArray(raw.history) ? raw.history[0]?.tubes : null
+      const dealt = Array.isArray(first) && first.every(t => Array.isArray(t) && t.every(okItem)) ? first : raw.tubes
+      const colours = dealt.map(t => t.map(i => i.c))
+      const parOf = Number.isInteger(raw.par) ? () => raw.par
+        : JSON.stringify(colours) === JSON.stringify(b.tubes) ? parFor
+        : () => { const r = optimal(colours, b.params.capacity); return r.aborted ? null : r.length }
+      play(b, parOf)
       tubes = raw.tubes.map(t => t.map(i => ({ ...i })))
       uidNext = Math.max(0, ...raw.tubes.flat().map(i => i.uid)) + 1
       moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
@@ -247,7 +261,7 @@ export function createStore() {
     return THEMES[b.seed % THEMES.length]
   }
 
-  function play(b) {
+  function play(b, parOf = parFor) {
     board = b
     board.par = null
     theme = themeForBoard(b)
@@ -273,7 +287,7 @@ export function createStore() {
     // reactive PROXY and `board === b` is always false, which silently dropped every
     // par (and with it "best possible" + the 3-star goal on the win card).
     const token = ++playSeq
-    setTimeout(() => { if (playSeq === token) board.par = parFor(b) }, 0)
+    setTimeout(() => { if (playSeq === token) board.par = parOf(b) }, 0)
     saveGame()
   }
 
