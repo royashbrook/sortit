@@ -164,6 +164,7 @@ h1 {
   font-weight: 800;
   letter-spacing: .05em;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 #game-nav button[data-active] { background: var(--accent); color: var(--ink-on-accent); }
 #game-nav button:active { transform: translateY(.1rem); }
@@ -235,6 +236,9 @@ h1 {
   background: rgb(255 255 255 / .65);
   cursor: pointer;
   transition: transform .15s ease, box-shadow .15s ease, border-color .2s ease;
+  /* the bolts look leaves the tube transparent, so the browser's own grey tap
+     box would be the only thing that flashes on a post. the lift is the cue. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tube.sel { transform: translateY(-4px); box-shadow: 0 .35rem 0 var(--line); }
