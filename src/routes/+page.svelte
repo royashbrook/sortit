@@ -255,6 +255,15 @@
       <span class="chip flat mono" aria-live="polite">{store.moves} {store.moves === 1 ? 'move' : 'moves'}</span>
     </header>
 
+    <!-- the first-run card: once, on the very first board, over nothing (the
+         board is right there under it). the store never shows it again. -->
+    {#if store.welcome}
+      <div class="first-run" role="note">
+        <p>tap a stack to pick up what's on top, then tap another stack to drop it there.</p>
+        <button class="chip" onclick={() => store.dismissWelcome()}>GOT IT</button>
+      </div>
+    {/if}
+
     <Board {store} />
 
     <nav id="game-nav" aria-label="Game controls">

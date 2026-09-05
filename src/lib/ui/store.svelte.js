@@ -44,9 +44,12 @@ function loadProgress() {
       const n = Number(k)
       if (stars[n] == null) stars[n] = starsFor(best, PARS_AT(n), null)
     }
-    return { current, done, stars }
+    // the first-run card has been shown: a save from before the flag counts as
+    // welcomed once it has any progress, that player has already found the taps
+    const welcomed = raw?.welcomed === true || Object.keys(done).length > 0 || current > 1
+    return { current, done, stars, welcomed }
   } catch {
-    return { current: 1, done: {}, stars: {} }
+    return { current: 1, done: {}, stars: {}, welcomed: false }
   }
 }
 // par lookup that survives a missing table entry (kept tiny so loadProgress reads clean)
@@ -82,6 +85,10 @@ export function createStore() {
   let hintTubes = $state([])        // indices the hint button flashes
   let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
   let lastMovedUids = $state([])    // the item uids the last move carried
+  // the one-time first-run card. it is flagged as shown the moment it shows,
+  // so a reload never brings it back; GOT IT or the first move takes it down
+  let welcome = $state(!progress.welcomed)
+  if (welcome) { progress.welcomed = true; saveProgress($state.snapshot(progress)) }
 
   const colorsOf = t => t.map(i => i.c)
   const numeric = () => tubes.map(colorsOf)
@@ -241,6 +248,7 @@ export function createStore() {
     next[move.to] = next[move.to].concat(next[move.from].splice(next[move.from].length - move.count, move.count))
     tubes = next
     selected = null
+    welcome = false
     playClock.begin()
     moves += 1
     moveSeq += 1
@@ -313,6 +321,7 @@ export function createStore() {
     get clock() { return clockText },
     get dialog() { return dialog },
     get hintTubes() { return hintTubes },
+    get welcome() { return welcome },
     get moveSeq() { return moveSeq },
     get lastMovedUids() { return lastMovedUids },
     get skins() { return SKINS },
@@ -370,6 +379,7 @@ export function createStore() {
       setTimeout(() => { hintTubes = [] }, 2000)
       return m
     },
+    dismissWelcome() { welcome = false },
     setSkin(next) {
       lastMovedUids = []
       moveSeq += 1
@@ -388,6 +398,7 @@ export function createStore() {
     mergeExternalProgress() {
       const incoming = loadProgress()
       incoming.current = Math.max(incoming.current, progress.current)
+      incoming.welcomed = incoming.welcomed || progress.welcomed
       for (const [n, best] of Object.entries(progress.done)) if (incoming.done[n] == null || best < incoming.done[n]) incoming.done[n] = best
       for (const [n, earned] of Object.entries(progress.stars)) if ((incoming.stars[n] ?? 0) < earned) incoming.stars[n] = earned
       progress = incoming
