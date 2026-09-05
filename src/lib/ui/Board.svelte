@@ -36,12 +36,15 @@
       const availH = availHTotal - (rc - 1) * GAP
       const bySide = (availH / rc - tubeLip - PAD) / (capacity * pieceRatio)
       const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
-      const s = Math.min(64, bySide, byWidth)
+      // a small board (level 1: four posts of three) sat as a toy in the middle
+      // of an empty card at 64px, so the cap rises when a row holds few pieces
+      const cap = capacity * rc <= 4 ? 96 : 64
+      const s = Math.min(cap, bySide, byWidth)
       if (!best || s > best.s) best = { rc, s }
     }
     if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
     rowCount = best.rc
-    side = Math.max(20, Math.min(64, best.s))
+    side = Math.max(20, best.s)
     tubeH = side * capacity * pieceRatio + tubeLip + PAD
     rowCount = best.rc
   }
@@ -187,7 +190,7 @@
   // each piece (or "mystery"), or "empty"
   const tubeLabel = (index) => {
     const named = store.tubes[index].map(i => i.hid ? 'mystery' : pieceFor(i).key)
-    return `tube ${index + 1}: ${named.join(', ') || 'empty'}`
+    return `stack ${index + 1}: ${named.join(', ') || 'empty'}`
   }
 
   const isLifted = (index, item) => {
@@ -198,6 +201,9 @@
   }
 </script>
 
+<!-- only classic tints the card with its world's art. a conversion skin paints
+     its own scene in css or leaves the board to the shell theme, so a dark
+     theme actually darkens it -->
 <div
   id="board"
   bind:this={boardEl}
@@ -205,7 +211,7 @@
   style:--side="{side}px"
   style:--item-h="{side * (store.skin.pieceRatio ?? 1)}px"
   style:--tube-h="{tubeH}px"
-  style:background={store.theme?.tint}
+  style:background={store.skin.pieces ? null : store.theme?.tint}
   aria-label="sorting board"
 >
   {#each rows as row}
@@ -215,7 +221,8 @@
           class="tube"
           class:sel={store.selected === index}
           class:done={store.isTubeDone(store.tubes[index])}
-          class:hint={store.hintTubes.includes(index)}
+          class:hint-from={store.hintTubes[0] === index}
+          class:hint={store.hintTubes[1] === index}
           onclick={() => store.tap(index)}
           aria-label={tubeLabel(index)}
         >

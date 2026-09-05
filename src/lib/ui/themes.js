@@ -17,7 +17,16 @@ export const THEME_TOKENS = [
   '--surface', '--surface-raised', '--surface-sunk',
   '--ink', '--ink-dim', '--ink-on-accent',
   '--accent', '--accent-dim', '--line',
+  '--font-mono', '--shadow-pressed', '--mark-heart',
 ]
+
+// the tokens no theme repaints: the type, the pressed shadow's geometry, and
+// the maker mark's heart (the signature on the work, the same in every theme)
+const FIXED = {
+  '--font-mono': 'ui-monospace, monospace',
+  '--shadow-pressed': '0 .05rem 0 var(--line)',
+  '--mark-heart': '#e0746a',
+}
 
 export const SHELL_THEMES = [
   {
@@ -34,6 +43,7 @@ export const SHELL_THEMES = [
       '--accent': '#FFB03A',
       '--accent-dim': '#E89B27',
       '--line': '#3D3230',
+      ...FIXED,
     },
   },
   {
@@ -50,6 +60,7 @@ export const SHELL_THEMES = [
       '--accent': '#FFB03A',
       '--accent-dim': '#D8912A',
       '--line': '#F2ECE2',
+      ...FIXED,
     },
   },
   {
@@ -66,6 +77,7 @@ export const SHELL_THEMES = [
       '--accent': '#FF74A8',
       '--accent-dim': '#E85C90',
       '--line': '#4A2740',
+      ...FIXED,
     },
   },
 ]

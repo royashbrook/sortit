@@ -30,6 +30,24 @@ const RULES = [
     test: /—|\s--\s/,
     why: 'house voice uses a colon, a comma, or parentheses instead.',
   },
+  {
+    name: 'tube in player copy',
+    // the default look is posts and nuts, and every other look has its own
+    // container: in-app words say "stack". the class names and comments in
+    // code keep the word, so this only reads the svelte files' phrases
+    test: /\b(a|an|another|every|whole|empty|each|its own) tubes?\b/i,
+    files: /\.svelte$/,
+    why: 'the default look has no tubes: say "stack".',
+  },
+]
+
+// the house ethos line, verbatim and lowercase, where a store or a search
+// result reads it. the about screen has it by hand; these two drifted to
+// sentence case once, and case-insensitive checks let that through.
+const ETHOS = 'a cosy sorting puzzle for kids. no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. works offline.'
+const VERBATIM = [
+  { file: 'src/app.html', text: ETHOS },
+  { file: 'static/manifest.json', text: ETHOS },
 ]
 
 const files = execSync("git ls-files '*.md' '*.html' '*.svelte'", { encoding: 'utf8' })
@@ -37,11 +55,17 @@ const files = execSync("git ls-files '*.md' '*.html' '*.svelte'", { encoding: 'u
   .filter(Boolean)
 
 const hits = []
+for (const { file, text } of VERBATIM) {
+  if (!readFileSync(file, 'utf8').includes(text)) {
+    hits.push({ file, line: 0, rule: { name: 'ethos not verbatim', why: `must contain exactly: ${text}` }, text: '' })
+  }
+}
 for (const file of files) {
   const lines = readFileSync(file, 'utf8').split('\n')
   lines.forEach((line, i) => {
     if (line.includes(MARKER)) return
     for (const rule of RULES) {
+      if (rule.files && !rule.files.test(file)) continue
       if (rule.test.test(line)) hits.push({ file, line: i + 1, rule, text: line.trim().slice(0, 90) })
     }
   })

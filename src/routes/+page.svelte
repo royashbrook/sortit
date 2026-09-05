@@ -337,11 +337,11 @@
     {#snippet children(close)}
       <h2>How to play</h2>
       <ol>
-        <li>Tap a tube to pick up what's on top.</li>
-        <li>Tap another tube to drop it there.</li>
-        <li>Drops only land on a <b>matching</b> friend, or in an empty tube.</li>
-        <li>Fill a whole tube with one kind to finish it.</li>
-        <li>Sort every tube to win!</li>
+        <li>Tap a stack to pick up what's on top.</li>
+        <li>Tap another stack to drop it there.</li>
+        <li>Drops only land on a <b>matching</b> friend, or on an empty spot.</li>
+        <li>Fill a whole stack with one kind to finish it.</li>
+        <li>Sort every stack to win!</li>
       </ol>
       <p class="small">Stuck? <b>UNDO</b> takes moves back as many times as you like, and <b>HINT</b> shows a good move. Some pieces hide as a <b>?</b>, move the piece on top to peek! Take as long as you want.</p>
       <button class="big" onclick={close}>GOT IT</button>
@@ -386,7 +386,7 @@
   <Modal label="About Sort It" onclose={() => store.closeDialog()}>
     {#snippet children(close)}
       <h2>About Sort It</h2>
-      <p class="about-body">tap a tube to pick up a piece, tap another to drop it, and sort every colour into its own tube. a fresh puzzle every day, hundreds of levels, and one to send a friend.</p>
+      <p class="about-body">tap a stack to pick up a piece, tap another to drop it, and sort every colour into its own stack. a fresh puzzle every day, hundreds of levels, and one to send a friend.</p>
       <p class="about-ethos">no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. that is the whole point.</p>
       <p class="maker-mark">made with <svg aria-hidden="true" class="mark-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="sr">love</span> by
         <a href="https://royashbrook.com" target="_blank" rel="noreferrer">roy</a> +

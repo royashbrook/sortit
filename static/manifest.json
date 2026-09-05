@@ -1,7 +1,7 @@
 {
   "name": "Sort It",
   "short_name": "Sort It",
-  "description": "A cosy sorting puzzle for kids. No ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. Works offline.",
+  "description": "a cosy sorting puzzle for kids. no ads, no lives, no timers, nothing to buy, no accounts, no cookies, nothing sold or shared. works offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
