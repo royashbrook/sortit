@@ -10,7 +10,7 @@ import { SKINS, loadSkin, saveSkin } from '../engine/skins.js'
 import { SHELL_THEMES, applyTheme, loadTheme, saveTheme } from './themes.js'
 import { dailySeed } from '../engine/seed.js'
 import { sound } from './sounds.js'
-import { confetti } from './confetti.js'
+import { confetti, clearConfetti } from './confetti.js'
 import { landingTimes } from './flight.js'
 import { createSessionClock, formatPlayTime } from './play-clock.js'
 
@@ -277,6 +277,7 @@ export function createStore() {
     stuck = false
     won = null
     seen = new Set()
+    clearConfetti() // the last win's, not this board's
     playClock.reset()
     clockText = '0:00'
     revealTops(false)
