@@ -472,7 +472,11 @@ h1 {
 .look svg { width: 3.4rem; height: 3.4rem; }
 .look[aria-pressed="true"] { background: var(--accent); box-shadow: 0 .25rem 0 var(--line); }
 
+/* a hint is the move itself in the picture: the piece to pick up lifts off
+   its source, the ring sits on the destination, so the order of the two taps
+   reads without a word. the same lift a tap gives, so it teaches the tap. */
 .tube.hint { animation: hintpulse 1s ease 2; }
+.tube.hint-from .item:last-child { transform: translateY(-10px) scale(1.06); animation: bob 1.5s ease-in-out .3s infinite; }
 @keyframes hintpulse {
   0%, 100% { box-shadow: none; }
   50% { box-shadow: 0 0 0 .3rem var(--accent); }
@@ -626,7 +630,7 @@ dialog li { margin-bottom: .3rem; }
 
 @media (prefers-reduced-motion: reduce) {
   .item, .tube { transition: none; }
-  .tube.shake, .tube.hint, .item.lift { animation: none; }
+  .tube.shake, .tube.hint, .item.lift, .tube.hint-from .item:last-child { animation: none; }
   /* motion goes away, information does not: static cues replace the pulses,
      and game.js removes the classes on a timer so they still clear */
   .tube.hint { box-shadow: 0 0 0 .3rem var(--accent); }

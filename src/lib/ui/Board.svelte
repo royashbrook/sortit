@@ -221,7 +221,8 @@
           class="tube"
           class:sel={store.selected === index}
           class:done={store.isTubeDone(store.tubes[index])}
-          class:hint={store.hintTubes.includes(index)}
+          class:hint-from={store.hintTubes[0] === index}
+          class:hint={store.hintTubes[1] === index}
           onclick={() => store.tap(index)}
           aria-label={tubeLabel(index)}
         >

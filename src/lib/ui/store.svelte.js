@@ -366,7 +366,7 @@ export function createStore() {
       const r = solve(numeric(), capacity, HINT_BUDGET)
       if (!r.solved || !r.moves.length) return false
       const m = r.moves[0]
-      hintTubes = [m.from, m.to]
+      hintTubes = [m.from, m.to] // the board lifts the first, rings the second
       setTimeout(() => { hintTubes = [] }, 2000)
       return m
     },
