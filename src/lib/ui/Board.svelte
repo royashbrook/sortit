@@ -190,7 +190,7 @@
   // each piece (or "mystery"), or "empty"
   const tubeLabel = (index) => {
     const named = store.tubes[index].map(i => i.hid ? 'mystery' : pieceFor(i).key)
-    return `tube ${index + 1}: ${named.join(', ') || 'empty'}`
+    return `stack ${index + 1}: ${named.join(', ') || 'empty'}`
   }
 
   const isLifted = (index, item) => {

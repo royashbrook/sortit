@@ -30,6 +30,15 @@ const RULES = [
     test: /—|\s--\s/,
     why: 'house voice uses a colon, a comma, or parentheses instead.',
   },
+  {
+    name: 'tube in player copy',
+    // the default look is posts and nuts, and every other look has its own
+    // container: in-app words say "stack". the class names and comments in
+    // code keep the word, so this only reads the svelte files' phrases
+    test: /\b(a|an|another|every|whole|empty|each|its own) tubes?\b/i,
+    files: /\.svelte$/,
+    why: 'the default look has no tubes: say "stack".',
+  },
 ]
 
 // the house ethos line, verbatim and lowercase, where a store or a search
@@ -56,6 +65,7 @@ for (const file of files) {
   lines.forEach((line, i) => {
     if (line.includes(MARKER)) return
     for (const rule of RULES) {
+      if (rule.files && !rule.files.test(file)) continue
       if (rule.test.test(line)) hits.push({ file, line: i + 1, rule, text: line.trim().slice(0, 90) })
     }
   })
