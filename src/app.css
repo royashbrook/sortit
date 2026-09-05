@@ -198,6 +198,23 @@ h1 {
   to { translate: -50% 0; }
 }
 
+/* the first-run card: a raised note above the board, big enough to read at
+   arm's length and gone for good after the first tap or GOT IT */
+.first-run {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+  width: 100%;
+  padding: .6rem .6rem .6rem .9rem;
+  border: .16rem solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.first-run p { flex: 1; margin: 0; }
+
 /* the MORE sheet: the old front page's list, one tap away from any screen */
 .more-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .6rem; }
 .check-updates.ready { background: var(--accent); }

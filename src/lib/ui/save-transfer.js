@@ -107,7 +107,9 @@ function compact(slots) {
   const game = slots.game === null ? null : parse(slots.game, 'puzzle')
   return {
     v: 1,
-    p: progress === null ? null : { c: progress.current, d: dense(progress.done), s: dense(progress.stars) },
+    // the first-run flag rides along only when set, so a save without it
+    // round-trips byte for byte
+    p: progress === null ? null : { c: progress.current, d: dense(progress.done), s: dense(progress.stars), ...(progress.welcomed === true ? { w: true } : {}) },
     // Keep the exact board, but not its growing undo stack. That makes a long
     // session portable by QR without changing any earned progress.
     g: game === null ? null : { ...game, history: [] },
@@ -125,6 +127,7 @@ function expandPayload(payload) {
     current: payload.p.c,
     done: expand(payload.p.d),
     stars: expand(payload.p.s),
+    ...(payload.p.w === true ? { welcomed: true } : {}),
   })
   return validateSlots({
     progress,
