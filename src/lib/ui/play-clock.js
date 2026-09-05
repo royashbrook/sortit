@@ -60,6 +60,10 @@ export function createSessionClock(now = () => Date.now()) {
     begin() { if (started) return; started = true; clock.start(0, true); sync() },
     hold(gate, held) { gates[gate] = !!held; sync() },
     finish() { clock.stop() },
+    // undoing a win: the board is live again, so the stopped time becomes a
+    // running clock, still held by whatever gate is up
+    reopen() { if (!started) return; clock.start(clock.elapsed(), true); sync() },
+    started: () => started,
     elapsed: () => clock.elapsed(),
   }
 }

@@ -163,6 +163,62 @@ now += 60_000
 store.setVisible(true)
 if (store.moves !== 1 || store.clock !== '1:04') fail(`a moved board did not reload with its time: ${store.clock}`)
 
+// a board undone back to zero moves has still been played: its time survives a reload
+store.startLevel(1)
+store.tap(0); store.tap(2)
+now += 5_000
+store.setVisible(true)
+store.undo()
+if (store.moves !== 0 || store.clock !== '0:05') fail(`undo to zero moves changed the clock: ${store.moves} moves, ${store.clock}`)
+store.setVisible(false)
+store = open()
+if (store.moves !== 0 || store.clock !== '0:05') fail(`a board undone to zero moves reloaded without its time: ${store.clock}`)
+
+// a save from before the started bit: zero moves means untouched, moves mean played
+const legacy = JSON.parse(stored.get('sortit:game'))
+delete legacy.started
+legacy.elapsed = 9_000
+stored.set('sortit:game', JSON.stringify(legacy))
+store = open()
+if (store.clock !== '0:00') fail(`an old untouched save reloaded with time on it: ${store.clock}`)
+legacy.moves = 1
+stored.set('sortit:game', JSON.stringify(legacy))
+store = open()
+if (store.clock !== '0:09') fail(`an old moved save did not reload with its time: ${store.clock}`)
+
+// undoing a win reopens the board, and the clock runs again on the next tick
+store.startLevel(1)
+solveOut(store)
+now += 3_000
+store.setVisible(true)
+if (!store.won || store.clock !== '0:00') fail(`the win did not stop the clock: ${store.clock}`)
+store.undo()
+now += 10_000
+store.setVisible(true)
+if (store.won || store.clock !== '0:10') fail(`undoing a win left the clock stopped: ${store.clock}`)
+
+// but not under a dialog, and not in a hidden tab
+const winAgain = () => { const m = store.board.solution.at(-1); store.tap(m.from); store.tap(m.to) }
+winAgain()
+store.openDialog('about')
+store.undo()
+now += 10_000
+store.setVisible(true)
+if (store.clock !== '0:10') fail(`undoing a win under a dialog ran the clock: ${store.clock}`)
+store.closeDialog()
+now += 1_000
+store.setVisible(true)
+if (store.clock !== '0:11') fail(`the reopened board did not resume once the dialog closed: ${store.clock}`)
+store.setVisible(false)
+winAgain()
+store.undo()
+now += 10_000
+if (store.clock !== '0:11') fail(`undoing a win in a hidden tab ran the clock: ${store.clock}`)
+store.setVisible(true)
+now += 1_000
+store.setVisible(true)
+if (store.clock !== '0:12') fail(`the reopened board did not resume once the tab showed: ${store.clock}`)
+
 const page = readFileSync(new URL('../src/routes/+page.svelte', import.meta.url), 'utf8')
 if (!page.includes('<button onclick={() => store.replay()}>RESET</button>')) fail('RESET is not a direct game control')
 if (!page.includes('store.setVisible(!document.hidden)')) fail('visibility is not wired to the play clock')

@@ -172,7 +172,7 @@ export function createStore() {
       localStorage.setItem(GAME_KEY, JSON.stringify({
         kind: board.kind, n: board.n, seed: board.seed,
         tubes: $state.snapshot(tubes), moves, history,
-        elapsed: playClock.elapsed(),
+        started: playClock.started(), elapsed: playClock.elapsed(),
         seen: [...seen],
       }))
     } catch { /* a blocked store only costs the resume */ }
@@ -193,8 +193,11 @@ export function createStore() {
       moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
       history = Array.isArray(raw.history) ? raw.history : []
       seen = new Set(Array.isArray(raw.seen) ? raw.seen : [])
-      // a board nobody has moved on yet has no time on it, whatever was saved
-      if (moves > 0) playClock.restore(Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0)
+      // a board nobody has moved on yet has no time on it, whatever was saved.
+      // undo can take a played board back to zero moves, so the save carries
+      // its own started bit; saves from before that bit only have the count
+      const started = typeof raw.started === 'boolean' ? raw.started : moves > 0
+      if (started) playClock.restore(Number.isFinite(raw.elapsed) && raw.elapsed > 0 ? raw.elapsed : 0)
       tick()
       stuck = !anyPlayerMove()
       return true
@@ -336,6 +339,7 @@ export function createStore() {
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
       tubes = last.tubes
       selected = null
+      if (over) playClock.reopen()
       over = false
       moves = last.moves
       won = null
