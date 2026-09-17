@@ -48,7 +48,9 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
       const identity: unknown = await response.json()
       if (!identity || typeof identity !== 'object' || !('fingerprint' in identity) ||
         typeof identity.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(identity.fingerprint)) throw new Error('Invalid update identity')
-      await registration.update()
+      // register() may already be installing. A concurrent update stalls the
+      // shipped legacy worker's handoff in Chromium; its statechange retries us.
+      if (!registration.installing) await registration.update()
       if (disposed()) return
       const target = registration.waiting ?? registration.active
       const fingerprint = await identify(target)

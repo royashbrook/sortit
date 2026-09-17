@@ -184,7 +184,7 @@
     const request = new AbortController()
     transferRequest = request
     try {
-      await importSave(saveImport, undefined, request.signal)
+      await importSave(saveImport, undefined, undefined, request.signal)
       if (disposed || request.signal.aborted) return
       store.reloadSave()
       sound.reloadSettings()

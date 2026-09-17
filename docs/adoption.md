@@ -11,6 +11,9 @@ product. SvelteKit stays because the static shell and deployment already use it.
 - One pure save parser for local resume and transfer, including every undo entry.
   Unreadable local bytes are copied before replacement. If copying fails, that
   slot stays protected against writes. Ordinary storage failures are visible.
+  Local resume keeps its legacy defaults. The v1 transfer boundary still requires
+  its counters, undo/seen arrays and progress maps, rather than inventing fields
+  in an incomplete code. The existing positional import clock stays compatible.
 - Import and rollback adopt the incoming state in place, not after a timed
   browser reload. A local generation marker distinguishes replacement from a
   normal cross-tab progress merge. Existing transferable slots and codes remain.
@@ -39,11 +42,13 @@ product. SvelteKit stays because the static shell and deployment already use it.
   The integrated 88-case Chromium/WebKit art, lifecycle and save suite passed.
   A later denied-storage-access export case failed in both engines before its
   fix; the resulting ten-case save browser suite passes in both engines.
-- `verify-update` exercises the actual typed controller and worker. Nine guard
+- `verify-update` exercises the actual typed controller and worker. Eleven guard
   mutations fail: rollback ordering, late registration, lost-ready events,
   applying-state clobbering, duplicate cache keys, retirement during a new
   download, a changed active worker, failed activation recovery and observation
-  of an already-waiting worker. The active-worker swap is a defensive unit
+  of an already-waiting worker, overlapping registration/install updates, and
+  completion of a matching-page legacy handoff.
+  The active-worker swap is a defensive unit
   invariant, not a reproduced native message to a retired worker.
 - Real A/B artifacts pass six update tests across Chromium and WebKit: consent
   to a lexicographically lower fingerprint, save retention, held-tab assets,
@@ -51,10 +56,14 @@ product. SvelteKit stays because the static shell and deployment already use it.
   Offline play and notices pass. WebKit uses complete server socket outage
   because its offline emulator rejects navigation internally. Expected native
   network diagnostics are recorded only in that injected-outage phase.
-- Migration from the shipped 1.1.21 artifact passes in WebKit but fails in
-  Chromium: the new worker stays waiting despite completed asset responses
-  and activation requests. Cause unconfirmed. The failing assertion remains,
-  with no timeout increase, skip or production workaround. Full PWA suite: 7/8.
+- Migration from the shipped 1.1.21 artifact now passes in both engines.
+  Chromium stalled when registration was followed by another update request
+  while the new worker was still installing. Skipping that redundant request
+  fixed the exact transition; the old code and a guard-deletion mutant fail.
+  No timeout increase, skip, unregister or cache purge was used. Full PWA suite:
+  10/10, including an already-waiting worker matching the newly loaded page:
+  it takes control without a second prompt or reload and retains the puzzle.
+  The internal browser mechanism is not claimed from this sequencing proof.
 - The development artifact builds and passes its integrity/licensing checks.
   The strict release path and hosted deployment are not yet integrated.
 - `verify:release`: tag/history fixtures, fingerprints, notices and artifact
@@ -65,8 +74,8 @@ product. SvelteKit stays because the static shell and deployment already use it.
 
 ## still required before release
 
-1. Resolve the Chromium legacy activation failure and rerun the real old/new
-   worker suite against final rebuilt artifacts. Browser offline emulation and
+1. Rerun the real old/new worker suite against final rebuilt artifacts after
+   integration. Browser offline emulation and
    socket-outage evidence do not establish physical-phone behavior.
 2. Run the full integrated suite at the final head, independent old/new comparison,
    and final visual/control review. Preserve the passing save/storage/cancellation

@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import QRCode from 'qrcode'
 import { levelBoard } from '../src/lib/engine/levels.ts'
 import { SAVE_GENERATION_KEY } from '../src/lib/storage.ts'
+import { normalizeGame } from '../src/lib/save-schema.ts'
 import {
   ROLLBACK_KEY,
   decodeSave,
   encodeSave,
+  encodeSaveSlots,
+  readSaveSlots,
   importSave,
   restoreRollback,
   saveLink,
@@ -60,12 +63,13 @@ const target = new MemoryStorage({
 const code = await encodeSave(source)
 assert.match(code, /^si1\.[01]\./)
 assert.equal((await decodeSave(code)).slots.game, game)
-await importSave(code, target, undefined, () => 123)
+await importSave(code, target, () => 123)
 for (const key of ['progress', 'game', 'skin', 'theme', 'muted']) {
   const storageKey = `sortit:${key}`
   assert.equal(target.getItem(storageKey), source.getItem(storageKey))
 }
 assert.ok(target.getItem(ROLLBACK_KEY))
+assert.equal(JSON.parse(target.getItem(ROLLBACK_KEY)).savedAt, 123, 'the existing third positional clock argument stays compatible')
 
 restoreRollback(target)
 assert.equal(target.getItem('sortit:progress'), oldProgress)
@@ -89,6 +93,33 @@ QRCode.create(saveLink(fullCode, 'https://sortit.royashbrook.com/'), { errorCorr
 
 const damaged = new MemoryStorage({ 'sortit:progress': '{"current":9999,"done":{},"stars":{}}' })
 await assert.rejects(encodeSave(damaged), /valid Sort It save/)
+
+for (const field of ['moves', 'elapsed', 'history', 'seen']) {
+  for (const missing of ['absent', 'null']) {
+    const incomplete = JSON.parse(game)
+    if (missing === 'absent') delete incomplete[field]
+    else incomplete[field] = null
+    const resumed = normalizeGame(incomplete)
+    assert.deepEqual(resumed[field], ['moves', 'elapsed'].includes(field) ? 0 : [], 'local legacy resume retains its defaults')
+    const storage = new MemoryStorage({ 'sortit:game': JSON.stringify(incomplete) })
+    await assert.rejects(encodeSave(storage), /valid Sort It save/, `stored transfer rejects ${missing} ${field}`)
+    await assert.rejects(encodeSaveSlots(readSaveSlots(storage)), /valid Sort It save/, `slot transfer rejects ${missing} ${field}`)
+    const payload = { v: 1, p: null, g: incomplete, k: null, t: null, m: null }
+    const rawCode = `si1.0.${Buffer.from(JSON.stringify(payload)).toString('base64url')}`
+    await assert.rejects(decodeSave(rawCode), /valid Sort It save/, `incoming v1 transfer rejects ${missing} ${field}`)
+  }
+}
+
+for (const field of ['done', 'stars']) {
+  for (const missing of ['absent', 'null']) {
+    const incomplete = JSON.parse(newProgress)
+    if (missing === 'absent') delete incomplete[field]
+    else incomplete[field] = null
+    const storage = new MemoryStorage({ 'sortit:progress': JSON.stringify(incomplete) })
+    await assert.rejects(encodeSave(storage), /valid Sort It save/, `stored transfer rejects ${missing} ${field}`)
+    await assert.rejects(encodeSaveSlots(readSaveSlots(storage)), /valid Sort It save/, `slot transfer rejects ${missing} ${field}`)
+  }
+}
 
 const blocked = new FailingStorage({ 'sortit:progress': oldProgress }, 'sortit:game', game)
 await assert.rejects(importSave(code, blocked), /blocked write/)
@@ -126,7 +157,7 @@ for (const alreadyAborted of [false, true]) {
   })
   const before = new Map(target.values)
   if (alreadyAborted) controller.abort()
-  const importing = importSave(code, target, controller.signal)
+  const importing = importSave(code, target, undefined, controller.signal)
   if (!alreadyAborted) controller.abort()
   await assert.rejects(importing, { name: 'AbortError' })
   assert.deepEqual(target.values, before, 'canceled transfer changed storage')

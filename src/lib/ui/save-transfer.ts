@@ -32,8 +32,18 @@ function validateSlots(value: unknown): SaveSlots {
   for (const name of Object.keys(SLOT_KEYS)) {
     if (!(slots[name] === null || typeof slots[name] === 'string')) throw new Error(`${name} is damaged`)
   }
-  if (typeof slots.progress === 'string') normalizeProgress(parse(slots.progress, 'progress'))
-  if (typeof slots.game === 'string') normalizeGame(parse(slots.game, 'puzzle'))
+  // Local resume supplies defaults for older stored shapes. The v1 transfer
+  // format has always required these fields; importing must not invent them.
+  if (typeof slots.progress === 'string') {
+    const progress = parse(slots.progress, 'progress')
+    if (!record(progress) || progress.done == null || progress.stars == null) throw new Error('progress is not a valid Sort It save')
+    normalizeProgress(progress)
+  }
+  if (typeof slots.game === 'string') {
+    const game = parse(slots.game, 'puzzle')
+    if (!record(game) || ['moves', 'elapsed', 'history', 'seen'].some(key => game[key] == null)) throw new Error('puzzle is not a valid Sort It save')
+    normalizeGame(game)
+  }
   if (slots.skin !== null && !SKINS.some(skin => skin.key === slots.skin)) throw new Error('game look is not recognized')
   if (slots.theme !== null && !SHELL_THEMES.some(theme => theme.key === slots.theme)) throw new Error('colour theme is not recognized')
   if (slots.muted !== null && slots.muted !== '0' && slots.muted !== '1') throw new Error('sound setting is damaged')
@@ -192,7 +202,7 @@ function setGeneration(storage: SaveStorage, value: string | null): void {
   if (storage.getItem(SAVE_GENERATION_KEY) !== value) throw new Error('save handoff could not be verified')
 }
 
-export async function importSave(code: string, storage: SaveStorage = localStorage, signal?: AbortSignal, now = Date.now) {
+export async function importSave(code: string, storage: SaveStorage = localStorage, now = Date.now, signal?: AbortSignal) {
   const incoming = await decodeSave(code)
   signal?.throwIfAborted()
   const current = readSaveSlots(storage)

@@ -31,7 +31,7 @@ function target() {
   }
 }
 
-function controllerHarness({ deployed = newer, waiting = newer, registrationPending = false,
+function controllerHarness({ deployed = newer, waiting = newer, installing = null, registrationPending = false,
   reply = true, fetchPending = false, saved = true, source = controllerSource } = {}) {
   const states = [], messages = [], channels = [], timers = new Map(), fetches = []
   const document = Object.assign(target(), { hidden: false })
@@ -46,7 +46,8 @@ function controllerHarness({ deployed = newer, waiting = newer, registrationPend
   })
   const active = makeWorker(running, 'activated')
   const registration = Object.assign(target(), {
-    active, waiting: waiting ? makeWorker(waiting, 'installed') : null, installing: null,
+    active, waiting: waiting ? makeWorker(waiting, 'installed') : null,
+    installing: installing ? makeWorker(installing, 'installing') : null,
     update: async () => { updates++ },
   })
   Object.assign(serviceWorker, {
@@ -112,6 +113,55 @@ await acceptsFingerprint(rollback)
 const lexicalMutant = controllerSource.replace('fingerprint !== __RELEASE__.fingerprint', 'fingerprint > __RELEASE__.fingerprint')
 assert.notEqual(lexicalMutant, controllerSource, 'the rollback mutation must hit its intended guard')
 await assert.rejects(acceptsFingerprint(rollback, lexicalMutant), /different fully downloaded/, 'lexical ordering mutant is caught')
+
+async function noConcurrentInstallInvariant(source = controllerSource) {
+  const h = controllerHarness({ waiting: null, installing: newer, source })
+  const replacement = h.registration.installing
+  try {
+    await settle()
+    assert.equal(h.updates, 0, 'registration already installing must not receive a concurrent update request')
+    assert.equal(h.last().status, 'downloading')
+    assert.equal(h.last().ready, false, 'an unfinished install is never offered')
+    replacement.state = 'installed'
+    h.registration.installing = null
+    h.registration.waiting = replacement
+    replacement.emit('statechange')
+    await settle()
+    assert.equal(h.updates, 1, 'normal checks resume after installation settles')
+    assert.equal(h.last().status, 'ready', 'installed replacement remains discoverable')
+    assert.equal(h.reloads, 0, 'installation alone does not grant reload consent')
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await noConcurrentInstallInvariant()
+const concurrentInstallMutant = controllerSource.replace('if (!registration.installing) await registration.update()', 'await registration.update()')
+assert.notEqual(concurrentInstallMutant, controllerSource, 'concurrent update mutation removes the install guard')
+await assert.rejects(noConcurrentInstallInvariant(concurrentInstallMutant), /concurrent update request/, 'overlapping registration and update is caught')
+
+async function sameBuildWaitingInvariant(source = controllerSource) {
+  const h = controllerHarness({ deployed: running, waiting: running, source })
+  const replacement = h.registration.waiting
+  h.serviceWorker.controller = h.registration.active = h.makeWorker(null, 'activated')
+  try {
+    await settle()
+    assert.equal(h.messages.filter(message => message.worker === replacement && message.data.type === 'SORTIT_ACTIVATE').length, 1,
+      'an already-loaded build activates its matching waiting worker despite the legacy controller')
+    assert.equal(h.reloads, 0, 'finishing the current build does not reload again')
+    assert.equal(h.last().ready, false, 'the same build is not offered as another update')
+    replacement.state = 'activated'
+    h.registration.waiting = null
+    h.registration.active = h.serviceWorker.controller = replacement
+    h.serviceWorker.emit('controllerchange')
+    await settle()
+    assert.equal(h.last().status, 'current')
+    assert.equal(h.reloads, 0)
+    assert.ok(h.messages.some(message => message.worker === replacement && message.data.type === 'SORTIT_CLIENT'),
+      'the new controller receives the running page identity after the handoff')
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await sameBuildWaitingInvariant()
+const sameBuildMutant = controllerSource.replace("if (registration.waiting === target) target?.postMessage({ type: 'SORTIT_ACTIVATE' })", 'if (registration.waiting === target) {}')
+assert.notEqual(sameBuildMutant, controllerSource, 'same-build activation mutation removes the handoff')
+await assert.rejects(sameBuildWaitingInvariant(sameBuildMutant), /matching waiting worker/, 'matching-page legacy handoff stays observable')
 
 {
   const h = controllerHarness()
@@ -480,4 +530,4 @@ const activeSnapshotMutant = workerSource.replace('worker.registration.active !=
 assert.notEqual(activeSnapshotMutant, workerSource, 'active-snapshot mutation reaches the intended defensive guard')
 await assert.rejects(activeChangedDuringRetirementInvariant(activeSnapshotMutant), /active worker changes during the event/, 'active-object defense mutant is caught')
 
-console.log('update controller/worker: nine guard mutants caught; consent, selected-activation failure/retry, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
+console.log('update controller/worker: eleven guard mutants caught; consent, selected-activation failure/retry, install/update sequencing, matching-page legacy handoff, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
