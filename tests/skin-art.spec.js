@@ -54,6 +54,14 @@ for (const from of [0, 3]) test(`the pickaxe tip strikes the source, from stack 
     await expect(page.locator('.actor-layer')).toHaveCount(0)
   }
   await page.locator('.tube').nth(from).click()
+  // Exercise the fully enlarged selection, not whichever partial scale the
+  // next click happened to catch on a fast machine.
+  await page.locator('.tube').nth(from).locator('.item').last().evaluate(node => {
+    for (const animation of node.getAnimations()) {
+      if (animation.effect.getTiming().iterations === Infinity) { animation.pause(); animation.currentTime = 0 }
+      else animation.finish()
+    }
+  })
   await page.locator('.tube').nth(2).click()
   // Read the captured departure position, not selection's still-easing lift
   // sampled before Playwright waits for the destination click to be stable.

@@ -82,7 +82,9 @@ export function mine(boardEl, trips, motion, hooks = {}) {
   const S = motion.seconds * 1000
   const d = (motion.stagger ?? 0) * 1000
   const n = trips.length
-  const side = trips[0].from.width
+  // Selection enlarges the measured source. The departure flight renders at
+  // scale(1), so aim at the actual piece size, not that transient enlargement.
+  const side = trips[0].to.width
   const layer = el('div', 'actor-layer')
   boardEl.appendChild(layer)
   const rel = r => ({ x: r.left - board.left, y: r.top - board.top })
