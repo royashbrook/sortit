@@ -1,6 +1,7 @@
-// a two-second canvas confetti burst for wins. self-contained: creates its
+// a short skin-themed canvas confetti burst for wins. self-contained: creates its
 // canvas, animates, removes it. honours prefers-reduced-motion by doing
 // nothing, which is the correct celebration for that setting.
+import { drawConfettiPiece } from './confetti-art.js'
 
 // the burst on screen, if any: a new board takes it down before its time
 let active = null
@@ -12,9 +13,9 @@ export function clearConfetti() {
   active = null
 }
 
-export function confetti(colors) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+export function confetti(colors, skin = 'tubes') {
   clearConfetti()
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
   // capture size ONCE: a rotation mid-burst must not smear a mismatched
   // clearRect, and dpr is capped like the game canvas: a dpr-3 phone does
   // not need a ~40MB backing store for a two-second effect.
@@ -23,21 +24,24 @@ export function confetti(colors) {
   const dpr = Math.min(devicePixelRatio || 1, 2)
   const canvas = document.createElement('canvas')
   canvas.className = 'confetti'
+  canvas.setAttribute('aria-hidden', 'true')
+  canvas.dataset.skin = skin
   canvas.width = W * dpr
   canvas.height = H * dpr
   canvas.style.width = `${W}px`
   canvas.style.height = `${H}px`
-  document.body.append(canvas)
   const g = canvas.getContext('2d')
+  if (!g) return
+  document.body.append(canvas)
   g.scale(dpr, dpr)
 
   // spawn band is shallow and fall speed floored so every piece the burst
   // pays for actually crosses the screen within its lifetime
-  const pieces = Array.from({ length: 130 }, () => ({
+  const pieces = Array.from({ length: 96 }, (_, i) => ({
     x: Math.random() * W,
     y: -20 - Math.random() * H * 0.3,
-    w: 6 + Math.random() * 6,
-    h: 8 + Math.random() * 8,
+    size: 14 + Math.random() * 8,
+    variant: i % 3,
     vy: 190 + Math.random() * 170,
     vx: -40 + Math.random() * 80,
     rot: Math.random() * Math.PI,
@@ -60,8 +64,9 @@ export function confetti(colors) {
       g.save()
       g.translate(p.x, p.y)
       g.rotate(p.rot)
-      g.fillStyle = p.color
-      g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+      g.scale(p.size / 20, p.size / 20)
+      g.globalAlpha = Math.min(1, Math.max(0, (done - now) / 400))
+      drawConfettiPiece(g, skin, p.color, p.variant)
       g.restore()
     }
     if (now < done) run.frame = requestAnimationFrame(frame)
