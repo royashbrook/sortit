@@ -48,12 +48,17 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
       const identity: unknown = await response.json()
       if (!identity || typeof identity !== 'object' || !('fingerprint' in identity) ||
         typeof identity.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(identity.fingerprint)) throw new Error('Invalid update identity')
-      // register() may already be installing. A concurrent update stalls the
-      // shipped legacy worker's handoff in Chromium; its statechange retries us.
-      if (!registration.installing) await registration.update()
+      let target = registration.waiting
+      let fingerprint = await identify(target)
       if (disposed()) return
-      const target = registration.waiting ?? registration.active
-      const fingerprint = await identify(target)
+      // Reuse the downloaded build. An overlapping/redundant update can stall
+      // the legacy Chromium handoff; installing state changes retry this check.
+      if (!registration.installing && fingerprint !== identity.fingerprint) {
+        await registration.update()
+        if (disposed()) return
+        target = registration.waiting ?? registration.active
+        fingerprint = await identify(target)
+      }
       if (disposed()) return
       if (fingerprint === __RELEASE__.fingerprint) {
         // The legacy network-first worker can serve the new page before its

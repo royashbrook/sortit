@@ -127,13 +127,17 @@ async function noConcurrentInstallInvariant(source = controllerSource) {
     h.registration.waiting = replacement
     replacement.emit('statechange')
     await settle()
-    assert.equal(h.updates, 1, 'normal checks resume after installation settles')
+    assert.equal(h.updates, 0, 'a matching downloaded worker needs no redundant update')
     assert.equal(h.last().status, 'ready', 'installed replacement remains discoverable')
     assert.equal(h.reloads, 0, 'installation alone does not grant reload consent')
+    h.registration.waiting = null
+    h.registration.active = replacement
+    await h.api.check()
+    assert.equal(h.updates, 1, 'normal checks resume when no replacement is pending')
   } finally { h.api.dispose(); await settle(); h.assertDisposed() }
 }
 await noConcurrentInstallInvariant()
-const concurrentInstallMutant = controllerSource.replace('if (!registration.installing) await registration.update()', 'await registration.update()')
+const concurrentInstallMutant = controllerSource.replace('if (!registration.installing && fingerprint !== identity.fingerprint)', 'if (fingerprint !== identity.fingerprint)')
 assert.notEqual(concurrentInstallMutant, controllerSource, 'concurrent update mutation removes the install guard')
 await assert.rejects(noConcurrentInstallInvariant(concurrentInstallMutant), /concurrent update request/, 'overlapping registration and update is caught')
 
@@ -143,6 +147,7 @@ async function sameBuildWaitingInvariant(source = controllerSource) {
   h.serviceWorker.controller = h.registration.active = h.makeWorker(null, 'activated')
   try {
     await settle()
+    assert.equal(h.updates, 0, 'a matching waiting build must not receive another update request')
     assert.equal(h.messages.filter(message => message.worker === replacement && message.data.type === 'SORTIT_ACTIVATE').length, 1,
       'an already-loaded build activates its matching waiting worker despite the legacy controller')
     assert.equal(h.reloads, 0, 'finishing the current build does not reload again')
@@ -162,6 +167,32 @@ await sameBuildWaitingInvariant()
 const sameBuildMutant = controllerSource.replace("if (registration.waiting === target) target?.postMessage({ type: 'SORTIT_ACTIVATE' })", 'if (registration.waiting === target) {}')
 assert.notEqual(sameBuildMutant, controllerSource, 'same-build activation mutation removes the handoff')
 await assert.rejects(sameBuildWaitingInvariant(sameBuildMutant), /matching waiting worker/, 'matching-page legacy handoff stays observable')
+const waitingUpdateMutant = controllerSource.replace('if (!registration.installing && fingerprint !== identity.fingerprint)', 'if (!registration.installing)')
+assert.notEqual(waitingUpdateMutant, controllerSource, 'waiting-update mutation removes downloaded identity reuse')
+await assert.rejects(sameBuildWaitingInvariant(waitingUpdateMutant), /another update request/, 'a downloaded matching worker is not redundantly updated')
+
+async function staleWaitingInvariant(source = controllerSource) {
+  const h = controllerHarness({ waiting: rollback, deployed: newer, source })
+  try {
+    await settle()
+    assert.equal(h.updates, 1, 'a stale waiting build must still request the deployed replacement')
+    assert.equal(h.last().ready, false, 'mismatched waiting build is not offered')
+    const replacement = h.makeWorker(newer, 'installing')
+    h.registration.installing = replacement
+    h.registration.emit('updatefound')
+    replacement.state = 'installed'
+    h.registration.installing = null
+    h.registration.waiting = replacement
+    replacement.emit('statechange')
+    await settle()
+    assert.equal(h.updates, 1, 'matching downloaded replacement is reused')
+    assert.equal(h.last().status, 'ready')
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await staleWaitingInvariant()
+const staleWaitingMutant = controllerSource.replace('fingerprint !== identity.fingerprint)', '!registration.waiting)')
+assert.notEqual(staleWaitingMutant, controllerSource, 'stale-waiting mutation prevents all waiting replacements')
+await assert.rejects(staleWaitingInvariant(staleWaitingMutant), /deployed replacement/, 'downloaded reuse cannot pin an outdated waiting build')
 
 {
   const h = controllerHarness()
@@ -259,9 +290,9 @@ async function redundantCandidateInvariant(source = controllerSource, alreadyWai
     assert.equal(h.last().status, 'failed', 'selected candidate redundancy releases the applying lock')
     assert.equal(h.last().ready, false, 'redundant candidate is no longer offered')
     assert.equal(h.reloads, 0)
-    const previousChecks = h.updates
+    const previousChecks = h.fetches.length
     await h.api.check()
-    assert.equal(h.updates, previousChecks + 1, 'a failed activation permits another update check')
+    assert.equal(h.fetches.length, previousChecks + 1, 'a failed activation permits another update check')
     assert.equal(h.last().status, 'ready', 'the replacement can be offered after failed activation')
     h.api.apply()
     assert.equal(h.messages.filter(message => message.data.type === 'SORTIT_ACTIVATE').length, 2, 'retry targets the replacement')
@@ -530,4 +561,4 @@ const activeSnapshotMutant = workerSource.replace('worker.registration.active !=
 assert.notEqual(activeSnapshotMutant, workerSource, 'active-snapshot mutation reaches the intended defensive guard')
 await assert.rejects(activeChangedDuringRetirementInvariant(activeSnapshotMutant), /active worker changes during the event/, 'active-object defense mutant is caught')
 
-console.log('update controller/worker: eleven guard mutants caught; consent, selected-activation failure/retry, install/update sequencing, matching-page legacy handoff, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
+console.log('update controller/worker: thirteen guard mutants caught; consent, selected-activation failure/retry, install/update sequencing, matching-page legacy handoff, downloaded-build reuse/supersession, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')

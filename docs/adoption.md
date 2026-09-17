@@ -42,12 +42,13 @@ product. SvelteKit stays because the static shell and deployment already use it.
   The integrated 88-case Chromium/WebKit art, lifecycle and save suite passed.
   A later denied-storage-access export case failed in both engines before its
   fix; the resulting ten-case save browser suite passes in both engines.
-- `verify-update` exercises the actual typed controller and worker. Eleven guard
+- `verify-update` exercises the actual typed controller and worker. Thirteen guard
   mutations fail: rollback ordering, late registration, lost-ready events,
   applying-state clobbering, duplicate cache keys, retirement during a new
   download, a changed active worker, failed activation recovery and observation
   of an already-waiting worker, overlapping registration/install updates, and
-  completion of a matching-page legacy handoff.
+  completion of a matching-page legacy handoff, reuse of a downloaded matching
+  worker, and replacement of an outdated waiting worker.
   The active-worker swap is a defensive unit
   invariant, not a reproduced native message to a retired worker.
 - Real A/B artifacts pass six update tests across Chromium and WebKit: consent
@@ -57,9 +58,12 @@ product. SvelteKit stays because the static shell and deployment already use it.
   because its offline emulator rejects navigation internally. Expected native
   network diagnostics are recorded only in that injected-outage phase.
 - Migration from the shipped 1.1.21 artifact now passes in both engines.
-  Chromium stalled when registration was followed by another update request
-  while the new worker was still installing. Skipping that redundant request
-  fixed the exact transition; the old code and a guard-deletion mutant fail.
+  Chromium stalled when another update request overlapped installation or
+  redundantly rechecked the already-downloaded matching worker. An install-only
+  guard passed the ordinary transition but did not consistently finish the
+  already-waiting case. The controller now identifies a waiting worker first,
+  reuses it if it matches the network identity, and still requests an update
+  when it is stale. The old code and guard-deletion mutants fail.
   No timeout increase, skip, unregister or cache purge was used. Full PWA suite:
   10/10, including an already-waiting worker matching the newly loaded page:
   it takes control without a second prompt or reload and retains the puzzle.

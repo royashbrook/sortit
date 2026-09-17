@@ -93,14 +93,24 @@ await check('a replaced save is adopted without relying on browser reload', () =
 })
 await check('disposing a store removes its interval and revokes writes', () => {
   const count = intervals.size
-  const store = played()
-  assert.equal(intervals.size, count + 1)
-  assert.equal(typeof store.dispose, 'function')
-  const saved = storage.getItem('sortit:game')
-  store.dispose()
-  assert.equal(intervals.size, count)
-  store.startLevel(2)
-  assert.equal(storage.getItem('sortit:game'), saved)
+  const realNow = Date.now
+  let now = 1000, store
+  Date.now = () => now
+  try {
+    store = played()
+    assert.equal(intervals.size, count + 1)
+    assert.equal(typeof store.dispose, 'function')
+    now += 250
+    store.dispose()
+    // Disposal deliberately saves the final elapsed time before retiring.
+    const saved = storage.getItem('sortit:game')
+    assert.equal(JSON.parse(saved).elapsed, 250, 'dispose saves the final live clock')
+    assert.equal(intervals.size, count)
+    now += 500
+    store.startLevel(2)
+    store.dispose()
+    assert.equal(storage.getItem('sortit:game'), saved, 'retired actions cannot change the final save')
+  } finally { store?.dispose(); Date.now = realNow }
 })
 await check('failed corrupt-save recovery protects the exact original bytes', () => {
   const damaged = '{broken puzzle bytes'
