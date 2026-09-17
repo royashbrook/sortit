@@ -55,7 +55,7 @@ export const SKINS = [
     // performance explains the move without making the player wait for it.
     motion: { seconds: .9, lift: 0, spin: 0, stagger: .06, land: 'mine' },
     sound: 'stone',
-    preview: stack(mine.pieces[1].svg, mine.pieces[0].svg),
+    preview: `<g transform="translate(16 32) scale(.5)">${mine.pieces[1].svg}</g><g transform="translate(16 2) scale(.5)">${mine.pieces[0].svg}</g>`,
   },
   {
     key: 'dash',

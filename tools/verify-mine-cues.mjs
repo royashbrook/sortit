@@ -13,10 +13,10 @@ const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 // connected cells of the ore colour (a 3x4 block, about 9x12px on a dense board)
 const MIN_SEAM = 12
 
-const topFaceOf = svg => /matrix\(1 0 1 -1 12 20\)"><rect x="0" y="0" width="40" height="12" fill="(#[0-9A-Fa-f]{6})"/.exec(svg)?.[1]
+const topFaceOf = svg => /data-face="top"[^>]*><rect x="0" y="0" width="40" height="40" fill="(#[0-9A-Fa-f]{6})"/.exec(svg)?.[1]
 
 function frontCells(svg, color) {
-  const front = /<g transform="translate\(12 20\)">([\s\S]*?)<\/g>/.exec(svg)?.[1] ?? ''
+  const front = /<g data-face="front"[^>]*>([\s\S]*?)<\/g>/.exec(svg)?.[1] ?? ''
   const cells = new Set()
   for (const m of front.matchAll(/<rect x="(\d+)" y="(\d+)" width="5" height="5" fill="([^"]+)"\/>/g)) {
     if (m[3].toLowerCase() === color.toLowerCase()) cells.add(`${m[1] / 5},${m[2] / 5}`)
@@ -46,12 +46,17 @@ function largestSeam(cells) {
 }
 
 const tops = new Map()
+const expectedKeys = ['grass block', 'dirt block', 'stone block', 'cobble block', 'oak log', 'plank block', 'sand block', 'coal ore', 'iron ore', 'gold ore', 'diamond ore', 'redstone ore']
+if (JSON.stringify(mine.pieces.map(p => p.key)) !== JSON.stringify(expectedKeys)) fail('saved piece identities changed')
 for (const piece of mine.pieces) {
   const top = topFaceOf(piece.svg)
   if (!top) { fail(`${piece.key}: no top face found`); continue }
   const owner = tops.get(top.toLowerCase())
   if (owner) fail(`${piece.key} and ${owner} share the top face colour ${top}`)
   tops.set(top.toLowerCase(), piece.key)
+
+  const side = /data-face="right" transform="matrix\(([^)]+)\)"/.exec(piece.svg)?.[1].split(' ').map(Number)
+  if (!side || side[0] <= 0 || side[1] >= 0 || side[2] !== 0 || side[3] <= 0) fail(`${piece.key}: right-face grain does not stand upright`)
 
   if (!piece.key.endsWith(' ore')) continue
   const seam = largestSeam(frontCells(piece.svg, piece.color))
