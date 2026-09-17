@@ -95,4 +95,45 @@ assert.equal(blocked.getItem('sortit:progress'), oldProgress)
 assert.equal(blocked.getItem('sortit:game'), null)
 assert.equal(blocked.getItem(ROLLBACK_KEY), null)
 
+// A save code can stay under MAX_CODE_LENGTH while its decompressed output does not:
+// 64 MB of zeros packs into an 87 KB code, which is a dead tab on the cheap phones this
+// targets. Both the bounded and the unbounded version reject this code with the same
+// message, so the message proves nothing. Counting the bytes actually pulled through the
+// stream is what tells them apart: bound the work, do not measure the result afterwards.
+const RealDecompressionStream = globalThis.DecompressionStream
+let inflatedBytesPulled = 0
+globalThis.DecompressionStream = class extends RealDecompressionStream {
+  constructor(format) {
+    super(format)
+    const counted = super.readable.pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          inflatedBytesPulled += chunk.byteLength
+          controller.enqueue(chunk)
+        },
+      }),
+    )
+    Object.defineProperty(this, 'readable', { value: counted })
+  }
+}
+try {
+  const bomb = new Uint8Array(64 * 1024 * 1024)
+  const packed = new Uint8Array(
+    await new Response(
+      new Blob([bomb]).stream().pipeThrough(new CompressionStream('deflate-raw')),
+    ).arrayBuffer(),
+  )
+  let packedBinary = ''
+  for (const byte of packed) packedBinary += String.fromCharCode(byte)
+  const bombCode = `si1.1.${btoa(packedBinary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}`
+  assert.ok(bombCode.length < 100_000, 'the bomb must pass the encoded-length gate to reach the inflation gate')
+  await assert.rejects(decodeSave(bombCode), /too large/)
+  assert.ok(
+    inflatedBytesPulled < 4 * 1024 * 1024,
+    `the cap must stop the inflation rather than measure it afterwards, but ${inflatedBytesPulled} bytes were pulled`,
+  )
+} finally {
+  globalThis.DecompressionStream = RealDecompressionStream
+}
+
 console.log('save transfer: export, import, validation, rollback, and 600-level QR verified')

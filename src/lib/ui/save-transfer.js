@@ -156,8 +156,37 @@ async function compress(bytes) {
 }
 
 async function decompress(bytes) {
+  // Count bytes while consuming and stop at the bound, rather than collecting the whole
+  // inflated output and measuring it afterwards. A code under MAX_CODE_LENGTH can carry
+  // tens of megabytes, so the cap has to bound the work, not just the result.
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
+  const reader = stream.getReader()
+  try {
+    const chunks = []
+    let size = 0
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_SAVE_LENGTH) {
+        // Marked so decodeSave re-raises it instead of flattening it into "damaged":
+        // an oversized save is not a corrupt one, and the player is told which.
+        const error = new Error('that save code is too large')
+        error.oversized = true
+        throw error
+      }
+      chunks.push(value)
+    }
+    const out = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) {
+      out.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    return out
+  } finally {
+    reader.cancel().catch(() => {})
+  }
 }
 
 export async function encodeSave(storage = localStorage) {
@@ -180,7 +209,9 @@ export async function decodeSave(code) {
   const flag = body.slice(0, dot)
   if (flag === '1') {
     if (typeof DecompressionStream === 'undefined') throw new Error('this browser cannot read a compressed save code')
-    try { bytes = await decompress(bytes) } catch { throw new Error('that save code looks damaged') }
+    // An oversized save is not a corrupt one: re-raise that, flatten only real damage.
+    try { bytes = await decompress(bytes) }
+    catch (error) { if (error?.oversized) throw error; throw new Error('that save code looks damaged') }
   } else if (flag !== '0') {
     throw new Error('that save code is from a newer version of Sort It')
   }
