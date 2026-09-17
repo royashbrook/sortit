@@ -2,6 +2,9 @@
   import { flightKeyframes, flightOptions } from './flight.js'
   import { fx } from './fx.js'
   import { mine as mineActors } from './actors.js'
+  import { turnNut } from './nut-turn.js'
+  import BoltPost from './BoltPost.svelte'
+  import { nutArt } from '../engine/skinart/bolts.js'
 
   let { store } = $props()
 
@@ -119,7 +122,8 @@
       const sourceClearRel = from.tubeTop - to.top - to.height - 2
       const verb = from.verb || motion.land
       const keyframes = flightKeyframes(verb, {
-        dx: from.rect.left - to.left,
+        // Selection scales the piece, so its left edge is not the bolt axis.
+        dx: verb === 'screw' ? from.rect.left + from.rect.width / 2 - to.left - to.width / 2 : from.rect.left - to.left,
         dy: from.rect.top - to.top,
         peakRel, rimRel, sourceClearRel,
         spin: motion.spin ?? 0,
@@ -134,6 +138,10 @@
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
       const options = flightOptions(motion, index)
       const anim = node.animate(keyframes, options)
+      if (verb === 'screw') turnNut(node, anim, [
+        { x: from.rect.left + from.rect.width / 2, y: from.tubeTop + 5 * side / 64 },
+        { x: to.left + to.width / 2, y: destTop + 5 * side / 64 },
+      ])
       // a broken block bursts where it BROKE, at the source, when the shudder
       // ends (the flight's own timing), not where it respawns
       if (burst && (verb === 'breakpop' || verb === 'mine')) {
@@ -178,7 +186,9 @@
 
   const HID_ART = '<circle cx="32" cy="32" r="22" fill="#C9BCB2" stroke="#3D3230" stroke-width="3"/><path d="M26 28 Q26 21 32 21 Q38 21 38 27 Q38 32 32 33 L32 36" stroke="#3D3230" stroke-width="3.6" fill="none" stroke-linecap="round"/><circle cx="32" cy="43" r="2.4" fill="#3D3230"/>'
   const pieceFor = item => store.skin.pieces?.[item.c] ?? store.theme.items[item.c]
-  const artFor = item => item.hid ? (store.skin.hidden ?? HID_ART) : pieceFor(item).svg
+  const artFor = item => store.skin.key === 'bolts'
+    ? nutArt(item.hid ? 'hid' : pieceFor(item).key.split(' ')[0], 0, -1000, `nut-${item.uid}`)
+    : item.hid ? (store.skin.hidden ?? HID_ART) : pieceFor(item).svg
   const verbFor = item => pieceFor(item)?.verb ?? store.skin.motion?.land ?? 'drop'
   const artColors = () => (store.skin.pieces ?? store.theme?.items ?? []).map(item => item.color)
   const pieceColor = uid => {
@@ -226,6 +236,7 @@
           onclick={() => store.tap(index)}
           aria-label={tubeLabel(index)}
         >
+          {#if store.skin.key === 'bolts'}<BoltPost {side} height={tubeH}/>{/if}
           {#each store.tubes[index] as item, itemIndex (item.uid)}
             <span
               class="item"

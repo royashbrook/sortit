@@ -34,7 +34,12 @@ jobs:
       # the verifier IS the test suite: every level + 3 years of dailies must be
       # solvable, deterministic, and pars must match the exact solver before deploy
       - run: npm run verify
+      - run: npm run svelte-check
       - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:browser
+      - run: npm run e2e
+      - run: npm run e2e:first-run
       - name: check the build is present
         run: |
           test -f build/index.html

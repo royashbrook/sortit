@@ -107,6 +107,7 @@
 
   async function openTransfer(incoming = '') {
     store.openDialog('transfer')
+    store.flushSave() // export the live board and time, including just after resume
     saveImport = incoming
     qrShown = false
     rollbackReady = hasRollback()
@@ -148,6 +149,7 @@
     if (!confirm('Replace this shortcut\'s progress? Its current save will be kept as a one-step rollback.')) return
     try {
       await importSave(saveImport)
+      store.stopSaving() // pagehide must not overwrite the imported board (refs #67)
       transferMsg = 'progress moved. restarting...'
       clearSaveLink()
       setTimeout(() => location.reload(), 500)
@@ -169,6 +171,7 @@
     if (!confirm('Put back the save from before the last transfer?')) return
     try {
       restoreRollback()
+      store.stopSaving() // the outgoing board no longer owns the saved slot
       transferMsg = 'old save restored. restarting...'
       setTimeout(() => location.reload(), 500)
     } catch (error) {

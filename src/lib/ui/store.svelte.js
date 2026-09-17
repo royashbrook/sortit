@@ -80,6 +80,7 @@ export function createStore() {
   let history = []                  // undo snapshots (not reactive: read only on undo)
   let seen = new Set()
   let uidNext = 0
+  let savingGame = true            // a successful transfer retires this outgoing store
   const playClock = createSessionClock()
   let dialog = $state(null)         // 'howto' | 'looks' | 'about' | null
   let hintTubes = $state([])        // indices the hint button flashes
@@ -177,6 +178,7 @@ export function createStore() {
   // the in-progress slot. tubes carry uids and hidden flags, history is the
   // undo stack, elapsed keeps the clock honest across a relaunch.
   function saveGame() {
+    if (!savingGame) return
     try {
       if (!board || over) { localStorage.removeItem(GAME_KEY); return }
       localStorage.setItem(GAME_KEY, JSON.stringify({
@@ -208,7 +210,8 @@ export function createStore() {
       const parOf = Number.isInteger(raw.par) ? () => raw.par
         : JSON.stringify(colours) === JSON.stringify(b.tubes) ? parFor
         : () => { const r = optimal(colours, b.params.capacity); return r.aborted ? null : r.length }
-      play(b, parOf)
+      // Restore must not persist play()'s fresh deal over the saved board (refs #67).
+      play(b, parOf, false)
       tubes = raw.tubes.map(t => t.map(i => ({ ...i })))
       uidNext = Math.max(0, ...raw.tubes.flat().map(i => i.uid)) + 1
       moves = Number.isInteger(raw.moves) && raw.moves >= 0 ? raw.moves : 0
@@ -269,7 +272,7 @@ export function createStore() {
     return THEMES[b.seed % THEMES.length]
   }
 
-  function play(b, parOf = parFor) {
+  function play(b, parOf = parFor, persist = true) {
     board = b
     board.par = null
     theme = themeForBoard(b)
@@ -297,7 +300,7 @@ export function createStore() {
     // par (and with it "best possible" + the 3-star goal on the win card).
     const token = ++playSeq
     setTimeout(() => { if (playSeq === token) board.par = parOf(b) }, 0)
-    saveGame()
+    if (persist) saveGame()
   }
 
   // the app opens in a game: the one in progress if there is one, else the
@@ -334,6 +337,8 @@ export function createStore() {
     },
 
     // interactions
+    flushSave: saveGame,
+    stopSaving() { savingGame = false },
     tap,
     visibleRun,
     isTubeDone: t => isComplete(colorsOf(t), capacity) && !t.some(i => i.hid),
