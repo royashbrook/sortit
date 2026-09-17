@@ -95,4 +95,71 @@ assert.equal(blocked.getItem('sortit:progress'), oldProgress)
 assert.equal(blocked.getItem('sortit:game'), null)
 assert.equal(blocked.getItem(ROLLBACK_KEY), null)
 
+// A save code can stay under MAX_CODE_LENGTH while its decompressed output does not:
+// 73 MiB of zeros still fits in a 99,225 character code (64 MiB in 86,982), a dead tab on the
+// targets. Both the bounded and the unbounded version reject this code with the same
+// message, so the message proves nothing. Counting the bytes actually pulled through the
+// stream is what tells them apart: bound the work, do not measure the result afterwards.
+let oversizedCode
+const RealDecompressionStream = globalThis.DecompressionStream
+let inflatedBytesPulled = 0
+globalThis.DecompressionStream = class extends RealDecompressionStream {
+  constructor(format) {
+    super(format)
+    const counted = super.readable.pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          inflatedBytesPulled += chunk.byteLength
+          controller.enqueue(chunk)
+        },
+      }),
+    )
+    Object.defineProperty(this, 'readable', { value: counted })
+  }
+}
+try {
+  const bomb = new Uint8Array(64 * 1024 * 1024)
+  const packed = new Uint8Array(
+    await new Response(
+      new Blob([bomb]).stream().pipeThrough(new CompressionStream('deflate-raw')),
+    ).arrayBuffer(),
+  )
+  let packedBinary = ''
+  for (const byte of packed) packedBinary += String.fromCharCode(byte)
+  const bombCode = `si1.1.${btoa(packedBinary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}`
+  oversizedCode = bombCode
+  assert.ok(bombCode.length < 100_000, 'the bomb must pass the encoded-length gate to reach the inflation gate')
+  await assert.rejects(decodeSave(bombCode), /too large/)
+  assert.ok(
+    inflatedBytesPulled < 4 * 1024 * 1024,
+    `the cap must stop the inflation rather than measure it afterwards, but ${inflatedBytesPulled} bytes were pulled`,
+  )
+} finally {
+  globalThis.DecompressionStream = RealDecompressionStream
+}
+
+// Bounding the read is only half the fix: the reader has to be released too. Deleting the cancel
+// from decompress()'s finally left every assertion above green, so count cancellations as well,
+// and on all three outcomes rather than only the oversized one.
+const StreamReader = globalThis.ReadableStreamDefaultReader
+const realCancel = StreamReader.prototype.cancel
+let cancels = 0
+StreamReader.prototype.cancel = function (...args) {
+  cancels += 1
+  return realCancel.apply(this, args)
+}
+try {
+  cancels = 0
+  await assert.rejects(decodeSave(oversizedCode), /too large/)
+  assert.equal(cancels, 1, 'an oversized save must cancel its reader, got ' + cancels)
+  cancels = 0
+  await decodeSave(code)
+  assert.equal(cancels, 1, 'a valid save must cancel its reader, got ' + cancels)
+  cancels = 0
+  await assert.rejects(decodeSave('si1.1.bm90LWRlZmxhdGU'), /damaged/)
+  assert.equal(cancels, 1, 'a corrupt save must cancel its reader, got ' + cancels)
+} finally {
+  StreamReader.prototype.cancel = realCancel
+}
+
 console.log('save transfer: export, import, validation, rollback, and 600-level QR verified')
