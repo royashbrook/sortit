@@ -1,136 +1,63 @@
-// dice pieces: twelve polyhedral dice (d4 to d20), each set told apart by its
-// shape, its colour, and its material (marble, speckle, glitter, metal,
-// glass, pearl). no numbers on the faces: form and finish carry identity,
-// which also keeps them readable at 40px. lit from the upper left so every
-// die reads as a solid. viewBox 0 0 64 64.
-//
-// exports { pieces: [12 x { key, color, svg }], hidden: svg }
-
+// rounded toy dice. six pip counts in two contrasting finishes give all
+// twelve colours their own mark, even when colour alone is hard to read.
 const INK = '#2A2220'
-const C = { x: 32, y: 33 }
+const PIPS = [
+  [[16, 16]],
+  [[8, 8], [24, 24]],
+  [[8, 8], [16, 16], [24, 24]],
+  [[8, 8], [24, 8], [8, 24], [24, 24]],
+  [[8, 8], [24, 8], [16, 16], [8, 24], [24, 24]],
+  [[8, 8], [24, 8], [8, 16], [24, 16], [8, 24], [24, 24]],
+]
+// adjacent faces never show opposite values (opposites sum to seven).
+const TOP = [3, 1, 1, 1, 1, 2]
+const SIDE = [2, 3, 5, 2, 4, 3]
+const OUTLINE = 'M22 7H50Q57 7 57 14V39Q57 43 54 46L45 55Q42 58 37 58H14Q7 58 7 51V27Q7 22 10 19L18 10Q20 7 22 7Z'
 
-const pt = (r, deg) => [C.x + r * Math.cos(deg * Math.PI / 180), C.y + r * Math.sin(deg * Math.PI / 180)]
-const poly = pts => pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
-const centroid = pts => pts.reduce((a, [x, y]) => [a[0] + x / pts.length, a[1] + y / pts.length], [0, 0])
-
-// a shape is its silhouette plus its visible faces. faces get their shade
-// from where they sit: up and left is lit, down and right is shadow.
-const SHAPES = {
-  d4() {
-    const a = [32, 6], b = [58, 54], c = [6, 54], m = [32, 36]
-    return { outline: [a, b, c], faces: [[a, m, c], [a, b, m], [c, m, b]] }
-  },
-  d6() {
-    const t = [[32, 7], [57, 20], [32, 33], [7, 20]]
-    const l = [[7, 20], [32, 33], [32, 59], [7, 46]]
-    const r = [[32, 33], [57, 20], [57, 46], [32, 59]]
-    return { outline: [[32, 7], [57, 20], [57, 46], [32, 59], [7, 46], [7, 20]], faces: [t, l, r] }
-  },
-  d8() {
-    const n = [32, 5], e = [59, 33], s = [32, 61], w = [5, 33], m = [32, 33]
-    return { outline: [n, e, s, w], faces: [[n, m, w], [n, e, m], [w, m, s], [m, e, s]] }
-  },
-  d10() {
-    const top = [32, 4], l = [7, 25], r = [57, 25], bl = [14, 60], br = [50, 60], il = [19, 28], ir = [45, 28], m = [32, 47]
-    return {
-      outline: [top, r, br, bl, l],
-      faces: [[top, ir, m, il], [top, il, bl, l], [top, r, br, ir], [il, m, ir, br, bl]],
-    }
-  },
-  d12() {
-    const outer = Array.from({ length: 10 }, (_, i) => pt(28, -90 + i * 36))
-    const inner = Array.from({ length: 5 }, (_, i) => pt(13, -90 + i * 72))
-    const faces = [inner]
-    for (let i = 0; i < 5; i++) {
-      const a = inner[i], b = inner[(i + 1) % 5]
-      faces.push([a, outer[(i * 2) % 10], outer[(i * 2 + 1) % 10], outer[(i * 2 + 2) % 10], b])
-    }
-    return { outline: outer, faces }
-  },
-  d20() {
-    const outer = Array.from({ length: 6 }, (_, i) => pt(29, -90 + i * 60))
-    const inner = Array.from({ length: 3 }, (_, i) => pt(15, -90 + i * 120))
-    const faces = [inner]
-    for (let i = 0; i < 3; i++) {
-      const a = inner[i], b = inner[(i + 1) % 3]
-      const oa = outer[i * 2], om = outer[i * 2 + 1], ob = outer[(i * 2 + 2) % 6]
-      faces.push([a, oa, om], [a, om, b], [b, om, ob])
-    }
-    return { outline: outer, faces }
-  },
+function pips(value, light, transform) {
+  const fill = light ? '#FFF3DA' : INK
+  return `<g transform="${transform}">${PIPS[value - 1].map(([x, y]) =>
+    `<circle cx="${x}" cy="${y + .65}" r="3.5" fill="#FFF3DA" opacity=".32"/>` +
+    `<circle cx="${x}" cy="${y}" r="3.25" fill="${INK}" opacity=".65"/>` +
+    `<circle cx="${x}" cy="${y + .35}" r="2.65" fill="${fill}"/>`
+  ).join('')}</g>`
 }
 
-// materials: a defs block and an overlay painted over the whole silhouette
-const MATERIALS = {
-  marble: (id, color) => ({
-    defs: '',
-    over: `<g opacity=".55" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M10 40 q10 -14 22 -6 t20 -12"/><path d="M16 54 q8 -6 14 -2 t14 -10"/></g><g opacity=".22" fill="none" stroke="#000" stroke-width="1.4"><path d="M12 26 q12 6 20 -2 t22 4"/></g>`,
-  }),
-  speckle: () => ({
-    defs: '',
-    over: `<g fill="#fff" opacity=".8">${[[14, 22], [24, 14], [40, 12], [50, 24], [20, 36], [36, 30], [48, 42], [16, 50], [30, 46], [44, 54], [26, 56], [54, 36]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.3"/>`).join('')}</g><g fill="#000" opacity=".35">${[[20, 26], [44, 20], [32, 40], [50, 48], [22, 46], [38, 56]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1"/>`).join('')}</g>`,
-  }),
-  glitter: () => ({
-    defs: '',
-    over: `<g fill="#fff" opacity=".9">${[[16, 24], [28, 12], [42, 16], [50, 30], [22, 40], [36, 34], [46, 46], [18, 52], [32, 52], [52, 54]].map(([x, y]) => `<path d="M${x} ${y - 2.6} l.8 1.8 l1.8 .8 l-1.8 .8 l-.8 1.8 l-.8 -1.8 l-1.8 -.8 l1.8 -.8 z"/>`).join('')}</g>`,
-  }),
-  metal: (id) => ({
-    defs: `<linearGradient id="${id}-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".35" stop-color="#fff" stop-opacity=".05"/><stop offset=".5" stop-color="#000" stop-opacity=".18"/><stop offset=".7" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>`,
-    over: `<rect x="0" y="0" width="64" height="64" fill="url(#${id}-m)"/>`,
-  }),
-  glass: (id) => ({
-    defs: `<radialGradient id="${id}-g" cx=".32" cy=".25" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></radialGradient>`,
-    over: `<rect x="0" y="0" width="64" height="64" fill="url(#${id}-g)"/>`,
-  }),
-  pearl: (id) => ({
-    defs: `<linearGradient id="${id}-p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD6E8" stop-opacity=".8"/><stop offset=".35" stop-color="#D6F0FF" stop-opacity=".7"/><stop offset=".7" stop-color="#E6FFE0" stop-opacity=".7"/><stop offset="1" stop-color="#FFF3C9" stop-opacity=".8"/></linearGradient>`,
-    over: `<rect x="0" y="0" width="64" height="64" fill="url(#${id}-p)"/>`,
-  }),
-}
-
-function die(key, shape, color, material) {
-  const id = `die-${key}`
-  const { outline, faces } = SHAPES[shape]()
-  const mat = MATERIALS[material](id, color)
-  const silhouette = `<polygon points="${poly(outline)}"/>`
-  // face shading from position: up-left brightens, down-right darkens
-  const shaded = faces.map(f => {
-    const [cx, cy] = centroid(f)
-    const light = ((C.x - cx) + (C.y - cy)) / 40 // -1 .. 1
-    const fill = light >= 0 ? `#fff` : `#000`
-    const opacity = Math.min(0.42, Math.abs(light) * 0.42 + 0.04).toFixed(2)
-    return `<polygon points="${poly(f)}" fill="${fill}" opacity="${opacity}"/>`
-  }).join('')
-  const edges = faces.map(f => `<polygon points="${poly(f)}" fill="none" stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" opacity=".55"/>`).join('')
+function die(color, value, light) {
+  // no defs or ids: repeated pieces and picker previews share the document.
   return (
-    `<defs><clipPath id="${id}-c">${silhouette}</clipPath>${mat.defs}</defs>` +
-    `<g clip-path="url(#${id}-c)">` +
-    `<rect x="0" y="0" width="64" height="64" fill="${color}"/>` +
-    shaded +
-    mat.over +
-    `</g>` +
-    edges +
-    `<polygon points="${poly(outline)}" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`
+    `<path d="${OUTLINE}" fill="${color}"/>` +
+    `<path d="M22 7H50Q54 7 56 10L44 23Q41 20 37 20H14Q11 20 9 21L18 10Q20 7 22 7Z" fill="#FFF3DA" opacity=".28"/>` +
+    `<path d="M56 10Q57 12 57 14V39Q57 43 54 46L45 55Q42 58 37 58Q44 57 44 50V28Q44 25 43 23Z" fill="${INK}" opacity=".32"/>` +
+    `<rect x="7" y="20" width="37" height="38" rx="7" fill="${color}"/>` +
+    `<rect x="10" y="23" width="31" height="31" rx="5" fill="#FFF3DA" opacity=".1"/>` +
+    `<path d="M11 31V28Q11 24 16 24H34M21 11H46" fill="none" stroke="#FFF3DA" stroke-opacity=".55" stroke-width="2.3" stroke-linecap="round"/>` +
+    `<path d="M44 27V49Q44 56 37 58M47 23L53 17" fill="none" stroke="${INK}" stroke-opacity=".24" stroke-width="1.4" stroke-linecap="round"/>` +
+    pips(TOP[value - 1], light, 'matrix(1 0 .36 -.36 10 20)') +
+    pips(SIDE[value - 1], light, 'matrix(.35 -.35 0 1 44 22)') +
+    pips(value, light, 'translate(10 23)') +
+    `<path d="${OUTLINE}" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`
   )
 }
 
+// saved games identify pieces by index. keep this colour order (refs #29).
 const SETS = [
-  ['ruby d4', 'd4', '#D6323C', 'marble'],
-  ['ivory d6', 'd6', '#F1E6CC', 'speckle'],
-  ['sapphire d8', 'd8', '#2F6FE0', 'glass'],
-  ['emerald d10', 'd10', '#2FA35C', 'glitter'],
-  ['amethyst d12', 'd12', '#8A4DD0', 'marble'],
-  ['obsidian d20', 'd20', '#2B2B33', 'glitter'],
-  ['sunset d6', 'd6', '#F4772E', 'glass'],
-  ['pearl d20', 'd20', '#E9EEF5', 'pearl'],
-  ['bronze d8', 'd8', '#B0703A', 'metal'],
-  ['teal d12', 'd12', '#1FA6A0', 'speckle'],
-  ['gold d4', 'd4', '#E8B72C', 'metal'],
-  ['rose d10', 'd10', '#F06AA8', 'glitter'],
+  ['ruby die', '#D6323C', 1, true],
+  ['ivory die', '#F1E6CC', 1, false],
+  ['sapphire die', '#2F6FE0', 2, true],
+  ['emerald die', '#2FA35C', 3, true],
+  ['amethyst die', '#8A4DD0', 4, true],
+  ['obsidian die', '#2B2B33', 5, true],
+  ['sunset die', '#F4772E', 2, false],
+  ['pearl die', '#E9EEF5', 3, false],
+  ['bronze die', '#B0703A', 4, false],
+  ['teal die', '#1FA6A0', 6, true],
+  ['gold die', '#E8B72C', 5, false],
+  ['rose die', '#F06AA8', 6, false],
 ]
 
 export default {
-  pieces: SETS.map(([key, shape, color, material]) => ({ key, color, svg: die(key.replace(/\s+/g, '-'), shape, color, material) })),
+  pieces: SETS.map(([key, color, value, light]) => ({ key, color, svg: die(color, value, light) })),
   // a mystery die: a cloth dice bag, still closed
   hidden:
     `<path d="M22 22 Q32 14 42 22 L50 52 Q32 62 14 52 Z" fill="#7A5C8E" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>` +

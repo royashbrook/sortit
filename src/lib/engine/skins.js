@@ -16,7 +16,8 @@
 //              drop | screw | breakpop | flip | roll | fly | hover | zig
 //   sound    material palette in sounds.js: metal | stone | neon | pop
 //   preview  inner svg for the LOOKS card, viewBox 0 0 64 64
-import bolts from './skinart/bolts.js'
+import bolts, { nutArt } from './skinart/bolts.js'
+import { boltArt } from './skinart/bolt-geometry.js'
 import mine from './skinart/mine.js'
 import dash from './skinart/dash.js'
 import kawaii from './skinart/kawaii.js'
@@ -40,8 +41,10 @@ export const SKINS = [
     motion: { seconds: .48, lift: .75, spin: 0, stagger: .06, land: 'screw' },
     sound: 'metal',
     preview:
-      `<rect x="29" y="2" width="6" height="60" fill="#B9AFA6" stroke="#2A2220" stroke-width="2"/>` +
-      stack(bolts.pieces[0].svg, bolts.pieces[1].svg),
+      `<g class="hardware-preview" transform="translate(16 2) scale(.5)">` +
+      boltArt(100, 'look-bolt') +
+      `<g transform="translate(0 69.6)">${nutArt('red', 0, -1000, 'look-red')}</g>` +
+      `<g transform="translate(0 29.6)">${nutArt('blue', 0, -1000, 'look-blue')}</g></g>`,
   },
   {
     key: 'mine',

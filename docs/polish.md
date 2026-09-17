@@ -23,6 +23,20 @@ This does not need a 3D engine or a mesh asset pipeline.
 phone layouts and reduced motion in Chromium and WebKit. Browser emulation is
 not a physical-iPhone performance or preference test.
 
+## readable skin art
+
+Dice Table uses rounded D6s with inset pips instead of unmarked polyhedra.
+Six pip counts in light and dark finishes distinguish the twelve pieces without
+relying on body colour alone. Saved colour indices keep their existing order.
+Block Mine's original pixel pickaxe has a separate wooden haft and hooked metal
+head. Its grip is the pivot, and its tip meets the source face from either side.
+The carrier, timing, reduced-motion path and puzzle rules remain unchanged.
+
+The hardware picker uses the same post and nut renderers as the board, with
+room for the crown above the stacking box. `tests/skin-art.spec.js` measures
+paint bounds and compositor impact positions in both browser engines.
+`tools/verify-dice-art.mjs` checks pip identities and the saved palette order.
+
 ## save lifecycle
 
 Resume must not persist the fresh deal used to initialise the board before the
