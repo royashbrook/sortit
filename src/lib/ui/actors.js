@@ -16,28 +16,38 @@ function el(tag, cls, html) {
   return node
 }
 
-// our own blocky pickaxe: a broad cyan head and stepped wooden haft. the
-// silhouette borrows the visual grammar of voxel tools without importing art.
+// A long wooden haft and a narrow, hooked metal head. The two are visibly
+// separate even at phone size. Original pixel art, no downloaded game assets.
 const PICKAXE =
   `<svg viewBox="0 0 72 72" aria-hidden="true" shape-rendering="crispEdges">` +
-  `<path class="pick-handle" d="M4 57 H12 V49 H20 V41 H28 V33 H36 V25 H48 V37 H40 V41 H32 V49 H24 V57 H16 V69 H4 Z" fill="${INK}"/>` +
-  `<path d="M8 57 H16 V49 H24 V41 H32 V33 H40 V29 H44 V33 H36 V41 H28 V49 H20 V57 H12 V65 H8 Z" fill="#8B552F"/>` +
-  `<path d="M12 57 H16 V53 H24 V45 H32 V37 H36 V33 H40 V29 H44 V33 H40 V37 H36 V41 H32 V45 H28 V49 H24 V53 H20 V57 H16 V61 H12 Z" fill="#C8894E"/>` +
-  `<path class="pick-head" d="M3 13 H11 V9 H19 V5 H47 V9 H55 V13 H63 V17 H69 V29 H61 V25 H53 V21 H45 V29 H37 V25 H29 V21 H21 V25 H13 V33 H3 Z" fill="${INK}"/>` +
-  `<path d="M7 15 H15 V11 H21 V9 H45 V13 H53 V17 H61 V21 H65 V25 H61 V21 H53 V17 H45 V21 H41 V25 H37 V21 H29 V17 H21 V21 H15 V25 H11 V29 H7 Z" fill="#27AFC1"/>` +
-  `<path d="M15 11 H21 V9 H45 V13 H53 V17 H45 V17 H39 V21 H31 V17 H21 V21 H15 V25 H11 V21 H15 Z" fill="#7DE3E8"/>` +
-  `<path d="M41 25 H45 V21 H53 V17 H61 V21 H65 V25 H61 V21 H53 V17 H45 V21 H41 Z" fill="#087D9A"/>` +
+  `<path class="pick-handle" d="M30 15H42V66H30Z" fill="#302820"/>` +
+  `<path d="M33 19H39V63H33Z" fill="#A46936"/>` +
+  `<path d="M33 22H35V60H33Z" fill="#E2B16A"/>` +
+  `<path d="M35 34H39V38H35ZM35 48H39V52H35ZM33 60H39V63H33Z" fill="#704328"/>` +
+  `<path class="pick-head" d="M6 30V19H10V15H14V11H22V7H50V11H58V15H62V19H66V30H60V24H56V20H48V18H24V20H16V24H12V30Z" fill="#143C46"/>` +
+  `<path d="M9 25V20H13V16H17V13H25V10H47V13H55V16H59V20H63V25H62V22H58V18H49V15H23V18H14V22H10V25Z" fill="#40CDD2"/>` +
+  `<path d="M17 13H25V10H47V13H25V15H17ZM13 16H17V19H13Z" fill="#BAFFFF"/>` +
+  `<path d="M48 15H55V17H59V20H63V25H62V22H58V18H49Z" fill="#178899"/>` +
+  `<path d="M31 10H41V19H31Z" fill="#215462"/><path d="M33 11H39V16H33Z" fill="#6AF0EC"/>` +
   `</svg>`
 
 export function pickaxeSwing(x, side, boardWidth) {
-  const toolOnLeft = x + side * 1.9 > boardWidth
+  const toolOnLeft = x + side * 2.1 > boardWidth
   const direction = toolOnLeft ? 1 : -1
+  const impact = 28 * direction
+  // Rotate around the grip, then place the striking tip ON the source face.
+  // The former corner pivot swung the handle into the block instead.
+  const angle = impact * Math.PI / 180
+  const tipX = 30 * direction, tipY = -35
+  const size = side * 1.2
   return {
     toolOnLeft,
-    left: toolOnLeft ? x - side * 0.9 : x + side * 0.72,
+    left: x + side * (toolOnLeft ? .26 : .8) - (tipX * Math.cos(angle) - tipY * Math.sin(angle) + 36) * size / 72,
+    top: side * .30 - (tipX * Math.sin(angle) + tipY * Math.cos(angle) + 65) * size / 72,
+    size,
     ready: -52 * direction,
     windup: -62 * direction,
-    impact: 28 * direction,
+    impact,
     rest: 24 * direction,
   }
 }
@@ -96,16 +106,16 @@ export function mine(boardEl, trips, motion, hooks = {}) {
     const pick = el('div', 'actor pickaxe', PICKAXE)
     // the head always faces the source. most blocks are struck by a tool on
     // their right; right-edge blocks use the same swing from their left.
-    const { toolOnLeft, left, ready, windup, impact, rest } = pickaxeSwing(at.x, side, board.width)
+    const { toolOnLeft, left, top, size, ready, windup, impact, rest } = pickaxeSwing(at.x, side, board.width)
     if (!toolOnLeft) pick.classList.add('from-right')
-    pick.style.cssText = `left:${left}px;top:${at.y - side * 0.34}px;width:${side * 1.18}px;height:${side * 1.18}px`
+    pick.style.cssText = `left:${left}px;top:${at.y + top}px;width:${size}px;height:${size}px`
     layer.appendChild(pick)
     const delay = (n - 1 - k) * d
     const a = pick.animate([
       { transform: `rotate(${ready}deg) scale(.96)`, opacity: 0, offset: 0 },
       { transform: `rotate(${ready}deg) scale(1)`, opacity: 1, offset: 0.12 },
       { transform: `rotate(${windup}deg) scale(1)`, opacity: 1, easing: 'ease-out', offset: 0.34 },
-      { transform: `rotate(${impact}deg) scale(1.04)`, opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: 0.72 },
+      { transform: `rotate(${impact}deg) scale(1)`, opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: 0.72 },
       { transform: `rotate(${rest}deg) scale(1)`, opacity: 1, offset: 0.84 },
       { transform: `rotate(${rest}deg) scale(1)`, opacity: 0, offset: 1 },
     ], { duration: S * 0.38, delay, easing: 'linear', fill: 'both' })

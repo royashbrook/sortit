@@ -361,8 +361,7 @@ h1 {
 .actor-layer { position: absolute; inset: 0; z-index: 31; pointer-events: none; overflow: visible; }
 .actor { position: absolute; will-change: transform, opacity; }
 .actor svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.actor.pickaxe { transform-origin: 6% 94%; filter: drop-shadow(0 2px 2px rgb(0 0 0 / .4)); }
-.actor.pickaxe.from-right { transform-origin: 94% 94%; }
+.actor.pickaxe { transform-origin: 50% 90.277778%; filter: drop-shadow(0 2px 2px rgb(0 0 0 / .4)); }
 .actor.pickaxe.from-right svg { transform: scaleX(-1); }
 .actor.visitor { filter: drop-shadow(0 4px 3px rgb(0 0 0 / .45)); }
 
