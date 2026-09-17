@@ -3,9 +3,8 @@
 //
 //   npm run build && node tools/e2e-first-run.mjs [--url http://127.0.0.1:8130/]
 //
-// without --url it serves build/ itself on a free port. playwright is not a
-// dependency of this repo: point PLAYWRIGHT_HOME at a checkout that has
-// @playwright/test installed, or `npm i --no-save @playwright/test` here.
+// Without --url it serves build/ itself on a free port. Playwright is pinned
+// in this repo; run npm ci and install its browsers first.
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'

@@ -7,9 +7,7 @@
 // the layer they cannot see: computed styles, the confetti canvas, what a tap
 // on HINT leaves on the board.
 //
-// playwright is not a dependency of this repo. point PLAYWRIGHT_HOME at a
-// checkout that has @playwright/test installed, or `npm i --no-save
-// @playwright/test` here (that touches node_modules only).
+// Playwright is pinned in this repo. Run npm ci and install its browsers first.
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'

@@ -27,3 +27,7 @@ jobs:
       # the shell compiles and typechecks, and the static build succeeds
       - run: npm run svelte-check
       - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:browser
+      - run: npm run e2e
+      - run: npm run e2e:first-run
