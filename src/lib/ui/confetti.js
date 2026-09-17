@@ -32,8 +32,23 @@ export function confetti(colors, skin = 'tubes') {
   canvas.style.height = `${H}px`
   const g = canvas.getContext('2d')
   if (!g) return
-  document.body.append(canvas)
   g.scale(dpr, dpr)
+
+  // At most 36 tiny stamps for the twelve-colour palette. Shapes are painted
+  // once per burst, not rebuilt for every falling piece on every phone frame.
+  const stamps = colors.map(color => Array.from({ length: 3 }, (_, variant) => {
+    const stamp = document.createElement('canvas')
+    stamp.className = 'confetti-stamp'
+    stamp.width = stamp.height = Math.ceil(24 * dpr)
+    const paint = stamp.getContext('2d')
+    if (!paint) return null
+    paint.scale(stamp.width / 24, stamp.height / 24)
+    paint.translate(12, 12)
+    drawConfettiPiece(paint, skin, color, variant)
+    return stamp
+  }))
+  if (stamps.some(variants => variants.some(stamp => !stamp))) return
+  document.body.append(canvas)
 
   // spawn band is shallow and fall speed floored so every piece the burst
   // pays for actually crosses the screen within its lifetime
@@ -41,12 +56,11 @@ export function confetti(colors, skin = 'tubes') {
     x: Math.random() * W,
     y: -20 - Math.random() * H * 0.3,
     size: 14 + Math.random() * 8,
-    variant: i % 3,
     vy: 190 + Math.random() * 170,
     vx: -40 + Math.random() * 80,
     rot: Math.random() * Math.PI,
     vr: -4 + Math.random() * 8,
-    color: colors[Math.floor(Math.random() * colors.length)],
+    stamp: stamps[Math.floor(Math.random() * stamps.length)][i % 3],
   }))
 
   const run = { canvas, frame: 0 }
@@ -66,7 +80,7 @@ export function confetti(colors, skin = 'tubes') {
       g.rotate(p.rot)
       g.scale(p.size / 20, p.size / 20)
       g.globalAlpha = Math.min(1, Math.max(0, (done - now) / 400))
-      drawConfettiPiece(g, skin, p.color, p.variant)
+      g.drawImage(p.stamp, -12, -12, 24, 24)
       g.restore()
     }
     if (now < done) run.frame = requestAnimationFrame(frame)

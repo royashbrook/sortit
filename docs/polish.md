@@ -51,7 +51,8 @@ themes and browser engines. The pickaxe's existing contact tests still run.
 
 Each look also owns its win confetti: nuts/screws, voxel cubes, neon sparks,
 hearts/stars, pipped dice, or classic paper/bubbles. These are small canvas
-drawings using the active art palette, not emoji or downloaded images. The
+drawings using the active art palette, not emoji or downloaded images. Tiny
+stamps are painted once per win; each animation frame only moves the stamps. The
 short burst fades away, does not intercept taps, clears on a new board and is
 absent with reduced motion. `verify-confetti.mjs` checks the geometry and
 lifecycle; `confetti.spec.js` wins a real board in every look and checks the

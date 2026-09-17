@@ -7,10 +7,16 @@ async function win(page, skin) {
     localStorage.setItem('sortit:skin', skin)
     localStorage.setItem('sortit:progress', JSON.stringify({ current: 1, done: {}, stars: {}, welcomed: true }))
     window.confettiPaint = []
+    window.confettiDraws = 0
+    const drawImage = CanvasRenderingContext2D.prototype.drawImage
+    CanvasRenderingContext2D.prototype.drawImage = function (...args) {
+      if (this.canvas.className === 'confetti' && args[0].className === 'confetti-stamp') window.confettiDraws++
+      return drawImage.apply(this, args)
+    }
     for (const name of ['fill', 'strokeRect', 'moveTo', 'fillRect', 'bezierCurveTo', 'roundRect', 'arc']) {
       const original = CanvasRenderingContext2D.prototype[name]
       CanvasRenderingContext2D.prototype[name] = function (...args) {
-        if (this.canvas.className === 'confetti' && window.confettiPaint.length < 1500) window.confettiPaint.push([name, ...args])
+        if (this.canvas.className === 'confetti-stamp' && window.confettiPaint.length < 1500) window.confettiPaint.push([name, ...args])
         return original.apply(this, args)
       }
     }
@@ -39,6 +45,7 @@ for (const skin of skins) {
         dash: has('moveTo', -1, -9), kawaii: has('bezierCurveTo'),
         dice: has('roundRect') && has('arc'), tubes: has('fillRect', -4, -8, 8, 16) && has('arc') }[skin]
     }, skin)).toBe(true)
+    await expect.poll(() => page.evaluate(() => window.confettiDraws)).toBeGreaterThan(0)
     await page.waitForTimeout(600)
     await page.screenshot({ path: testInfo.outputPath(`${skin}-win.png`) })
     await page.getByRole('button', { name: 'NEXT LEVEL', exact: true }).click()

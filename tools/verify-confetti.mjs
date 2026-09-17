@@ -36,7 +36,11 @@ for (const { key } of SKINS) {
   if (key === 'mine') { assert(has('moveTo', -8, -4), 'cubes need projected faces'); assert(has('fillRect', -6, -1, 2, 2), 'cubes need pixel grain') }
   if (key === 'dash') assert(has('moveTo', -1, -9), 'neon needs lightning')
   if (key === 'kawaii') { assert(has('bezierCurveTo'), 'hearts need their lobes'); assert(has('lineTo'), 'stars need their points') }
-  if (key === 'dice') { assert(has('roundRect'), 'dice need rounded bodies'); assert.equal(calls.filter(c => c[0] === 'arc').length, 9, 'one, three and five pips') }
+  if (key === 'dice') {
+    assert(has('roundRect'), 'dice need rounded bodies')
+    assert.equal(calls.filter(c => c[0] === 'arc').length, 9, 'one, three and five pips')
+    assert.equal(calls.filter(c => c[0] === 'stroke').length, 12, 'outlined pips stay visible on pale dice')
+  }
   if (key === 'tubes') { assert(has('arc'), 'classic bubbles'); assert(has('fillRect'), 'classic paper') }
 
   confetti(['#AA44BB'], key)
@@ -44,7 +48,10 @@ for (const { key } of SKINS) {
   const canvas = [...attached][0]
   assert.equal(canvas.dataset.skin, key)
   assert.equal(canvas.width, 860, 'DPR capped at two')
+  calls.length = 0
   advance(100)
+  assert.equal(calls.filter(c => c[0] === 'drawImage').length, 192, '96 stamps per frame')
+  assert.equal(calls.some(c => ['beginPath', 'arc', 'roundRect', 'fillRect'].includes(c[0])), false, 'no per-frame path construction')
   assert.equal(frames.size, 1)
   clearConfetti()
   assert.equal(frames.size, 0)
@@ -60,6 +67,15 @@ assert.equal(frames.size, 1)
 advance(2700)
 assert.equal(attached.size, 0, 'the burst expires')
 assert.equal(frames.size, 0, 'no orphan animation frame')
+
+confetti(['#AA44BB'], 'bolts')
+const staleFrame = [...frames.values()][0]
+confetti(['#AA44BB'], 'dice')
+now += 2700
+staleFrame(now)
+clearConfetti()
+assert.equal(attached.size, 0, 'an old completion cannot retire ownership of a newer burst')
+assert.equal(frames.size, 0)
 
 confetti(['#AA44BB'], 'mine')
 reduced = true

@@ -1,5 +1,5 @@
-// Tiny material cues, drawn in a 20px square. No emoji fonts or image decoding
-// on the win frame; the falling canvas scales each one to its particle size.
+// Tiny material cues, drawn once into stamps for a win. The animation only
+// moves those stamps; no emoji fonts, image decoding or per-frame paths.
 function polygon(g, points) {
   g.beginPath()
   points.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y))
@@ -75,10 +75,10 @@ export function drawConfettiPiece(g, skin, color, variant) {
     case 'dice':
       g.beginPath(); g.roundRect(-8, -8, 16, 16, 4); g.fill(); g.stroke()
       g.fillStyle = '#FFFFFFEE'
-      g.beginPath(); g.arc(0, 0, 1.7, 0, Math.PI * 2); g.fill()
+      g.beginPath(); g.arc(0, 0, 1.7, 0, Math.PI * 2); g.fill(); g.stroke()
       if (variant > 0) {
         for (const [x, y] of [[-4, -4], [4, 4], ...(variant === 2 ? [[-4, 4], [4, -4]] : [])]) {
-          g.beginPath(); g.arc(x, y, 1.5, 0, Math.PI * 2); g.fill()
+          g.beginPath(); g.arc(x, y, 1.5, 0, Math.PI * 2); g.fill(); g.stroke()
         }
       }
       break
