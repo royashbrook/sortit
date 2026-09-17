@@ -58,6 +58,15 @@ for (const piece of mine.pieces) {
   const side = /data-face="right" transform="matrix\(([^)]+)\)"/.exec(piece.svg)?.[1].split(' ').map(Number)
   if (!side || side[0] <= 0 || side[1] >= 0 || side[2] !== 0 || side[3] <= 0) fail(`${piece.key}: right-face grain does not stand upright`)
 
+  for (const name of ['top', 'right', 'front']) {
+    const face = new RegExp(`<g data-face="${name}"[^>]*>([\\s\\S]*?)<\\/g>`).exec(piece.svg)?.[1] ?? ''
+    const grain = [...face.matchAll(/<path d="([^"]+)" fill="(#[a-f0-9]+)" opacity="([.\d]+)"\/>/gi)]
+    if (grain.length !== 2 || new Set(grain.map(p => p[2])).size !== 2 ||
+      grain.some(p => (p[1].match(/M/g) ?? []).length < 20 || +p[3] < .05 || +p[3] > .15)) {
+      fail(`${piece.key}: ${name} is missing its two visible batched grain paths`)
+    }
+  }
+
   if (!piece.key.endsWith(' ore')) continue
   const seam = largestSeam(frontCells(piece.svg, piece.color))
   if (seam < MIN_SEAM) fail(`${piece.key}: largest seam is ${seam} cells, want ${MIN_SEAM} or more`)
