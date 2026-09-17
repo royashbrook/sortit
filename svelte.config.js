@@ -11,9 +11,9 @@ export default {
     // served from a subpath by the site build, so keep asset urls relative
     paths: { relative: true },
     // Fingerprints detect same-version rebuilds and intentional rollbacks too.
-    // UI metadata, Kit's update poll and the worker share this one identity.
-    version: { name: release.fingerprint, pollInterval: 300000 },
-    // the worker is registered by hand in +layout.svelte so dev never gets a stale one
+    // UI metadata, Kit's version manifest and the worker share this identity.
+    version: { name: release.fingerprint },
+    // The mounted update controller owns registration, polling and consent.
     serviceWorker: { register: false },
   },
 }

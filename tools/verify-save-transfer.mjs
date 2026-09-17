@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import QRCode from 'qrcode'
 import { levelBoard } from '../src/lib/engine/levels.ts'
+import { SAVE_GENERATION_KEY } from '../src/lib/storage.ts'
 import {
   ROLLBACK_KEY,
   decodeSave,
@@ -59,7 +60,7 @@ const target = new MemoryStorage({
 const code = await encodeSave(source)
 assert.match(code, /^si1\.[01]\./)
 assert.equal((await decodeSave(code)).slots.game, game)
-await importSave(code, target, () => 123)
+await importSave(code, target, undefined, () => 123)
 for (const key of ['progress', 'game', 'skin', 'theme', 'muted']) {
   const storageKey = `sortit:${key}`
   assert.equal(target.getItem(storageKey), source.getItem(storageKey))
@@ -94,6 +95,42 @@ await assert.rejects(importSave(code, blocked), /blocked write/)
 assert.equal(blocked.getItem('sortit:progress'), oldProgress)
 assert.equal(blocked.getItem('sortit:game'), null)
 assert.equal(blocked.getItem(ROLLBACK_KEY), null)
+
+for (const silent of [false, true]) {
+  const before = {
+    'sortit:progress': oldProgress,
+    'sortit:skin': 'bolts',
+    [SAVE_GENERATION_KEY]: 'previous generation',
+    [ROLLBACK_KEY]: 'previous rollback bytes',
+  }
+  class FailedGenerationStorage extends MemoryStorage {
+    setItem(key, value) {
+      if (key === SAVE_GENERATION_KEY && value !== before[SAVE_GENERATION_KEY]) {
+        if (silent) return
+        throw new Error('generation write failed')
+      }
+      super.setItem(key, value)
+    }
+  }
+  const target = new FailedGenerationStorage(before)
+  await assert.rejects(importSave(code, target), /generation write failed|handoff could not be verified/)
+  assert.deepEqual(Object.fromEntries(target.values), before, 'failed generation handoff did not restore every old byte')
+}
+
+for (const alreadyAborted of [false, true]) {
+  const controller = new AbortController()
+  const target = new MemoryStorage({
+    'sortit:progress': oldProgress,
+    [SAVE_GENERATION_KEY]: 'untouched generation',
+    [ROLLBACK_KEY]: 'untouched rollback',
+  })
+  const before = new Map(target.values)
+  if (alreadyAborted) controller.abort()
+  const importing = importSave(code, target, controller.signal)
+  if (!alreadyAborted) controller.abort()
+  await assert.rejects(importing, { name: 'AbortError' })
+  assert.deepEqual(target.values, before, 'canceled transfer changed storage')
+}
 
 // A save code can stay under MAX_CODE_LENGTH while its decompressed output does not:
 // 73 MiB of zeros still fits in a 99,225 character code (64 MiB in 86,982), a dead tab on the

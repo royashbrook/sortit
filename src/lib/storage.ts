@@ -15,10 +15,17 @@ export function subscribeStorageStatus(listener: (message: string) => void): () 
   return () => { listeners.delete(listener) }
 }
 
+export type SlotRead = { ok: true; value: string | null } | { ok: false }
+
+export function readSlotResult(key: string): SlotRead {
+  if (typeof window === 'undefined') return { ok: false }
+  try { return { ok: true, value: localStorage.getItem(key) } }
+  catch { reportStorageIssue(key, 'storage is unavailable. progress may not survive closing.'); return { ok: false } }
+}
+
 export function readSlot(key: string): string | null {
-  if (typeof window === 'undefined') return null
-  try { return localStorage.getItem(key) }
-  catch { reportStorageIssue(key, 'storage is unavailable. progress may not survive closing.'); return null }
+  const result = readSlotResult(key)
+  return result.ok ? result.value : null
 }
 
 export function writeSlot(key: string, value: string): boolean {

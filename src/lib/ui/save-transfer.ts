@@ -152,8 +152,11 @@ async function decompress(bytes: Uint8Array) {
 }
 
 export async function encodeSave(storage: SaveStorage = localStorage) {
-  const slots = validateSlots(readSaveSlots(storage))
-  const payload = JSON.stringify(compact(slots))
+  return encodeSaveSlots(readSaveSlots(storage))
+}
+
+export async function encodeSaveSlots(slots: SaveSlots): Promise<string> {
+  const payload = JSON.stringify(compact(validateSlots(slots)))
   const bytes = new TextEncoder().encode(payload)
   if (typeof CompressionStream === 'undefined') return `${SAVE_PREFIX}0.${toBase64Url(bytes)}`
   try { return `${SAVE_PREFIX}1.${toBase64Url(await compress(bytes))}` }
@@ -189,8 +192,9 @@ function setGeneration(storage: SaveStorage, value: string | null): void {
   if (storage.getItem(SAVE_GENERATION_KEY) !== value) throw new Error('save handoff could not be verified')
 }
 
-export async function importSave(code: string, storage: SaveStorage = localStorage, now = Date.now) {
+export async function importSave(code: string, storage: SaveStorage = localStorage, signal?: AbortSignal, now = Date.now) {
   const incoming = await decodeSave(code)
+  signal?.throwIfAborted()
   const current = readSaveSlots(storage)
   const oldRollback = storage.getItem(ROLLBACK_KEY)
   const generation = storage.getItem(SAVE_GENERATION_KEY)
@@ -212,9 +216,9 @@ export async function importSave(code: string, storage: SaveStorage = localStora
   return incoming
 }
 
-export function hasRollback(storage: SaveStorage = localStorage) {
+export function hasRollback(storage?: SaveStorage) {
   try {
-    const payload = parse(storage.getItem(ROLLBACK_KEY), 'rollback')
+    const payload = parse((storage ?? localStorage).getItem(ROLLBACK_KEY), 'rollback')
     return record(payload) && payload.version === 1 && !!validateSlots(payload.slots)
   } catch { return false }
 }

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { registerHooks, stripTypeScriptTypes } from 'node:module'
 import { compileModule, parse } from 'svelte/compiler'
 import { levelBoard } from '../src/lib/engine/levels.ts'
-import { codeFromHash, decodeSave, encodeSave, hasRollback, importSave, restoreRollback } from '../src/lib/ui/save-transfer.ts'
+import { codeFromHash, decodeSave, encodeSave, encodeSaveSlots, hasRollback, importSave, restoreRollback } from '../src/lib/ui/save-transfer.ts'
 
 registerHooks({
   load(url, context, next) {
@@ -45,8 +45,9 @@ const mount = script.body.find(node => node.type === 'ExpressionStatement' && no
 const hide = mount.expression.arguments[0].body.body.flatMap(node => node.declarations ?? []).find(node => node.id.name === 'onPageHide')
 assert.ok(hide, 'the actual pagehide callback is missing')
 assert.match(page, /addEventListener\('pagehide', onPageHide\)/)
-const makeHandlers = new Function('store', 'encodeSave', 'importSave', 'restoreRollback', 'hasRollback', 'codeFromHash', 'confirm', 'location', 'setTimeout', `
+const makeHandlers = new Function('store', 'encodeSaveSlots', 'importSave', 'restoreRollback', 'hasRollback', 'codeFromHash', 'confirm', 'location', 'setTimeout', `
   let saveCode = '', saveImport = '', transferMsg = '', qrShown = false, rollbackReady = false, transferBusy = false, muted = true;
+  let transferEpoch = 0, disposed = false, transferRequest;
   const sound = { muted: true, reloadSettings() {} };
   const history = { state: null, replaceState() { location.hash = '' } };
   ${functions}
@@ -59,7 +60,7 @@ const makeHandlers = new Function('store', 'encodeSave', 'importSave', 'restoreR
 function pageHandlers(store, hash = '') {
   const scheduled = []
   const location = { hash, pathname: '/', search: '' }
-  const handlers = makeHandlers(store, encodeSave, importSave, restoreRollback, hasRollback, codeFromHash,
+  const handlers = makeHandlers(store, encodeSaveSlots, importSave, restoreRollback, hasRollback, codeFromHash,
     () => true, location, fn => scheduled.push(fn))
   location.reload = () => handlers.onPageHide()
   location.replace = () => handlers.onPageHide()

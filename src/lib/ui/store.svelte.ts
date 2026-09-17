@@ -13,9 +13,10 @@ import { sound } from './sounds.ts'
 import { confetti, clearConfetti } from './confetti.ts'
 import { landingTimes } from './flight.ts'
 import { createSessionClock, formatPlayTime } from './play-clock.ts'
-import { normalizeGame, normalizeProgress, type GameItem, type Progress, type UndoSnapshot } from '../save-schema.ts'
-import { readSavedSlot, readSlot, writeSlot, removeSlot, subscribeStorageStatus, SAVE_GENERATION_KEY } from '../storage.ts'
+import { normalizeGame, normalizeProgress, type GameItem, type Progress, type SavedGame, type UndoSnapshot } from '../save-schema.ts'
+import { readSavedSlot, readSlotResult, writeSlot, removeSlot, subscribeStorageStatus, SAVE_GENERATION_KEY } from '../storage.ts'
 import type { Board, Skin, Move } from '../engine/types.ts'
+import type { SaveSlots } from './save-transfer.ts'
 type PlayingBoard = Board & { par: number | null }
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
@@ -37,7 +38,10 @@ export function createStore() {
   let theme = $state(THEMES[0])
   let skin = $state(loadSkin())
   let shellTheme = $state(loadTheme())
-  let progress = $state(loadProgress())
+  const initialProgress = loadProgress()
+  const firstRun = !initialProgress.welcomed
+  initialProgress.welcomed = true
+  let progress = $state(initialProgress)
   let world = $state(0)
 
   let tubes = $state<GameItem[][]>([])
@@ -54,7 +58,7 @@ export function createStore() {
   let uidNext = 0
   let savingGame = true            // a successful transfer retires this outgoing store
   let disposed = false
-  let generation = readSlot(SAVE_GENERATION_KEY)
+  let generation = readSlotResult(SAVE_GENERATION_KEY)
   let storageMessage = $state('')
   const unsubscribeStorage = subscribeStorageStatus(message => { storageMessage = message })
   const playClock = createSessionClock()
@@ -64,8 +68,8 @@ export function createStore() {
   let lastMovedUids = $state<number[]>([])
   // the one-time first-run card. it is flagged as shown the moment it shows,
   // so a reload never brings it back; GOT IT or the first move takes it down
-  let welcome = $state(!progress.welcomed)
-  if (welcome) { progress.welcomed = true; saveProgress($state.snapshot(progress)) }
+  let welcome = $state(firstRun)
+  if (firstRun) saveProgress(initialProgress)
 
   const colorsOf = (t: GameItem[]) => t.map(i => i.c)
   const numeric = () => tubes.map(colorsOf)
@@ -80,10 +84,15 @@ export function createStore() {
   // a tab restored in the background boots hidden; the page reports later changes
   if (typeof document !== 'undefined') playClock.hold('hidden', document.hidden)
 
+  function saveOwnership(): 'current' | 'unavailable' | 'retired' {
+    if (!savingGame || disposed) return 'retired'
+    const current = readSlotResult(SAVE_GENERATION_KEY)
+    if (!generation.ok || !current.ok) return 'unavailable'
+    if (current.value !== generation.value) { reloadSave(); return 'retired' }
+    return 'current'
+  }
   function canSave(): boolean {
-    if (!savingGame || disposed) return false
-    if (readSlot(SAVE_GENERATION_KEY) !== generation) { reloadSave(); return false }
-    return true
+    return saveOwnership() === 'current'
   }
   function saveProgress(value: Progress) {
     if (canSave()) writeSlot(PROGRESS_KEY, JSON.stringify(value))
@@ -165,15 +174,38 @@ export function createStore() {
 
   // the in-progress slot. tubes carry uids and hidden flags, history is the
   // undo stack, elapsed keeps the clock honest across a relaunch.
-  function saveGame() {
-    if (!canSave()) return
-      if (!board || over) { removeSlot(GAME_KEY); return }
-      writeSlot(GAME_KEY, JSON.stringify({
-        kind: board.kind, ...(board.kind === 'level' ? { n: board.n } : { seed: board.seed }), par: board.par,
-        tubes: $state.snapshot(tubes), moves, history,
-        started: playClock.started(), elapsed: playClock.elapsed(),
-        seen: [...seen],
-      }))
+  function gameSnapshot(): SavedGame | null {
+    if (!board || over) return null
+    return {
+      kind: board.kind, ...(board.kind === 'level' ? { n: board.n } : { seed: board.seed }), par: board.par,
+      tubes: $state.snapshot(tubes), moves, history: $state.snapshot(history),
+      started: playClock.started(), elapsed: playClock.elapsed(),
+      seen: [...seen],
+    }
+  }
+  function saveSnapshot(): SaveSlots {
+    const game = gameSnapshot()
+    return {
+      progress: JSON.stringify($state.snapshot(progress)),
+      game: game === null ? null : JSON.stringify(game),
+      skin: skin.key,
+      theme: shellTheme.key,
+      muted: sound.muted ? '1' : '0',
+    }
+  }
+  function saveGame(): boolean {
+    if (!canSave()) return false
+    const game = gameSnapshot()
+    return game === null ? removeSlot(GAME_KEY) : writeSlot(GAME_KEY, JSON.stringify(game))
+  }
+  function flushSave(): boolean {
+    if (!canSave()) return false
+    let saved = true
+    for (const [name, value] of Object.entries(saveSnapshot())) {
+      const key = `sortit:${name}`
+      if (!(value === null ? removeSlot(key) : writeSlot(key, value))) saved = false
+    }
+    return saved
   }
   function restoreGame() {
     try {
@@ -214,7 +246,7 @@ export function createStore() {
   }
 
   function tap(index: number) {
-    if (over || disposed || !savingGame) return
+    if (over || saveOwnership() === 'retired') return
     const tube = tubes[index]
     if (selected === null) {
       if (!tube.length || isComplete(colorsOf(tube), capacity)) return
@@ -256,7 +288,7 @@ export function createStore() {
   }
 
   function play(b: Board, parOf: (board: Board) => number | null = parFor, persist = true) {
-    if (disposed) return
+    if (disposed || (persist && saveOwnership() === 'retired')) return
     board = { ...b, par: null }
     theme = themeForBoard(b)
     lastMovedUids = []
@@ -289,12 +321,14 @@ export function createStore() {
 
   // the app opens in a game: the one in progress if there is one, else the
   // player's current level. a ?level= or ?seed= link replaces it on mount.
-  if (typeof window !== 'undefined' && !restoreGame()) play(levelBoard(progress.current))
+  if (typeof window !== 'undefined' && !restoreGame()) play(levelBoard(initialProgress.current))
 
   function reloadSave() {
     if (disposed) return
+    const current = readSlotResult(SAVE_GENERATION_KEY)
+    if (!current.ok) return
     savingGame = false
-    generation = readSlot(SAVE_GENERATION_KEY)
+    generation = current
     progress = loadProgress()
     skin = loadSkin()
     shellTheme = loadTheme()
@@ -335,7 +369,8 @@ export function createStore() {
     },
 
     // interactions
-    flushSave: saveGame,
+    flushSave,
+    saveSnapshot,
     stopSaving() { savingGame = false },
     reloadSave,
     dispose() {
@@ -372,6 +407,7 @@ export function createStore() {
     replay() { if (board) board.kind === 'level' ? play(levelBoard(board.n)) : play(seedBoard(board.seed)) },
     nextLevel() { if (board?.kind === 'level') play(levelBoard(Math.min(board.n + 1, LEVEL_COUNT))) },
     undo() {
+      if (saveOwnership() === 'retired') return
       const last = history.pop()
       if (!last) return
       lastMovedUids = []
@@ -398,12 +434,22 @@ export function createStore() {
     },
     dismissWelcome() { welcome = false },
     setSkin(next: Skin) {
+      if (saveOwnership() === 'retired') return
       lastMovedUids = []
       moveSeq += 1
       skin = next
-      saveSkin(next)
+      if (canSave()) saveSkin(next)
     },
-    setShellTheme(next: typeof shellTheme) { shellTheme = next; saveTheme(next.key); applyTheme(next) },
+    setShellTheme(next: typeof shellTheme) {
+      if (saveOwnership() === 'retired') return
+      shellTheme = next
+      if (canSave()) saveTheme(next.key)
+      applyTheme(next)
+    },
+    toggleSound() {
+      if (saveOwnership() === 'retired') { sound.reloadSettings(); return sound.muted }
+      return sound.toggle()
+    },
     openDialog(d: string) { dialog = d; playClock.hold('overlay', true); tick() },
     closeDialog() { dialog = null; playClock.hold('overlay', false); tick() },
     setVisible(visible: boolean) {

@@ -14,8 +14,14 @@ product. SvelteKit stays because the static shell and deployment already use it.
 - Import and rollback adopt the incoming state in place, not after a timed
   browser reload. A local generation marker distinguishes replacement from a
   normal cross-tab progress merge. Existing transferable slots and codes remain.
+- Export uses the live in-memory puzzle and progress even when browser storage
+  is unavailable. An update cannot reload unless all five save slots verify.
+  Reset and import can be cancelled without replacing the existing save.
 - Store, board, audio and effects own their intervals, listeners, animation
   frames and pending work, and release them on disposal.
+- The typed worker stages complete downloads, retains old-tab assets and owns
+  only this app's caches. The mounted controller compares fingerprints by
+  inequality, offers consent, and owns its listeners, polling and requests.
 - Release identity, input fingerprint, bundled licence inventory and artifact
   integrity tools exist. These are not yet the deployment path.
 
@@ -25,22 +31,46 @@ product. SvelteKit stays because the static shell and deployment already use it.
 - Engine comparisons against the pinned baseline: 600 full boards/solutions,
   seven shared seeds, pars, all skin/theme SVG and sampled geometry unchanged.
 - All 600 solvability/par checks and 1,095 daily checks pass.
-- `verify-save-safety`: five new assertions fail on the shipped baseline and
-  pass here. Existing transfer, lifecycle, first-run and clock verifiers pass.
+- `verify-save-safety`: the original five assertions fail on the shipped baseline
+  and pass here. Eleven cases now cover recovery-copy failures, unavailable storage,
+  live export, verified update saves and stale settings. Transfer tests cover
+  cancelled imports and failed generation-marker writes with exact rollback.
 - Presentation cleanup checks pass, including deliberately broken controls.
-  Eight focused Chromium/WebKit lifecycle tests passed before the final save
-  integration. The full integrated browser suite is still required.
+  The integrated 88-case Chromium/WebKit art, lifecycle and save suite passed.
+  A later denied-storage-access export case failed in both engines before its
+  fix; the resulting ten-case save browser suite passes in both engines.
+- `verify-update` exercises the actual typed controller and worker. Nine guard
+  mutations fail: rollback ordering, late registration, lost-ready events,
+  applying-state clobbering, duplicate cache keys, retirement during a new
+  download, a changed active worker, failed activation recovery and observation
+  of an already-waiting worker. The active-worker swap is a defensive unit
+  invariant, not a reproduced native message to a retired worker.
+- Real A/B artifacts pass six update tests across Chromium and WebKit: consent
+  to a lexicographically lower fingerprint, save retention, held-tab assets,
+  scoped cache retirement, failed-download retry and network-only metadata.
+  Offline play and notices pass. WebKit uses complete server socket outage
+  because its offline emulator rejects navigation internally. Expected native
+  network diagnostics are recorded only in that injected-outage phase.
+- Migration from the shipped 1.1.21 artifact passes in WebKit but fails in
+  Chromium: the new worker stays waiting despite completed asset responses
+  and activation requests. Cause unconfirmed. The failing assertion remains,
+  with no timeout increase, skip or production workaround. Full PWA suite: 7/8.
+- The development artifact builds and passes its integrity/licensing checks.
+  The strict release path and hosted deployment are not yet integrated.
 - `verify:release`: tag/history fixtures, fingerprints, notices and artifact
   rejection tests pass. This does not prove deployment ordering is wired in CI.
+- `npm run verify` includes the release, save safety, presentation lifecycle and
+  worker/controller checks. `npm run test:pwa -- --legacy <shipped-build>` runs
+  the separate real-artifact suite; it is not yet wired into hosted workflows.
 
 ## still required before release
 
-1. Finish the scoped typed worker/update controller, consent, offline notices,
-   cache retirement and real old/new browser tests. The legacy worker is still
-   present. The new build verifier intentionally rejects missing offline notices.
-2. Complete browser save/storage/cancellation coverage, lifecycle integration,
-   old/new independent comparison and final visual/control review. Exercise
-   recovery-copy failure, import marker failure and two-tab replacement.
+1. Resolve the Chromium legacy activation failure and rerun the real old/new
+   worker suite against final rebuilt artifacts. Browser offline emulation and
+   socket-outage evidence do not establish physical-phone behavior.
+2. Run the full integrated suite at the final head, independent old/new comparison,
+   and final visual/control review. Preserve the passing save/storage/cancellation
+   and lifecycle checks while integrating the release work.
 3. Wire all new checks into the existing verify/CI path, preserve and deploy
    the validated artifact, pin the deployment CLI, and prevent stale deployments.
    Both workflow files are unchanged in this checkpoint.

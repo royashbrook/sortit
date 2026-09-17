@@ -1,3 +1,5 @@
+<script lang="ts"></script>
+
 <!-- Original voxel valley. Decoration stays behind the tap targets and never
      animates: the moving pieces, not the scenery, need the player's attention. -->
 <svg class="mine-scene" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
