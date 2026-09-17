@@ -9,11 +9,11 @@
 //   node tools/verify-levels.mjs --days=30  # quicker daily sweep
 //   - the par table matches the exact solver (spot-proof), and every daily's
 //     par computes inside the phone budget, so stars are never a guess
-import { LEVEL_COUNT, levelBoard, seedBoard } from '../src/lib/engine/levels.js'
-import { dailySeed } from '../src/lib/engine/seed.js'
-import { optimal } from '../src/lib/engine/solver.js'
-import { PARS } from '../src/lib/engine/pars.js'
-import { rng } from '../src/lib/engine/seed.js'
+import { LEVEL_COUNT, levelBoard, seedBoard } from '../src/lib/engine/levels.ts'
+import { dailySeed } from '../src/lib/engine/seed.ts'
+import { optimal } from '../src/lib/engine/solver.ts'
+import { PARS } from '../src/lib/engine/pars.ts'
+import { rng } from '../src/lib/engine/seed.ts'
 
 const daysArg = process.argv.find(a => a.startsWith('--days='))
 const DAYS = daysArg ? Number(daysArg.split('=')[1]) : 3 * 365
@@ -64,7 +64,7 @@ console.log('  opening: level 2 is a different shape from level 1')
 // the par table: right shape, and EVERY entry re-proved against the exact
 // solver (a fixed sample lets the other 560 drift forever;
 // the full regeneration costs ~95s and exact-table provenance is the promise)
-if (PARS.length !== LEVEL_COUNT) { console.error(`pars.js has ${PARS.length} entries, want ${LEVEL_COUNT}`); process.exit(1) }
+if (PARS.length !== LEVEL_COUNT) { console.error(`pars.ts has ${PARS.length} entries, want ${LEVEL_COUNT}`); process.exit(1) }
 for (let n = 1; n <= LEVEL_COUNT; n++) {
   const board = levelBoard(n)
   if (PARS[n - 1] > board.solution.length) { console.error(`level ${n}: par ${PARS[n - 1]} beats the proof solution ${board.solution.length}`); process.exit(1) }

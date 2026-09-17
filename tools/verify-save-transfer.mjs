@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import QRCode from 'qrcode'
-import { levelBoard } from '../src/lib/engine/levels.js'
+import { levelBoard } from '../src/lib/engine/levels.ts'
 import {
   ROLLBACK_KEY,
   decodeSave,
@@ -8,7 +8,7 @@ import {
   importSave,
   restoreRollback,
   saveLink,
-} from '../src/lib/ui/save-transfer.js'
+} from '../src/lib/ui/save-transfer.ts'
 
 class MemoryStorage {
   constructor(values = {}) { this.values = new Map(Object.entries(values)) }

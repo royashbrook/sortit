@@ -4,11 +4,11 @@
 // gate holds it), and the real store driven with a fake time, so the
 // dialog + hidden-tab overlap is proved on the code the phone runs.
 import { readFileSync } from 'node:fs'
-import { registerHooks } from 'node:module'
+import { registerHooks, stripTypeScriptTypes } from 'node:module'
 import { compileModule } from 'svelte/compiler'
-import { createPlayClock, createSessionClock, formatPlayTime } from '../src/lib/ui/play-clock.js'
-import { levelBoard } from '../src/lib/engine/levels.js'
-import { optimal } from '../src/lib/engine/solver.js'
+import { createPlayClock, createSessionClock, formatPlayTime } from '../src/lib/ui/play-clock.ts'
+import { levelBoard } from '../src/lib/engine/levels.ts'
+import { optimal } from '../src/lib/engine/solver.ts'
 
 let now = 1_000
 const clock = createPlayClock(() => now)
@@ -80,8 +80,8 @@ Date.now = () => now
 registerHooks({
   load(url, context, next) {
     const loaded = next(url, context)
-    if (!url.endsWith('.svelte.js')) return loaded
-    return { format: 'module', shortCircuit: true, source: compileModule(String(loaded.source), { generate: 'client', filename: url }).js.code }
+    if (!url.endsWith('.svelte.ts')) return loaded
+    return { format: 'module', shortCircuit: true, source: compileModule(stripTypeScriptTypes(String(loaded.source)), { generate: 'client', filename: url }).js.code }
   },
 })
 const stored = new Map()
@@ -94,7 +94,7 @@ globalThis.document = { hidden: false, addEventListener() {}, documentElement: {
 globalThis.addEventListener = () => {}
 globalThis.matchMedia = () => ({ matches: true }) // reduced motion: no confetti canvas to build
 globalThis.window = globalThis
-const { createStore } = await import('../src/lib/ui/store.svelte.js')
+const { createStore } = await import('../src/lib/ui/store.svelte.ts')
 
 // level 1 is two colours, capacity 3, two empties: tube 0 to an empty tube is
 // always a legal first move, and its proof solution is a legal win

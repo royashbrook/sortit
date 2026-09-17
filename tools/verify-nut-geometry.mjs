@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { nutGeometry } from '../src/lib/engine/skinart/nut-geometry.js'
-import { nutArt } from '../src/lib/engine/skinart/bolts.js'
-import { nutTurn } from '../src/lib/ui/nut-turn.js'
+import { nutGeometry } from '../src/lib/engine/skinart/nut-geometry.ts'
+import { nutArt } from '../src/lib/engine/skinart/bolts.ts'
+import { nutTurn } from '../src/lib/ui/nut-turn.ts'
 
 // Test the object, not the old stripe renderer's spelling (refs #29).
 for (let n = 0; n < 72; n++) {

@@ -7,9 +7,13 @@
   "scripts": {
     "prepare": "svelte-kit sync",
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node tools/release-build.mjs",
+    "build:dev": "node tools/release-build.mjs --development",
     "preview": "vite preview",
-    "svelte-check": "svelte-check --tsconfig ./jsconfig.json",
+    "svelte-check": "svelte-check --tsconfig ./tsconfig.json",
+    "verify:release": "node tools/verify-version.mjs && node tools/release-artifact.mjs --test && node tools/license-inventory.mjs --test",
+    "verify:artifact": "node tools/release-artifact.mjs build",
+    "verify:save-safety": "node tools/verify-save-safety.mjs",
     "icons": "node tools/make-icons.mjs",
     "lint:copy": "node tools/lint-copy.mjs",
     "e2e": "node tools/e2e-shell.mjs",
@@ -25,8 +29,10 @@
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.1",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@types/qrcode": "1.5.6",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.3",
+    "typescript": "6.0.3",
     "vite": "^8.1.5"
   }
 }

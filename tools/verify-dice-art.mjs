@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import dice from '../src/lib/engine/skinart/dice.js'
+import dice from '../src/lib/engine/skinart/dice.ts'
 
 // saved item indices must still point at the same colour (refs #29).
 assert.deepEqual(dice.pieces.map(piece => piece.color), [

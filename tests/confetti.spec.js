@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { levelBoard } from '../src/lib/engine/levels.js'
+import { levelBoard } from '../src/lib/engine/levels.ts'
 
 const skins = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 async function win(page, skin) {
