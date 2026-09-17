@@ -67,8 +67,12 @@ for (const from of [0, 3]) test(`the pickaxe tip strikes the source, from stack 
     const svg = pick.querySelector('svg')
     const tip = new DOMPoint(66, 30).matrixTransform(svg.getScreenCTM())
     const grip = new DOMPoint(36, 65).matrixTransform(svg.getScreenCTM())
-    return { tip: { x: tip.x, y: tip.y }, grip: { x: grip.x, y: grip.y }, mirrored: pick.classList.contains('from-right') }
+    const head = svg.querySelector('.pick-head')
+    return { tip: { x: tip.x, y: tip.y }, grip: { x: grip.x, y: grip.y }, mirrored: pick.classList.contains('from-right'),
+      paintedTip: head.isPointInFill(new DOMPoint(65.5, 29.5)), fill: getComputedStyle(head).fill }
   })
+  expect(contact.paintedTip).toBe(true)
+  expect(contact.fill).not.toBe('none')
   expect(contact.mirrored).toBe(from === 0)
   expect(Math.abs(contact.tip.x - (source.x + source.width * (from === 0 ? .8 : .26)))).toBeLessThan(1)
   expect(Math.abs(contact.tip.y - (source.y + source.width * .30))).toBeLessThan(1)
