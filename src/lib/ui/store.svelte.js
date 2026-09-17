@@ -171,7 +171,7 @@ export function createStore() {
       : ''
     won = { stars, detail, score, perfect: board.par != null && moves <= board.par, canNext }
     sound.win()
-    confetti((skin.pieces ?? theme.items).map(i => i.color))
+    confetti((skin.pieces ?? theme.items).map(i => i.color), skin.key)
     saveGame()
   }
 

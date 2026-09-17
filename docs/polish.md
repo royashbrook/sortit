@@ -49,6 +49,15 @@ by the shell backdrop. It makes no requests and runs no animation loop.
 bounds, unobstructed touch targets and skin switching at 360/430px in both shell
 themes and browser engines. The pickaxe's existing contact tests still run.
 
+Each look also owns its win confetti: nuts/screws, voxel cubes, neon sparks,
+hearts/stars, pipped dice, or classic paper/bubbles. These are small canvas
+drawings using the active art palette, not emoji or downloaded images. Tiny
+stamps are painted once per win; each animation frame only moves the stamps. The
+short burst fades away, does not intercept taps, clears on a new board and is
+absent with reduced motion. `verify-confetti.mjs` checks the geometry and
+lifecycle; `confetti.spec.js` wins a real board in every look and checks the
+shipped paint calls, next-board cleanup and reduced motion in both engines.
+
 ## save lifecycle
 
 Resume must not persist the fresh deal used to initialise the board before the
