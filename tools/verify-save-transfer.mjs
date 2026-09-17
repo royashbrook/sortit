@@ -96,10 +96,11 @@ assert.equal(blocked.getItem('sortit:game'), null)
 assert.equal(blocked.getItem(ROLLBACK_KEY), null)
 
 // A save code can stay under MAX_CODE_LENGTH while its decompressed output does not:
-// 64 MB of zeros packs into an 87 KB code, which is a dead tab on the cheap phones this
+// 73 MiB of zeros still fits in a 99,225 character code (64 MiB in 86,982), a dead tab on the
 // targets. Both the bounded and the unbounded version reject this code with the same
 // message, so the message proves nothing. Counting the bytes actually pulled through the
 // stream is what tells them apart: bound the work, do not measure the result afterwards.
+let oversizedCode
 const RealDecompressionStream = globalThis.DecompressionStream
 let inflatedBytesPulled = 0
 globalThis.DecompressionStream = class extends RealDecompressionStream {
@@ -126,6 +127,7 @@ try {
   let packedBinary = ''
   for (const byte of packed) packedBinary += String.fromCharCode(byte)
   const bombCode = `si1.1.${btoa(packedBinary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}`
+  oversizedCode = bombCode
   assert.ok(bombCode.length < 100_000, 'the bomb must pass the encoded-length gate to reach the inflation gate')
   await assert.rejects(decodeSave(bombCode), /too large/)
   assert.ok(
@@ -134,6 +136,30 @@ try {
   )
 } finally {
   globalThis.DecompressionStream = RealDecompressionStream
+}
+
+// Bounding the read is only half the fix: the reader has to be released too. Deleting the cancel
+// from decompress()'s finally left every assertion above green, so count cancellations as well,
+// and on all three outcomes rather than only the oversized one.
+const StreamReader = globalThis.ReadableStreamDefaultReader
+const realCancel = StreamReader.prototype.cancel
+let cancels = 0
+StreamReader.prototype.cancel = function (...args) {
+  cancels += 1
+  return realCancel.apply(this, args)
+}
+try {
+  cancels = 0
+  await assert.rejects(decodeSave(oversizedCode), /too large/)
+  assert.equal(cancels, 1, 'an oversized save must cancel its reader, got ' + cancels)
+  cancels = 0
+  await decodeSave(code)
+  assert.equal(cancels, 1, 'a valid save must cancel its reader, got ' + cancels)
+  cancels = 0
+  await assert.rejects(decodeSave('si1.1.bm90LWRlZmxhdGU'), /damaged/)
+  assert.equal(cancels, 1, 'a corrupt save must cancel its reader, got ' + cancels)
+} finally {
+  StreamReader.prototype.cancel = realCancel
 }
 
 console.log('save transfer: export, import, validation, rollback, and 600-level QR verified')
