@@ -4,6 +4,7 @@
   import { mine as mineActors } from './actors.js'
   import { turnNut } from './nut-turn.js'
   import BoltPost from './BoltPost.svelte'
+  import MineScene from './MineScene.svelte'
   import { nutArt } from '../engine/skinart/bolts.js'
 
   let { store } = $props()
@@ -224,6 +225,7 @@
   style:background={store.skin.pieces ? null : store.theme?.tint}
   aria-label="sorting board"
 >
+  {#if store.skin.key === 'mine'}<MineScene />{/if}
   {#each rows as row}
     <div class="row">
       {#each row as index (index)}

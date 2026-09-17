@@ -37,6 +37,18 @@ room for the crown above the stacking box. `tests/skin-art.spec.js` measures
 paint bounds and compositor impact positions in both browser engines.
 `tools/verify-dice-art.mjs` checks pip identities and the saved palette order.
 
+Block Mine maps a complete square texture onto each face. The right face's
+vertical axis stays vertical, so bark, grass edges and masonry do not turn
+sideways. The complete cube silhouette is centered within the column. Original
+pixel grain is batched into two paths per face, with large ore silhouettes kept
+legible on dense boards. No Minecraft texture files or third-party assets are
+bundled. The static voxel valley is decorative, behind the controls, and tinted
+by the shell backdrop. It makes no requests and runs no animation loop.
+
+`tests/mine-art.spec.js` measures whole-cube centering, upright face axes, picker
+bounds, unobstructed touch targets and skin switching at 360/430px in both shell
+themes and browser engines. The pickaxe's existing contact tests still run.
+
 ## save lifecycle
 
 Resume must not persist the fresh deal used to initialise the board before the

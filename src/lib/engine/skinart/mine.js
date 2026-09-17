@@ -6,14 +6,11 @@
 //
 // exports { pieces: [12 x { key, color, svg }], hidden: svg }
 
-// cube geometry. the front face is a 40x40 square; top and right faces are
-// parallelograms drawn in their own (u,v) space through a matrix so that
-// pixel rects land on the slanted face without hand-computing corners.
-//   front: x 12..52, y 20..60
-//   top:   (u,v) -> (12 + u + v, 20 - v), u 0..40, v 0..12
-//   right: (u,v) -> (52 + v, 20 + u - v), u 0..40, v 0..12
-const TOP = 'matrix(1 0 1 -1 12 20)'
-const RIGHT = 'matrix(0 1 1 -1 52 20)'
+// Every face uses the SAME square texture coordinates. On the right, x
+// recedes and y stays vertical: bark grows up and grass stays at the rim.
+// Center the whole silhouette (12..64), not just its front face (12..52).
+const TOP = 'matrix(1 0 .3 -.3 12 20)'
+const RIGHT = 'matrix(.3 -.3 0 1 52 20)'
 
 // an 8x8 pixel grid on a 40-unit face: each cell is 5 units
 const CELL = 5
@@ -29,37 +26,35 @@ function face(pattern, palette, base) {
       if (ch && ch !== '.' && palette[ch]) out += `<rect x="${x * CELL}" y="${y * CELL}" width="${CELL}" height="${CELL}" fill="${palette[ch]}"/>`
     }
   })
-  return out
-}
-
-// a slanted face: 8 columns by 2-ish rows of the same pattern language, drawn
-// in the face's (u,v) space; only the first 3 rows of the pattern are used
-function slant(pattern, palette, base, matrix) {
-  let out = `<g transform="${matrix}"><rect x="0" y="0" width="40" height="12" fill="${base}"/>`
-  const rows = pattern.trim().split('\n').map(r => r.trim()).slice(0, 3)
-  rows.forEach((row, v) => {
-    for (let x = 0; x < 8; x++) {
-      const ch = row[x]
-      if (ch && ch !== '.' && palette[ch]) out += `<rect x="${x * CELL}" y="${v * 4}" width="${CELL}" height="4" fill="${palette[ch]}"/>`
+  // Original, repeatable fine grain, batched into two paths rather than
+  // hundreds of DOM nodes per cube. The large material/seam cues stay clear.
+  let light = '', dark = ''
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const grain = (x * 17 + y * 29 + x * y * 7) % 13
+      const pixel = `M${x * 2.5} ${y * 2.5}h2.5v2.5h-2.5z`
+      if (grain < 2) light += pixel
+      if (grain > 10) dark += pixel
     }
-  })
-  return out + '</g>'
+  }
+  return out + `<path d="${light}" fill="#fff" opacity=".10"/><path d="${dark}" fill="#000" opacity=".09"/>`
 }
 
 const OUTLINE = '#1A1410'
 
 function cube({ frontBase, frontPattern, topBase, topPattern, rightBase, rightPattern, palette }) {
   return (
-    `<g transform="translate(0 2)">` +
-    slant(topPattern ?? frontPattern, palette, topBase, TOP) +
-    slant(rightPattern ?? frontPattern, palette, rightBase, RIGHT) +
-    `<g transform="translate(12 20)">${face(frontPattern, palette, frontBase)}</g>` +
+    `<g class="mine-cube" transform="translate(-6 2)">` +
+    `<g data-face="top" transform="${TOP}">${face(topPattern ?? frontPattern, palette, topBase)}</g>` +
+    `<g data-face="right" transform="${RIGHT}">${face(rightPattern ?? frontPattern, palette, rightBase)}</g>` +
+    `<g data-face="front" transform="translate(12 20)">${face(frontPattern, palette, frontBase)}</g>` +
     // the shading that sells the corner: a soft dark wash on the right face,
     // a light wash on the top, and one crisp outline around the whole block
-    `<path d="M52 20 L64 8 L64 48 L52 60 Z" fill="#000" opacity=".28"/>` +
-    `<path d="M12 20 L24 8 L64 8 L52 20 Z" fill="#fff" opacity=".22"/>` +
-    `<path d="M12 20 L24 8 L64 8 L64 48 L52 60 L12 60 Z" fill="none" stroke="${OUTLINE}" stroke-width="2" stroke-linejoin="round"/>` +
-    `<path d="M12 20 L52 20 L52 60 M52 20 L64 8" fill="none" stroke="${OUTLINE}" stroke-width="1.4" opacity=".7"/>` +
+    `<path d="M52 20 L64 8 L64 48 L52 60 Z" fill="#000" opacity=".20"/>` +
+    `<path d="M12 20 L24 8 L64 8 L52 20 Z" fill="#fff" opacity=".14"/>` +
+    `<path class="cube-edge" d="M12 20 L24 8 L64 8 L64 48 L52 60 L12 60 Z" fill="none" stroke="${OUTLINE}" stroke-width="1.2" stroke-linejoin="round"/>` +
+    `<path d="M12 20 L52 20 L52 60 M52 20 L64 8" fill="none" stroke="${OUTLINE}" stroke-width=".8" opacity=".6"/>` +
+    `<path d="M13 21H51V59" fill="none" stroke="#fff" stroke-width=".7" opacity=".18"/>` +
     `</g>`
   )
 }
@@ -134,7 +129,7 @@ function ore(name, color, glint, top, shape) {
     color,
     svg: cube({
       frontBase: STONE.base, topBase: top, rightBase: STONE.dark,
-      frontPattern: seams[shape], topPattern: stoneSpeck, rightPattern: stoneSpeck,
+      frontPattern: seams[shape], topPattern: stoneSpeck, rightPattern: seams[shape],
       palette: { O: color, G: glint, L: STONE.light, D: STONE.dark },
     }),
   }
@@ -157,11 +152,12 @@ const pieces = [
       topPattern: `
         .g...g..
         ...g...g
-        g...g...`,
-      rightPattern: `
-        GGGGGGGG
-        .G..G.G.
-        ....D...`,
+        g...g...
+        ..g..g..
+        g......g
+        ...g.g..
+        .g......
+        .....g..`,
       palette: { G: '#7FBF4E', g: '#98D45E', D: '#6E4C33' },
     }),
   },
@@ -217,9 +213,14 @@ const pieces = [
         D.L.D.L.
         D.L.D.L.`,
       topPattern: `
-        .rrrrrr.
-        .r....r.
-        .rrrrrr.`,
+        rrrrrrrr
+        r......r
+        r.rrrr.r
+        r.r..r.r
+        r.r..r.r
+        r.rrrr.r
+        r......r
+        rrrrrrrr`,
       palette: { D: '#4A3118', L: '#86603A', r: '#9C7A4C' },
     }),
   },
@@ -279,6 +280,6 @@ export default {
         .D...D..`,
       palette: { L: '#5A5A5A', D: '#1C1C1C' },
     }) +
-    `<path d="M27 30 Q27 24 32 24 Q37 24 37 29 Q37 33 33 34.5 L33 37" stroke="#E8E8E8" stroke-width="3.2" fill="none" stroke-linecap="round"/>` +
-    `<circle cx="33" cy="42" r="2" fill="#E8E8E8"/>`,
+    `<path d="M21 34 Q21 28 26 28 Q31 28 31 33 Q31 37 27 38.5 L27 41" stroke="#E8E8E8" stroke-width="3.2" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="27" cy="46" r="2" fill="#E8E8E8"/>`,
 }
