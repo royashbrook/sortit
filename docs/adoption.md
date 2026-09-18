@@ -42,13 +42,15 @@ product. SvelteKit stays because the static shell and deployment already use it.
   The integrated 88-case Chromium/WebKit art, lifecycle and save suite passed.
   A later denied-storage-access export case failed in both engines before its
   fix; the resulting ten-case save browser suite passes in both engines.
-- `verify-update` exercises the actual typed controller and worker. Thirteen guard
+- `verify-update` exercises the actual typed controller and worker. Nineteen guard
   mutations fail: rollback ordering, late registration, lost-ready events,
   applying-state clobbering, duplicate cache keys, retirement during a new
   download, a changed active worker, failed activation recovery and observation
   of an already-waiting worker, overlapping registration/install updates, and
   completion of a matching-page legacy handoff, reuse of a downloaded matching
-  worker, and replacement of an outdated waiting worker.
+  worker, replacement of an outdated waiting worker, quiet activation, an ignored
+  activation deadline, same-page worker supersession, successful handoff unlock,
+  disposal of the activation deadline, and a rejected activation message.
   The active-worker swap is a defensive unit
   invariant, not a reproduced native message to a retired worker.
 - Real A/B artifacts pass six update tests across Chromium and WebKit: consent
@@ -57,17 +59,24 @@ product. SvelteKit stays because the static shell and deployment already use it.
   Offline play and notices pass. WebKit uses complete server socket outage
   because its offline emulator rejects navigation internally. Expected native
   network diagnostics are recorded only in that injected-outage phase.
-- Migration from the shipped 1.1.21 artifact now passes in both engines.
-  Chromium stalled when another update request overlapped installation or
-  redundantly rechecked the already-downloaded matching worker. An install-only
-  guard passed the ordinary transition but did not consistently finish the
-  already-waiting case. The controller now identifies a waiting worker first,
-  reuses it if it matches the network identity, and still requests an update
-  when it is stale. The old code and guard-deletion mutants fail.
-  No timeout increase, skip, unregister or cache purge was used. Full PWA suite:
-  10/10, including an already-waiting worker matching the newly loaded page:
-  it takes control without a second prompt or reload and retains the puzzle.
-  The internal browser mechanism is not claimed from this sequencing proof.
+- A single 10/10 PWA run at `37873d0` did not establish reliable legacy migration:
+  the unchanged Chromium legacy case subsequently passed only 6/10 repeats.
+  Removing explicit registration.update calls still failed 7/10. The earlier
+  overlapping-install explanation is withdrawn. Native traces showed one
+  successor receiving activation while the outgoing worker stopped then restarted.
+- The controller now stops checks while activation is pending, preventing new
+  probes through the outgoing worker. Controller change resumes normal checks.
+  Supersession, rejected activation messages and an eight-second deadline release
+  the lock with visible failure and permit retry. Disposal clears the deadline.
+  An unrelated worker failure does not release the selected handoff. The unit
+  regression fails on `37873d0` by issuing three probes instead of one.
+- The quiet-period diagnostic passed 10/10 original legacy tests with unchanged
+  workers and deadlines. The implemented controller then passed the fresh full
+  10/10 Chromium/WebKit PWA suite, including already-waiting migration without
+  another prompt/reload. These are local development-tree results, not final
+  release evidence. Repetition at the reviewed head is still required. No native
+  test timeout increase, skip, unregister or cache purge was used. The browser's
+  internal reason for the stall is not claimed from these interventions.
 - The development artifact builds and passes its integrity/licensing checks.
   The strict release path and hosted deployment are not yet integrated.
 - `verify:release`: tag/history fixtures, fingerprints, notices and artifact

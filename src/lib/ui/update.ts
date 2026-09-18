@@ -11,10 +11,31 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
   let checking = false
   let checkAgain = false
   let interval: ReturnType<typeof setInterval> | undefined
+  let activating: ServiceWorker | null = null
+  let activationTimer: ReturnType<typeof setTimeout> | undefined
   const disposed = () => lifetime.signal.aborted
   const set = (status: UpdateStatus, ready = state.ready) => {
     if (state.status === 'applying' && status !== 'applying') return
     if (!disposed()) { Object.assign(state, { status, ready }); publish({ ...state }) }
+  }
+  const clearActivation = () => {
+    activating = null
+    clearTimeout(activationTimer)
+    activationTimer = undefined
+  }
+  const failActivation = () => {
+    clearActivation()
+    candidate = null
+    if (state.status === 'applying') state.status = 'failed'
+    set('failed', false)
+  }
+  const activate = (worker: ServiceWorker) => {
+    activating = worker
+    // Bound an ignored activation request without probing the outgoing worker.
+    activationTimer = setTimeout(() => {
+      if (!disposed() && activating === worker) failActivation()
+    }, 8000)
+    try { worker.postMessage({ type: 'SORTIT_ACTIVATE' }) } catch { failActivation() }
   }
   const identify = (worker: ServiceWorker | null) => new Promise<string | null>(resolve => {
     if (!worker || disposed()) return resolve(null)
@@ -36,7 +57,7 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
   })
 
   async function check() {
-    if (disposed() || !registration || document.hidden || state.status === 'applying') return
+    if (disposed() || !registration || document.hidden || activating || state.status === 'applying') return
     if (checking) { checkAgain = true; return }
     checking = true
     set('checking')
@@ -46,24 +67,31 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
       })
       if (!response.ok) throw new Error(`Update check: ${response.status}`)
       const identity: unknown = await response.json()
+      if (disposed() || activating) return
       if (!identity || typeof identity !== 'object' || !('fingerprint' in identity) ||
         typeof identity.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(identity.fingerprint)) throw new Error('Invalid update identity')
       let target = registration.waiting
       let fingerprint = await identify(target)
-      if (disposed()) return
-      // Reuse the downloaded build. An overlapping/redundant update can stall
-      // the legacy Chromium handoff; installing state changes retry this check.
+      if (disposed() || activating) return
+      // Reuse a verified download; installation events recheck unfinished work.
       if (!registration.installing && fingerprint !== identity.fingerprint) {
         await registration.update()
-        if (disposed()) return
+        if (disposed() || activating) return
         target = registration.waiting ?? registration.active
         fingerprint = await identify(target)
       }
-      if (disposed()) return
+      if (disposed() || activating) return
       if (fingerprint === __RELEASE__.fingerprint) {
         // The legacy network-first worker can serve the new page before its
         // replacement activates. This page already runs that downloaded build.
-        if (registration.waiting === target) target?.postMessage({ type: 'SORTIT_ACTIVATE' })
+        if (target && registration.waiting === target) {
+          // Keep new probes off the outgoing legacy worker during this handoff.
+          // Stay quiet until controllerchange, redundancy or the recovery deadline.
+          candidate = null
+          set('checking', false)
+          activate(target)
+          return
+        }
         else navigator.serviceWorker.controller?.postMessage({ type: 'SORTIT_CLIENT', fingerprint })
       }
       if (fingerprint === identity.fingerprint && fingerprint !== __RELEASE__.fingerprint) {
@@ -82,18 +110,21 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
   }
 
   const changed = () => {
+    clearActivation()
     if (state.status === 'applying' && !disposed()) location.reload()
     else void check()
   }
   const watch = (worker: ServiceWorker | null) => worker?.addEventListener('statechange', () => {
     if (worker.state === 'installed' || worker.state === 'activated') void check()
     if (worker.state === 'redundant' && !disposed()) {
+      if (activating) {
+        if (worker === activating) failActivation()
+        return
+      }
       if (worker === candidate) {
-        candidate = null
         // A newer download can replace the selected waiting worker before it
         // handles activation. This is a real failure, not a stale check result.
-        if (state.status === 'applying') state.status = 'failed'
-        set('failed', false)
+        failActivation()
       } else if (!candidate) set('failed', false)
     }
   }, { signal: lifetime.signal })
@@ -118,11 +149,11 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
   return {
     check,
     apply() {
-      if (disposed() || !state.ready || !candidate || state.status === 'applying') return
+      if (disposed() || activating || !state.ready || !candidate || state.status === 'applying') return
       if (!beforeUpdate()) { set('unsaved'); return }
       if (candidate.state === 'installed' && candidate === registration?.waiting) {
         set('applying')
-        candidate.postMessage({ type: 'SORTIT_ACTIVATE' })
+        activate(candidate)
       } else if (candidate.state === 'activated' && candidate === navigator.serviceWorker.controller) {
         set('applying')
         location.reload()
@@ -130,6 +161,7 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
     },
     dispose() {
       lifetime.abort()
+      clearActivation()
       clearInterval(interval)
       for (const close of channels) close()
     },

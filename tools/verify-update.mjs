@@ -69,7 +69,7 @@ function controllerHarness({ deployed = newer, waiting = newer, installing = nul
     location: { href: 'https://sortit.test/', protocol: 'https:', reload: () => reloads++ },
     navigator: { serviceWorker }, document,
     addEventListener: window.addEventListener.bind(window),
-    setTimeout: fn => { const id = ++timerId; timers.set(id, { fn, interval: false }); return id },
+    setTimeout: (fn, delay) => { const id = ++timerId; timers.set(id, { fn, delay, interval: false }); return id },
     clearTimeout: id => timers.delete(id),
     setInterval: fn => { const id = ++timerId; timers.set(id, { fn, interval: true }); return id },
     clearInterval: id => timers.delete(id),
@@ -77,10 +77,13 @@ function controllerHarness({ deployed = newer, waiting = newer, installing = nul
       const call = { url: String(url), options, aborted: false }
       fetches.push(call)
       if (!fetchPending) return Promise.resolve({ ok: true, json: async () => ({ fingerprint: deployed }) })
-      return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => {
-        call.aborted = true
-        reject(new Error('aborted'))
-      }, { once: true }))
+      return new Promise((_resolve, reject) => {
+        call.reject = reject
+        options.signal.addEventListener('abort', () => {
+          call.aborted = true
+          reject(new Error('aborted'))
+        }, { once: true })
+      })
     },
   }
   vm.runInNewContext(compile(source.replaceAll('import.meta.env', '__ENV__')), context)
@@ -88,6 +91,7 @@ function controllerHarness({ deployed = newer, waiting = newer, installing = nul
   return { api, states, messages, channels, timers, fetches, document, window, serviceWorker, makeWorker,
     registration, pendingRegistration, get reloads() { return reloads }, get saveChecks() { return saveChecks },
     setDeployed: value => { deployed = value },
+    setFetchPending: value => { fetchPending = value },
     get updates() { return updates }, last: () => states.at(-1),
     assertDisposed() {
       assert.equal(timers.size, 0, 'no remaining interval or identify timeout')
@@ -164,7 +168,124 @@ async function sameBuildWaitingInvariant(source = controllerSource) {
   } finally { h.api.dispose(); await settle(); h.assertDisposed() }
 }
 await sameBuildWaitingInvariant()
-const sameBuildMutant = controllerSource.replace("if (registration.waiting === target) target?.postMessage({ type: 'SORTIT_ACTIVATE' })", 'if (registration.waiting === target) {}')
+
+async function quietHandoffInvariant(source = controllerSource) {
+  const h = controllerHarness({ deployed: running, waiting: running, source })
+  const replacement = h.registration.waiting
+  h.serviceWorker.controller = h.registration.active = h.makeWorker(null, 'activated')
+  try {
+    await settle()
+    const fetches = h.fetches.length, messages = h.messages.length
+    replacement.emit('statechange')
+    h.window.emit('online')
+    h.window.emit('pageshow')
+    h.document.emit('visibilitychange')
+    for (const timer of h.timers.values()) if (timer.interval) timer.fn()
+    await h.api.check()
+    await settle()
+    assert.equal(h.fetches.length, fetches, 'activation handoff must not start another probe through the outgoing worker')
+    assert.equal(h.messages.length, messages, 'activation handoff must not dispatch more worker messages')
+    assert.equal(h.reloads, 0)
+
+    const unrelated = h.makeWorker(newer, 'installing')
+    h.registration.installing = unrelated
+    h.registration.emit('updatefound')
+    unrelated.state = 'redundant'
+    unrelated.emit('statechange')
+    h.registration.installing = null
+    await h.api.check()
+    assert.equal(h.fetches.length, fetches, 'unrelated worker failure must not release the handoff')
+    assert.notEqual(h.last().status, 'failed', 'unrelated failure must not report this handoff failed')
+
+    replacement.state = 'activated'
+    h.registration.waiting = null
+    h.registration.active = h.serviceWorker.controller = replacement
+    h.serviceWorker.emit('controllerchange')
+    await settle()
+    assert.equal(h.last().status, 'current', 'controller change resumes normal update checks')
+    assert.ok(h.fetches.length > fetches)
+    assert.equal(h.reloads, 0, 'matching-page activation never adds another reload')
+    h.api.dispose()
+    assert.equal(unrelated.count(), 0)
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await quietHandoffInvariant()
+
+async function activationRecoveryInvariant(source = controllerSource, mode = 'timeout', consent = false) {
+  const identity = consent ? newer : running
+  const h = controllerHarness({ deployed: identity, waiting: identity, source })
+  const selected = h.registration.waiting
+  const post = selected.postMessage.bind(selected)
+  if (mode === 'throw') selected.postMessage = (data, ports) => {
+    if (data.type === 'SORTIT_ACTIVATE') throw new Error('worker no longer accepts messages')
+    post(data, ports)
+  }
+  try {
+    await settle()
+    if (consent) h.api.apply()
+    if (mode === 'timeout') {
+      const deadline = [...h.timers].find(([, timer]) => !timer.interval && timer.delay === 8000)
+      assert.ok(deadline, 'activation must have an owned eight-second recovery deadline')
+      h.timers.delete(deadline[0])
+      deadline[1].fn()
+    } else if (mode === 'redundant') {
+      selected.state = 'redundant'
+      selected.emit('statechange')
+    }
+    assert.equal(h.last().status, 'failed', `${mode} releases activation with a visible failure`)
+    assert.equal(h.last().ready, false, 'failed activation must not keep a stale ready action')
+    assert.equal(h.reloads, 0)
+    assert.equal([...h.timers.values()].filter(timer => !timer.interval).length, 0, 'failed activation clears its deadline')
+
+    h.registration.waiting = h.makeWorker(newer, 'installed')
+    h.setDeployed(newer)
+    const before = h.fetches.length
+    await h.api.check()
+    assert.equal(h.fetches.length, before + 1, 'failed handoff permits an explicit retry')
+    assert.equal(h.last().status, 'ready', 'retry discovers the current replacement')
+    h.api.dispose()
+    assert.equal(selected.count(), 0)
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+for (const consent of [false, true]) {
+  for (const mode of ['timeout', 'redundant', 'throw']) await activationRecoveryInvariant(controllerSource, mode, consent)
+}
+
+async function activationDisposalInvariant(source = controllerSource) {
+  const h = controllerHarness({ deployed: running, waiting: running, source })
+  await settle()
+  const callbacks = [...h.timers.values()].map(timer => timer.fn)
+  h.api.dispose()
+  h.assertDisposed()
+  const publications = h.states.length, messages = h.messages.length, fetches = h.fetches.length
+  for (const callback of callbacks) callback()
+  await settle()
+  assert.equal(h.states.length, publications, 'disposed activation cannot publish a late failure')
+  assert.equal(h.messages.length, messages)
+  assert.equal(h.fetches.length, fetches)
+}
+await activationDisposalInvariant()
+
+const quietMutant = controllerSource.replace('document.hidden || activating ||', 'document.hidden ||')
+assert.ok(quietMutant !== controllerSource, 'quiet mutation reaches the check entry guard')
+await assert.rejects(quietHandoffInvariant(quietMutant), /another probe/, 'new probes during activation are caught')
+const deadlineMutant = controllerSource.replace('if (!disposed() && activating === worker) failActivation()', '')
+assert.ok(deadlineMutant !== controllerSource, 'deadline mutation disables recovery')
+await assert.rejects(activationRecoveryInvariant(deadlineMutant), /timeout releases activation/, 'ignored activation cannot remain quiet forever')
+const handoffRedundancyMutant = controllerSource.replace('if (worker === activating) failActivation()', '')
+assert.ok(handoffRedundancyMutant !== controllerSource, 'handoff redundancy mutation disables recovery')
+await assert.rejects(activationRecoveryInvariant(handoffRedundancyMutant, 'redundant'), /redundant releases activation/, 'superseded matching-page worker cannot keep the lock')
+const handoffChangedMutant = controllerSource.replace('const changed = () => {\n    clearActivation()', 'const changed = () => {')
+assert.ok(handoffChangedMutant !== controllerSource, 'controllerchange mutation keeps the handoff locked')
+await assert.rejects(quietHandoffInvariant(handoffChangedMutant), /resumes normal update checks/, 'successful handoff must resume checking')
+const activationDisposeMutant = controllerSource.replace('lifetime.abort()\n      clearActivation()', 'lifetime.abort()')
+assert.ok(activationDisposeMutant !== controllerSource, 'disposal mutation leaks the activation deadline')
+await assert.rejects(activationDisposalInvariant(activationDisposeMutant), /remaining interval or identify timeout/, 'activation deadline is owned by the mounted controller')
+const activationThrowMutant = controllerSource.replace("try { worker.postMessage({ type: 'SORTIT_ACTIVATE' }) } catch { failActivation() }", "try { worker.postMessage({ type: 'SORTIT_ACTIVATE' }) } catch {}")
+assert.ok(activationThrowMutant !== controllerSource, 'activation send mutation swallows rejection')
+await assert.rejects(activationRecoveryInvariant(activationThrowMutant, 'throw'), /throw releases activation/, 'rejected activation exits immediately rather than awaiting the deadline')
+
+const sameBuildMutant = controllerSource.replace('activate(target)', '/* no activation */')
 assert.notEqual(sameBuildMutant, controllerSource, 'same-build activation mutation removes the handoff')
 await assert.rejects(sameBuildWaitingInvariant(sameBuildMutant), /matching waiting worker/, 'matching-page legacy handoff stays observable')
 const waitingUpdateMutant = controllerSource.replace('if (!registration.installing && fingerprint !== identity.fingerprint)', 'if (!registration.installing)')
@@ -252,9 +373,26 @@ async function applyDuringCheckInvariant(source = controllerSource) {
   } finally { h.api.dispose(); await settle(); h.assertDisposed() }
 }
 await applyDuringCheckInvariant()
+
+async function probeFailsDuringApplyInvariant(source = controllerSource) {
+  const h = controllerHarness({ source })
+  try {
+    await settle()
+    h.setFetchPending(true)
+    const pending = h.api.check()
+    await settle()
+    h.api.apply()
+    h.fetches.at(-1).reject(new Error('network lost during activation'))
+    await pending
+    assert.equal(h.last().status, 'applying', 'late probe rejection cannot erase applying state')
+    h.serviceWorker.emit('controllerchange')
+    assert.equal(h.reloads, 1)
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await probeFailsDuringApplyInvariant()
 const applyingMutant = controllerSource.replace("if (state.status === 'applying' && status !== 'applying') return", '')
 assert.notEqual(applyingMutant, controllerSource, 'applying-state mutation reaches the intended guard')
-await assert.rejects(applyDuringCheckInvariant(applyingMutant), /reloads once despite/, 'late check clobbering consent is caught')
+await assert.rejects(probeFailsDuringApplyInvariant(applyingMutant), /erase applying state/, 'late probe failure clobbering consent is caught')
 
 async function redundantCandidateInvariant(source = controllerSource, alreadyWaiting = true) {
   const h = controllerHarness({ source, waiting: alreadyWaiting ? newer : null })
@@ -561,4 +699,4 @@ const activeSnapshotMutant = workerSource.replace('worker.registration.active !=
 assert.notEqual(activeSnapshotMutant, workerSource, 'active-snapshot mutation reaches the intended defensive guard')
 await assert.rejects(activeChangedDuringRetirementInvariant(activeSnapshotMutant), /active worker changes during the event/, 'active-object defense mutant is caught')
 
-console.log('update controller/worker: thirteen guard mutants caught; consent, selected-activation failure/retry, install/update sequencing, matching-page legacy handoff, downloaded-build reuse/supersession, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
+console.log('update controller/worker: nineteen guard mutants caught; consent, quiet handoff, activation timeout/redundancy/send-failure recovery, install/update sequencing, matching-page legacy handoff, downloaded-build reuse/supersession, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
