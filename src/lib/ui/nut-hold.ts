@@ -32,6 +32,16 @@ export function holdNut(node: HTMLElement, initial: Hold) {
 
   function position(next: Hold) {
     if (!next.selected && !ownsPose) return
+    const arrival = node.classList.contains('flying')
+      ? node.getAnimations().find(a => a.effect instanceof KeyframeEffect && a.effect.getKeyframes().length > 2)
+      : undefined
+    if (next.selected && arrival) {
+      const current = revision
+      // One transform owner at a time. A quick tap still selects immediately,
+      // but the next wind-off waits for the incoming carry to finish.
+      void arrival.finished.then(() => { if (revision === current) update(state) }, () => {})
+      return
+    }
     const offset = new DOMMatrix(getComputedStyle(node).transform).m42
     const angle = Number(svg.querySelector<SVGGElement>('[data-nut]')?.dataset.turn ?? 0)
     const box = node.getBoundingClientRect()

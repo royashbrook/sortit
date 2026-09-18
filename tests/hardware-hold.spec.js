@@ -155,3 +155,34 @@ test('hint teaches the same wind-off gesture without restoring the generic bob',
   expect(held.y + held.height).toBeLessThan(tip.y - 3)
   expect(await nut.evaluate(n => getComputedStyle(n).animationName)).toBe('none')
 })
+
+test('selecting an arriving nut lets its carry finish before winding it off again', async ({ page }) => {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate
+    window.competingNutMotion = []
+    Element.prototype.animate = function (frames, options) {
+      if (this.matches('.item') && frames.length === 2 && this.getAnimations().some(a => a.effect.getKeyframes().length > 2)) {
+        window.competingNutMotion.push(this.dataset.uid)
+      }
+      return animate.call(this, frames, options)
+    }
+  })
+  await open(page, 1)
+  await page.locator('.tube').first().click()
+  await page.locator('.tube').nth(2).click()
+  const nut = page.locator('.tube').nth(2).locator('.item').last()
+  await nut.evaluate(node => {
+    const flight = node.getAnimations().find(a => a.effect.getKeyframes().length > 2)
+    flight.pause()
+    flight.currentTime = Number(flight.effect.getTiming().duration) * .5
+  })
+  await page.locator('.tube').nth(2).click()
+  // Both animations would write transform, snapping sideways to the target.
+  expect(await page.evaluate(() => window.competingNutMotion)).toEqual([])
+  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(1)
+  expect(await nut.evaluate(n => n.getAnimations()[0].effect.getKeyframes().length)).toBeGreaterThan(2)
+  await nut.evaluate(n => n.getAnimations()[0].finish())
+  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
+  const held = await nut.boundingBox(), tip = await page.locator('.tube').nth(2).locator('.bolt-tip').boundingBox()
+  expect(held.y + held.height).toBeLessThan(tip.y - 3)
+})
