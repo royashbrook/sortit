@@ -48,6 +48,17 @@ test('selection winds fully clear, holds without bobbing, then screws back down'
   expect(await nut.boundingBox()).toEqual(held)
   await page.screenshot({ path: info.outputPath('selected.png') })
   await page.locator('.tube').first().click()
+  const returning = await nut.evaluate(async node => {
+    const a = node.getAnimations()[0]
+    a.pause()
+    a.currentTime = 70
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const angle = Number(node.querySelector('[data-nut]').dataset.turn)
+    a.finish()
+    return angle
+  })
+  expect(returning).toBeGreaterThan(-Math.PI * 2)
+  expect(returning).toBeLessThan(-.2)
   await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
   expect(await nut.boundingBox()).toEqual(before)
   await expect(page.locator('.item.flying')).toHaveCount(0)

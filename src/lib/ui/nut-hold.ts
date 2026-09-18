@@ -53,7 +53,7 @@ export function holdNut(node: HTMLElement, initial: Hold) {
     ownsPose = true
     const settle = () => {
       node.style.transform = `translateY(${target}px)`
-      svg.innerHTML = next.selected ? nutArt(key, 0, null, id) : rest
+      svg.innerHTML = next.selected ? nutArt(key, -Math.PI * 2, null, id) : rest
       ownsPose = next.selected
       if (!next.selected) node.style.removeProperty('transform')
     }
