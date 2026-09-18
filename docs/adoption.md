@@ -1,5 +1,30 @@
 # release adoption (refs #67)
 
+## release hold and native update recovery
+
+The first production gate for the merged migration, run 35303983856 at 4f08d2a,
+stopped before publication. Nine of ten native PWA cases passed. WebKit failed
+the failed-download/offline/retry case: after network restoration the update
+toast did not appear within 15 seconds, and the page still showed `checking...`.
+The unchanged merge passed the same full native suite locally and 50 WebKit
+repeat cases. That disagreement does not diagnose the hosted failure.
+
+One independently reproducible exposure is fixed in this follow-up: native
+`ServiceWorkerRegistration.update()` has no cancellation signal and may remain
+pending. The controller now stops waiting after eight seconds, shows a retryable
+failure, and ignores that check's late completion. Native installation can still
+finish and its normal events can offer the downloaded update. Disposal releases
+the owned timer/listener. Consent and saved state are unchanged.
+
+The deterministic check covers timeout, retry, late settlement and disposal,
+including a mutant that ignores the deadline. The native test stalls a real
+worker-script response, checks the visible failure without a reload, then releases
+the response and proves consent-based recovery. The old artifact fails that test.
+The original 15-second recovery assertion is unchanged. A bounded test-only
+register/update/state timeline is retained in the browser report across reloads,
+including successful runs. It issues no extra update, probe or identity request.
+This is a recovery fix, not a claim that the hosted failure's cause is known.
+
 Implementation and development evidence. The hosted and live rollout receipt is
 recorded in [#67](https://github.com/royashbrook/sortit/issues/67), not inferred
 from this document's local results. Baseline: `d9949e6`, version 1.1.21.

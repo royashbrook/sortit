@@ -55,6 +55,23 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
     }
     try { worker.postMessage({ type: 'SORTIT_VERSION' }, [channel.port2]) } catch { close() }
   })
+  const refresh = async (value: ServiceWorkerRegistration) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let cancel = () => {}
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Worker update timed out')), 8000)
+      cancel = () => reject(lifetime.signal.reason)
+      lifetime.signal.addEventListener('abort', cancel, { once: true })
+    })
+    try {
+      // Native update has no AbortSignal. Stop waiting, not the browser's job;
+      // a later installation is still discovered by its normal state events.
+      await Promise.race([value.update(), deadline])
+    } finally {
+      clearTimeout(timer)
+      lifetime.signal.removeEventListener('abort', cancel)
+    }
+  }
 
   async function check() {
     if (disposed() || !registration || document.hidden || activating || state.status === 'applying') return
@@ -75,7 +92,7 @@ export function startUpdates(publish: (state: UpdateState) => void, beforeUpdate
       if (disposed() || activating) return
       // Reuse a verified download; installation events recheck unfinished work.
       if (!registration.installing && fingerprint !== identity.fingerprint) {
-        await registration.update()
+        try { await refresh(registration) } catch { set('failed', false); return }
         if (disposed() || activating) return
         target = registration.waiting ?? registration.active
         fingerprint = await identify(target)
