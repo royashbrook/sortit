@@ -7,17 +7,28 @@ const artifacts = process.env.SORTIT_PWA_ARTIFACTS
   ? JSON.parse(readFileSync(process.env.SORTIT_PWA_ARTIFACTS, 'utf8')) : null
 test.skip(!artifacts, 'run node tools/verify-pwa.mjs to build and serve two real artifacts')
 let server
+const hostTimelines = new WeakMap()
 test.beforeAll(async () => { if (artifacts) server = await startArtifactServer(artifacts) })
 test.afterAll(async () => { await server?.close() })
 test.beforeEach(async ({ page, browserName }, info) => {
   if (server) server.timeline.length = 0
   server?.serve('a')
+  const host = { events: [], dropped: 0 }
+  hostTimelines.set(page, host)
+  await page.exposeFunction('recordPwaEvent', event => {
+    if (host.events.length >= 512) { host.dropped++; return }
+    host.events.push({ ...event, receivedAt: Date.now() })
+  })
   await page.addInitScript(() => {
     const documentId = performance.timeOrigin
-    let operation = 0
+    let operation = 0, sequence = 0
     const record = (event, detail = {}) => {
+      const row = { time: Date.now(), documentId, sequence: ++sequence, event, ...detail }
+      // The old failing run lost its session-backed history. Emit before any
+      // storage access, without delaying the wrapped native call for delivery.
+      void window.recordPwaEvent(row).catch(() => {})
       const events = JSON.parse(sessionStorage.getItem('pwa-timeline') || '[]')
-      events.push({ time: Date.now(), documentId, event, ...detail })
+      events.push(row)
       sessionStorage.setItem('pwa-timeline', JSON.stringify(events.slice(-150)))
     }
     const state = registration => ({
@@ -66,6 +77,7 @@ test.beforeEach(async ({ page, browserName }, info) => {
         const operationId = ++operation
         record(`${key}-start`, { operationId, ...(key === 'update' ? state(this) : {}) })
         const promise = native.apply(this, args)
+        record(`${key}-returned`, { operationId })
         promise.then(registration => {
           record(`${key}-end`, { operationId, ...state(registration) })
           if (key === 'register') {
@@ -89,6 +101,9 @@ test.afterEach(async ({ page }, info) => {
     ])).catch(error => JSON.stringify({ error: error.message }))
     await info.attach('pwa-timeline', { body: timeline ?? '[]', contentType: 'application/json' })
   }
+  // This is the received prefix at this time, not proof that a closing page
+  // delivered every event. It remains available after the page has closed.
+  await info.attach('pwa-host-timeline', { body: JSON.stringify({ ...hostTimelines.get(page), capturedAt: Date.now() }, null, 2), contentType: 'application/json' })
   if (info.status === info.expectedStatus) return
   await info.attach('artifact-requests', { body: JSON.stringify(server.requests, null, 2), contentType: 'application/json' })
   if (!page.isClosed()) {
@@ -276,6 +291,7 @@ test('a stalled native update reports failure without losing play or consent, th
     expect(failedUI.documentId).toBe(pending.documentId)
     expect(failedUI.time - pending.time).toBeGreaterThanOrEqual(7000)
     const settled = event => event.documentId === pending.documentId && event.operationId === pending.operationId && ['update-end', 'update-error'].includes(event.event)
+    expect(before.some(event => event.documentId === pending.documentId && event.operationId === pending.operationId && event.event === 'update-returned')).toBe(true)
     expect(before.filter(settled)).toEqual([])
     const request = server.timeline.findLast(event => event.event === 'request' && event.url === '/service-worker.js')
     expect(request.stalled).toBe(true)
@@ -293,6 +309,35 @@ test('a stalled native update reports failure without losing play or consent, th
     await accept(page, 'b')
     expect(await puzzle(page)).toEqual(saved)
   } finally { server.resume() }
+})
+
+test('native update evidence survives diagnostic storage loss and page closure', async ({ page }) => {
+  await open(page)
+  await about(page)
+  await expect(page.locator('.check-updates')).toHaveText('up to date')
+  const host = hostTimelines.get(page)
+  const before = await timeline(page)
+  const has = row => host.events.some(event => event.documentId === row.documentId && event.sequence === row.sequence)
+  await expect.poll(() => before.every(has)).toBe(true)
+  expect(before.some(event => event.event === 'page')).toBe(true)
+  expect(before.some(event => event.event === 'register-end')).toBe(true)
+  // Remove only test evidence. No application save, cache or registration is
+  // touched: this proves log retention, not a theory of browser storage loss.
+  await page.evaluate(() => sessionStorage.removeItem('pwa-timeline'))
+  expect(await timeline(page)).toEqual([])
+  await check(page)
+  await expect(page.locator('.check-updates')).toHaveText('up to date')
+  const after = await timeline(page)
+  expect(after.some(event => event.event === 'probe-start')).toBe(true)
+  expect(after.some(event => event.event === 'page' || event.event === 'register-end')).toBe(false)
+  await expect.poll(() => after.every(has)).toBe(true)
+  expect(before.every(has)).toBe(true)
+  expect(host.dropped).toBe(0)
+  expect(host.events.every(event => Number.isFinite(event.receivedAt))).toBe(true)
+  await page.close()
+  expect(hostTimelines.get(page)).toBe(host)
+  expect(before.every(has)).toBe(true)
+  expect(after.every(has)).toBe(true)
 })
 
 test('version and update probes never fall back to cached identities when offline', async ({ page, context }) => {
