@@ -36,8 +36,6 @@ jobs:
   native-retry:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      SORTIT_PWA_WORK_ROOT: ${{ runner.temp }}/native-repro
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,6 +45,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
+      - run: echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
       - run: mkdir -p "$SORTIT_PWA_WORK_ROOT"
       - run: node tools/verify-pwa.mjs
       - name: repeat the original retry sequence with its preceding consent case
