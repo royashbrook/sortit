@@ -19,8 +19,23 @@ for (const workflow of [check, deploy]) {
   assert.ok(workflow.includes('d9949e6263e98323a985ae8f09762a39ecadc335'), 'legacy migration builds the pinned old app')
   assert.ok(workflow.includes('chromium webkit'))
 }
-const publish = deploy.indexOf('npm exec --no -- wrangler deploy')
-for (const command of ['npm run test:browser', 'node tools/verify-pwa.mjs --legacy', 'npm run verify:artifact', 'node tools/release-artifact.mjs --current']) assert.ok(deploy.indexOf(command) < publish, `${command} precedes publication`)
+const beforePublish = ['npm run test:browser', 'node tools/verify-pwa.mjs --legacy', 'npm run verify:artifact', 'node tools/release-artifact.mjs --current']
+function assertPublicationOrder(workflow) {
+  const publish = workflow.indexOf('npm exec --no -- wrangler deploy')
+  assert.ok(publish >= 0, 'publication command exists')
+  for (const command of beforePublish) {
+    const position = workflow.indexOf(command)
+    assert.ok(position >= 0 && position < publish, `${command} exists and precedes publication`)
+  }
+  return publish
+}
+const publish = assertPublicationOrder(deploy)
+// A missing command has index -1, which also sorts before publication.
+for (const command of beforePublish) {
+  const without = deploy.split('\n').filter(line => !line.includes(command)).join('\n')
+  assert.throws(() => assertPublicationOrder(without), /exists and precedes publication/)
+}
+assert.throws(() => assertPublicationOrder(deploy.replace('npm exec --no -- wrangler deploy', '')), /publication command exists/)
 assert.equal((deploy.match(/npm run build\n/g) ?? []).length, 1, 'validated production tree is not rebuilt before deploy')
 assert.ok(deploy.indexOf('node tools/release-live.mjs build') > publish)
 assert.ok(deploy.includes('SORTIT_EXPECTED_SOURCE: ${{ steps.source.outputs.sha }}'))
