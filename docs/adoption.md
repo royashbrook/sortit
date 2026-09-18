@@ -4,6 +4,27 @@ In progress, not a release receipt. Baseline: `d9949e6`, version 1.1.21.
 The DOM/SVG board, canvas effects, controls, levels, scoring and art remain the
 product. SvelteKit stays because the static shell and deployment already use it.
 
+## architecture decisions
+
+- **Stage:** an existing 1.1 release adopting the house release floor, not a new
+  prototype and not a retroactive claim that the earlier release met that floor.
+- **Shell:** puzzle/casual, portrait-first with a safe-area-aware bottom dock.
+  The manifest stays portrait, standalone, with its existing identity and icons.
+- **Renderer:** DOM/SVG for the discrete board and themed pieces, canvas for the
+  short confetti effect. This workload does not need a physics or 3D engine.
+- **Boundaries:** typed modules under `src/lib/engine/` own generation, solving
+  and scoring without Svelte. The rune store owns game state and persistence;
+  the page owns intent and controller lifetimes. Presentation helpers own their
+  pending frames, sounds and effects.
+- **Routing/build:** retain SvelteKit's existing static prerendering and Vite
+  artifact. Replacing the router is not part of improving release safety.
+- **PWA:** useful for an offline phone puzzle with saved progress. The migration
+  must preserve the origin, manifest, storage keys and transfer wire format.
+
+These choices apply the
+[house release contract](https://github.com/royashbrook/kidgames/blob/75360d6bd039e74f81efee5fb8175181934b60b5/docs/release-architecture.md)
+without changing the puzzle or claiming a framework makes its animation faster.
+
 ## implemented locally
 
 - Strict TypeScript for engine, art, UI helpers, rune store and page components.
@@ -82,8 +103,37 @@ product. SvelteKit stays because the static shell and deployment already use it.
 - `verify:release`: tag/history fixtures, fingerprints, notices and artifact
   rejection tests pass. This does not prove deployment ordering is wired in CI.
 - `npm run verify` includes the release, save safety, presentation lifecycle and
-  worker/controller checks. `npm run test:pwa -- --legacy <shipped-build>` runs
+  worker/controller checks. `node tools/verify-pwa.mjs --legacy <shipped-build>` runs
   the separate real-artifact suite; it is not yet wired into hosted workflows.
+
+## local house evidence map
+
+Runtime source: `e145f131fa5ea9d8f7971bb19f97c4a7688a2626`. Clean development
+artifact: `1.1.29-dev`, fingerprint
+`b65ce4f0e053d9f02e454e417181301525d552abcdc4a0831be631ca75066875`.
+The table describes local evidence at that source, not a hosted release receipt.
+The eventual release issue must record the integrated source/build and CI/live
+results. A local pass does not certify that deployment runs the check.
+
+| house claim | local status | evidence and limits |
+|---|---|---|
+| typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Hosted strict/artifact gates remain unwired. |
+| rules and generated content | pass | `npm run verify`: all 600 campaign boards/pars and 1,095 dailies. Independent pre-change comparison preserves boards, solutions, seeds, scoring and art. This is not a new gameplay/difficulty approval. |
+| input and lifecycle | pass | Integrated Chromium/WebKit suite: 88/88, covering real moves, undo/cancel, hidden/resumed boards, unmount/remount and reduced motion. Node checks cover gesture-lazy audio and controller disposal. |
+| phone layout and accessible controls | not checked | Artifact tests cover 360x640 and 430x932 layouts, paint bounds and target ownership in both engines; a 430px WebKit board capture was inspected. Full focus/contrast/rotation review and physical-device checks are not established by those geometry tests. |
+| local data survives | pass | Eleven save-safety cases, ten native save cases, transfer/rollback and legacy worker migration. Corrupt undo, unavailable/full storage, live-memory export, cancelled reset/import, stale tabs and denied recovery copies are covered. |
+| installed updates and offline | pass | Fresh native suite 10/10, then both legacy paths repeated ten times per engine, 40/40 with no retries/skips. Consent, lower fingerprints, failed download, held-tab assets, offline cold start/play and notices are covered. WebKit uses complete server socket outage, not its offline emulator. Real-origin and physical-device transition remain unverified. |
+| truthful privacy and copy | not checked | Copy lint and first-party source review are not an all-flow deployed-host request/cookie audit. Host-injected code must be checked after deployment. |
+| theme and art | not checked | Shell token tests, both-theme geometry checks and unchanged art comparisons pass. That does not establish every composited contrast pair or full shell theme-swap coverage. |
+| reproducible release identity | not checked | Version-history fixtures, input fingerprint and artifact rejection tests pass. The next milestone, actual CI ordering, validated-artifact deployment and live comparison remain pending. |
+| distribution rights | pass | Built inventory identifies emitted package modules, complete upstream notices and copied static assets. Repository art and synthesized audio are first-party code; fonts use local/system stacks, with no font/audio files in the static asset inventory. Both native engines serve notices offline. Production serving remains to be checked. |
+| product quality | not checked | Existing user feedback supports keeping the puzzle/art. Automated wins do not prove first-use clarity, enjoyable pacing or sound feel at this candidate. A short real-control review with a named audience/substitute remains required. |
+
+No house row is marked not applicable wholesale. Continuous-physics/frame-rate
+equivalence is not applicable to this discrete turn-based puzzle, but its
+presentation/input lifetimes still are. Outstanding checks stay owned by the
+release work in #67; none is waived by this table. No physical-device performance
+or child-preference claim is made.
 
 ## still required before release
 
