@@ -9,11 +9,19 @@ import { verifyArtifact } from './release-artifact.mjs'
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const noStore = new Set(['index.html', 'service-worker.js', 'release.json', '_app/version.json', 'manifest.json'])
 const hostFiles = new Set(['_headers', '_redirects'])
+// The host can rewrite navigation HTML while serving unchanged bytes to Node fetch.
+const navigationHeaders = {
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  'sec-fetch-dest': 'document',
+  'sec-fetch-mode': 'navigate',
+}
 
 export async function compareLive(manifest, origin, fetcher = fetch) {
   for (const [name, hash] of Object.entries(manifest.files)) {
     const path = name === 'index.html' ? '/' : `/${name}`
-    const response = await fetcher(new URL(path, origin), { cache: 'no-store' })
+    const html = name.endsWith('.html')
+    const response = await fetcher(new URL(path, origin), { cache: 'no-store', ...(html ? { headers: navigationHeaders } : {}) })
     if (hostFiles.has(name)) {
       assert.equal(response.status, 404, `${name} must configure the host, not be served`)
       continue
@@ -23,6 +31,7 @@ export async function compareLive(manifest, origin, fetcher = fetch) {
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff', `${path} lacks nosniff`)
     const cache = response.headers.get('cache-control') ?? ''
     if (noStore.has(name)) assert.match(cache, /(?:^|[,\s])no-store(?:$|[,\s])/, `${path} must not cache release identity or shell`)
+    if (html) assert.match(cache, /(?:^|[,\s])no-transform(?:$|[,\s])/, `${path} must not transform validated HTML`)
     if (name.startsWith('_app/immutable/')) assert.match(cache, /(?:^|[,\s])immutable(?:$|[,\s])/, `${path} must be immutable`)
   }
   const response = await fetcher(new URL('/artifact.json', origin), { cache: 'no-store' })
@@ -68,12 +77,24 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       return async url => {
         const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1)
         if (name === 'artifact.json') return Response.json(change.manifest ?? manifest)
-        const headers = { 'x-content-type-options': 'nosniff', 'cache-control': noStore.has(name) ? 'no-store' : name.startsWith('_app/immutable/') ? 'public, max-age=31536000, immutable' : 'public, max-age=0' }
+        const headers = { 'x-content-type-options': 'nosniff', 'cache-control': name.endsWith('.html') ? 'no-store, no-transform' : noStore.has(name) ? 'no-store' : name.startsWith('_app/immutable/') ? 'public, max-age=31536000, immutable' : 'public, max-age=0' }
         const status = hostFiles.has(name) ? 404 : 200
         return new Response(bodies[name], { status, headers, ...change[name] })
       }
     }
     assert.deepEqual(await compareLive(manifest, origin, fixture()), manifest.release)
+    await assert.rejects(compareLive(manifest, origin, fixture({ 'index.html': { headers: { 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' } } })), /must not transform/)
+    const rewritingHost = async (url, options) => {
+      const response = await fixture()(url, options)
+      const headers = new Headers(options.headers)
+      if (url.pathname === '/' && headers.get('accept')?.includes('text/html') && headers.get('user-agent')?.includes('Mozilla/')) {
+        return new Response(`${bodies['index.html']}<script src="https://analytics.example.test/beacon.js"></script>`, { headers: response.headers })
+      }
+      return response
+    }
+    // The same host gives generic clients the original bytes but rewrites browser HTML.
+    assert.equal(digest(Buffer.from(await (await rewritingHost(new URL('/', origin), {})).arrayBuffer())), manifest.files['index.html'])
+    await assert.rejects(compareLive(manifest, origin, rewritingHost), /differs/)
     await assert.rejects(compareLive(manifest, origin, fixture({ 'third-party-notices.txt': { status: 404 } })), /validated artifact/)
     await assert.rejects(compareLive(manifest, origin, async (url, options) => url.pathname === '/_app/immutable/app.js'
       ? new Response('wrong bundle', { headers: { 'x-content-type-options': 'nosniff', 'cache-control': 'immutable' } }) : fixture()(url, options)), /differs/)
@@ -82,6 +103,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     await assert.rejects(compareLive(manifest, origin, fixture({ '_app/immutable/app.js': { headers: { 'x-content-type-options': 'nosniff' } } })), /immutable/)
     await assert.rejects(compareLive(manifest, origin, fixture({ '_headers': { status: 200 } })), /not be served/)
     await assert.rejects(compareLive(manifest, origin, fixture({ manifest: { ...manifest, release: { version: 'old' } } })), /exact validated bytes/)
-    console.log('live verifier: exact bytes, complete manifest, notice availability, host-only files and cache/security header controls pass')
+    console.log('live verifier: browser-shaped HTML, injection rejection, exact bytes, manifest, notices and host/cache/security controls pass')
   } else await main()
 }

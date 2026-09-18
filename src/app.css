@@ -325,8 +325,8 @@ h1 {
    twelve pieces (skinart/), so its css owns only the furniture (what the
    pieces sit on) and the scene (what the board is). */
 
-/* an item mid-flight rides above every container on the board */
-.item.flying { position: relative; z-index: 30; }
+/* Flights are decorative: their destination parent must not steal taps below. */
+.item.flying { position: relative; z-index: 30; pointer-events: none; }
 
 /* the landing-effects canvas: above the board, below the win sheet */
 .fxlayer { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
