@@ -101,8 +101,8 @@ test.afterEach(async ({ page }, info) => {
     ])).catch(error => JSON.stringify({ error: error.message }))
     await info.attach('pwa-timeline', { body: timeline ?? '[]', contentType: 'application/json' })
   }
-  // This is the received prefix at this time, not proof that a closing page
-  // delivered every event. It remains available after the page has closed.
+  // These are received events, not a complete prefix: an earlier document can
+  // lose unload events. The copy remains available after the page has closed.
   await info.attach('pwa-host-timeline', { body: JSON.stringify({ ...hostTimelines.get(page), capturedAt: Date.now() }, null, 2), contentType: 'application/json' })
   if (info.status === info.expectedStatus) return
   await info.attach('artifact-requests', { body: JSON.stringify(server.requests, null, 2), contentType: 'application/json' })
