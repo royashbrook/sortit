@@ -3,6 +3,7 @@
   import { fx } from './fx.ts'
   import { mine as mineActors, type ActorTrip } from './actors.ts'
   import { turnNut } from './nut-turn.ts'
+  import { holdNut } from './nut-hold.ts'
   import type { Store } from './store.svelte.ts'
   import type { GameItem } from '../save-schema.ts'
   import BoltPost from './BoltPost.svelte'
@@ -15,6 +16,10 @@
   let side = $state(44)
   let tubeH = $state(200)
   let rowCount = $state(1)
+
+  function hardwareHold(node: HTMLElement, pose: { selected: boolean; side: number }) {
+    return store.skin.key === 'bolts' ? holdNut(node, pose) : {}
+  }
 
   const PAD = 5, LIP = 10
 
@@ -29,6 +34,7 @@
     const capacity = store.capacity
     const pieceRatio = store.skin.pieceRatio ?? 1
     const tubeLip = store.skin.tubeLip ?? LIP
+    const hardware = store.skin.key === 'bolts'
     if (!count) return
     // the tube button is the tap target and never goes below 44px (its min-width
     // in css). so a row layout is only feasible if that many 44px tubes fit the
@@ -44,7 +50,10 @@
       // both sides of that cap instead of keeping a 64px shaft above tiny nuts.
       const pieceStack = capacity * pieceRatio
       const rowHeight = availH / rc - PAD
-      const bySide = Math.max((rowHeight - tubeLip) / pieceStack, rowHeight / (pieceStack + 1))
+      // The raised nut needs space too: its body, rear crown and clearance
+      // must fit above the short post, including in short landscape layouts.
+      const bySide = hardware ? (rowHeight - 12) / (pieceStack + 1.6)
+        : Math.max((rowHeight - tubeLip) / pieceStack, rowHeight / (pieceStack + 1))
       const byWidth = (availW - (widest - 1) * gap) / widest - PAD * 2
       // a small board (level 1: four posts of three) sat as a toy in the middle
       // of an empty card at 64px, so the cap rises when a row holds few pieces
@@ -55,15 +64,21 @@
     if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
     rowCount = best.rc
     side = Math.max(20, best.s)
-    tubeH = side * capacity * pieceRatio + Math.min(tubeLip, side) + PAD
+    tubeH = side * capacity * pieceRatio + (hardware ? side * 1.6 + 12 : Math.min(tubeLip, side)) + PAD
   }
 
   $effect(() => {
     if (!boardEl) return
     measure()
-    const ro = new ResizeObserver(() => measure())
+    let frame = 0
+    // Sizing the pieces can resize their board. Finish the observer delivery
+    // before writing layout again, especially during WebKit rotation.
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(measure)
+    })
     ro.observe(boardEl)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); cancelAnimationFrame(frame) }
   })
   // re-measure when the tube count changes (new board)
   $effect(() => { store.tubes.length; measure() })
@@ -72,7 +87,7 @@
   // tube lists, so positions are captured BEFORE the DOM updates ($effect.pre)
   // and the trip is played AFTER with the web animations api: flight.js builds
   // the path (lift, arc, the skin's landing verb), fx.js bursts on touchdown.
-  let before = new Map<number, { rect: DOMRect; tubeTop: number; verb: string }>()
+  let before = new Map<number, { rect: DOMRect; tubeTop: number; tipY: number; turn: number; verb: string }>()
   $effect.pre(() => {
     const uids = store.lastMovedUids
     store.moveSeq // re-run each move
@@ -82,9 +97,12 @@
       const node = boardEl.querySelector<HTMLElement>(`[data-uid="${uid}"]`)
       if (!node) continue
       const tube = node.closest('.tube')
+      const tip = tube?.querySelector('.bolt-tip')?.getBoundingClientRect()
       before.set(uid, {
         rect: node.getBoundingClientRect(),
-        tubeTop: tube ? tube.getBoundingClientRect().top : 0,
+        tubeTop: tip?.top ?? tube?.getBoundingClientRect().top ?? 0,
+        tipY: tip ? tip.top + tip.height / 2 : 0,
+        turn: Number(node.querySelector<SVGGElement>('[data-nut]')?.dataset.turn ?? 0),
         verb: node.dataset.verb || 'drop',
       })
     }
@@ -140,13 +158,14 @@
       if (!node) continue
       const to = node.getBoundingClientRect()
       const destTube = node.closest('.tube')
-      const destTop = destTube ? destTube.getBoundingClientRect().top : to.top
+      const destTip = destTube?.querySelector('.bolt-tip')?.getBoundingClientRect()
+      const destTop = destTip?.top ?? destTube?.getBoundingClientRect().top ?? to.top
       // the arc peaks above BOTH mouths, so a trip between rows still clears
       const peakRel = Math.min(from.tubeTop, destTop) - to.top - motion.lift * side
       const rimRel = Math.min(-2, destTop - to.top)
       // screen-space bottom of the moving nut clears the source shaft before
       // the screw flight is allowed to change x
-      const sourceClearRel = from.tubeTop - to.top - to.height - 2
+      const sourceClearRel = Math.min(from.rect.top - to.top, from.tubeTop - to.top - to.height - 4)
       const verb = from.verb || motion.land
       const keyframes = flightKeyframes(verb, {
         // Selection scales the piece, so its left edge is not the bolt axis.
@@ -165,10 +184,13 @@
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
       const options = flightOptions(motion, index)
       const anim = node.animate(keyframes, options)
+      const releaseTurn = from.rect.bottom <= from.tubeTop - 3
+        ? from.turn : (Math.floor(from.turn / (2 * Math.PI)) - 1) * 2 * Math.PI
       const restoreNut = verb === 'screw' ? turnNut(node, anim, [
-        { x: from.rect.left + from.rect.width / 2, y: from.tubeTop + 5 * side / 64 },
-        { x: to.left + to.width / 2, y: destTop + 5 * side / 64 },
-      ]) : () => {}
+        { x: from.rect.left + from.rect.width / 2, y: from.tipY },
+        { x: to.left + to.width / 2, y: destTip ? destTip.top + destTip.height / 2 : destTop },
+      ], p => p < .3 ? from.turn + (releaseTurn - from.turn) * p / .3
+        : p < .74 ? releaseTurn : releaseTurn + 2 * Math.PI * (p - .74) / .26) : () => {}
       let burstTimer: ReturnType<typeof setTimeout> | undefined
       let live = true
       const cleanup = () => {
@@ -246,6 +268,7 @@
   const isLifted = (index: number, item: GameItem) => {
     if (store.selected !== index) return false
     const tube = store.tubes[index]
+    if (store.skin.key === 'bolts') return item === tube[tube.length - 1]
     const run = store.visibleRun(index)
     return tube.indexOf(item) >= tube.length - run
   }
@@ -264,6 +287,7 @@
   style:background={store.skin.pieces ? null : store.theme?.tint}
   aria-label="sorting board"
 >
+  {#key store.skin.key}
   {#if store.skin.key === 'mine'}<MineScene />{/if}
   {#each rows as row}
     <div class="row">
@@ -277,9 +301,10 @@
           onclick={() => store.tap(index)}
           aria-label={tubeLabel(index)}
         >
-          {#if store.skin.key === 'bolts'}<BoltPost {side} height={tubeH}/>{/if}
+          {#if store.skin.key === 'bolts'}<BoltPost {side} height={tubeH} capacity={store.capacity}/>{/if}
           {#each store.tubes[index] as item, itemIndex (item.uid)}
             <span
+              use:hardwareHold={{ selected: isLifted(index, item) || (store.hintTubes[0] === index && itemIndex === store.tubes[index].length - 1), side }}
               class="item"
               class:hid={item.hid}
               class:lift={isLifted(index, item)}
@@ -294,4 +319,5 @@
       {/each}
     </div>
   {/each}
+  {/key}
 </div>

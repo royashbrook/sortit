@@ -35,18 +35,18 @@ export const SKINS: Skin[] = [
     title: 'Nuts & Bolts',
     pieces: bolts.pieces,
     hidden: bolts.hidden,
-    pieceRatio: .625,
-    pieceViewBox: '0 0 64 40',
+    pieceRatio: .5625,
+    pieceViewBox: '0 0 64 36',
     tubeLip: 64,
     // The nut's projected facets turn about the post. Planar rotation would
     // tumble it in screen space instead of screwing it along the shaft.
     motion: { seconds: .48, lift: .75, spin: 0, stagger: .06, land: 'screw' },
     sound: 'metal',
     preview:
-      `<g class="hardware-preview" transform="translate(16 2) scale(.5)">` +
-      boltArt(100, 'look-bolt') +
-      `<g transform="translate(0 69.6)">${nutArt('red', 0, -1000, 'look-red')}</g>` +
-      `<g transform="translate(0 29.6)">${nutArt('blue', 0, -1000, 'look-blue')}</g></g>`,
+      `<g class="hardware-preview" transform="translate(16 1) scale(.5)">` +
+      boltArt(100, 'look-bolt', 14) +
+      `<g transform="translate(0 79)">${nutArt('red', 0, -1000, 'look-red')}</g>` +
+      `<g transform="translate(0 43)">${nutArt('blue', 0, -1000, 'look-blue')}</g></g>`,
   },
   {
     key: 'mine',

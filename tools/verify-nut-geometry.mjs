@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { nutGeometry } from '../src/lib/engine/skinart/nut-geometry.ts'
+import { nutGeometry, NUT_PITCH, NUT_TOP } from '../src/lib/engine/skinart/nut-geometry.ts'
 import { nutArt } from '../src/lib/engine/skinart/bolts.ts'
 import { nutTurn } from '../src/lib/ui/nut-turn.ts'
 
@@ -10,15 +10,29 @@ for (let n = 0; n < 72; n++) {
   assert.equal(vertices.length, 6)
   assert.ok(faces.length >= 2 && faces.length <= 3)
   const xs = vertices.map(p => p.x)
+  const ys = vertices.map(p => p.y)
+  assert.ok(Math.max(...ys) - Math.min(...ys) >= 25.9, 'top plane is flattened')
   const visibleWidth = faces.reduce((sum, face) => sum + face.width, 0)
   assert.ok(Math.abs(visibleWidth - (Math.max(...xs) - Math.min(...xs))) < 1e-6, 'visible faces leave a gap')
   for (const p of vertices) {
     assert.ok(p.x >= 1.99 && p.x <= 62.01)
-    assert.ok(p.y <= .001 && p.y >= -19.201)
+    assert.ok(p.y <= .001 && p.y >= -30.001)
   }
   for (const face of faces) assert.ok(Number.isFinite(face.slope))
-  assert.doesNotMatch(nutArt('red', angle), /NaN|Infinity|undefined/)
+  const art = nutArt('red', angle)
+  const painted = [...art.matchAll(/class="nut-facet"><path d="M([^Z]+)Z"/g)]
+  assert.equal(painted.length, faces.length)
+  for (const [, path] of painted) {
+    const [a, b, c, d] = path.split('L').map(p => p.split(' ').map(Number))
+    assert.equal(a[0], d[0], 'back wall tapers')
+    assert.equal(b[0], c[0], 'front wall tapers')
+    assert.ok(Math.abs(d[1] - a[1] - NUT_PITCH) < .002, 'back wall is squashed')
+    assert.ok(Math.abs(c[1] - b[1] - NUT_PITCH) < .002, 'front wall is squashed')
+  }
+  assert.doesNotMatch(art, /NaN|Infinity|undefined/)
 }
+assert.equal(NUT_PITCH, 36)
+assert.equal(NUT_TOP, -15)
 assert.notDeepEqual(nutGeometry(0), nutGeometry(Math.PI / 6), 'rotation does not change the silhouette')
 const rest = nutArt('red', 0, -100, 'one')
 const free = nutArt('red', 0, null, 'two')

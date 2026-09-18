@@ -10,7 +10,7 @@ export function nutTurn(progress: number) {
   return -Math.PI * 2 * (1 - (progress - .74) / .26)
 }
 
-export function turnNut(node: HTMLElement, animation: Animation, posts: { x: number; y: number }[]) {
+export function turnNut(node: HTMLElement, animation: Animation, posts: { x: number; y: number }[], angle = nutTurn) {
   running.get(node)?.()
   const svg = node.querySelector('svg')
   const shell = svg?.querySelector('[data-nut]')
@@ -33,7 +33,7 @@ export function turnNut(node: HTMLElement, animation: Animation, posts: { x: num
     const rect = node.getBoundingClientRect()
     const post = posts.find(p => Math.abs(p.x - (rect.left + rect.width / 2)) < .5)
     const tip = post ? (post.y - rect.top) * 64 / rect.width : null
-    svg.innerHTML = nutArt(index, nutTurn(progress), tip, id)
+    svg.innerHTML = nutArt(index, angle(progress), tip, id)
     raf = requestAnimationFrame(frame)
   }
   running.set(node, restore)
