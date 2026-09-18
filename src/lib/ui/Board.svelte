@@ -40,7 +40,11 @@
       const widest = Math.ceil(count / rc)
       if (widest * TUBE_MIN + (widest - 1) * gap > availW) continue // 44px tubes don't fit this row count
       const availH = availHTotal - (rc - 1) * gap
-      const bySide = (availH / rc - tubeLip - PAD) / (capacity * pieceRatio)
+      // Headroom shrinks with the art, up to the skin's normal lip. Solve
+      // both sides of that cap instead of keeping a 64px shaft above tiny nuts.
+      const pieceStack = capacity * pieceRatio
+      const rowHeight = availH / rc - PAD
+      const bySide = Math.max((rowHeight - tubeLip) / pieceStack, rowHeight / (pieceStack + 1))
       const byWidth = (availW - (widest - 1) * gap) / widest - PAD * 2
       // a small board (level 1: four posts of three) sat as a toy in the middle
       // of an empty card at 64px, so the cap rises when a row holds few pieces
@@ -51,7 +55,7 @@
     if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
     rowCount = best.rc
     side = Math.max(20, best.s)
-    tubeH = side * capacity * pieceRatio + tubeLip + PAD
+    tubeH = side * capacity * pieceRatio + Math.min(tubeLip, side) + PAD
   }
 
   $effect(() => {

@@ -241,6 +241,29 @@ double-tap behavior. `manipulation` already permitted pinch zoom before this
 change. All eight supported cases pass locally after the fixes, with six
 explicit WebKit capability skips. No puzzle, save, art or worker code changes.
 
+The next screenshot review exposed a gap between those tests: a dense board
+with landscape side insets wrapped into two rows taller than the board card.
+Viewport safety alone missed it, while the existing board-containment rotation
+test used zero insets. Six new combined cases fail on `2ebe517`, one per skin.
+
+The shell now subtracts the body's already-reserved bottom inset from its dock
+reservation. A short-landscape header compacts only its three non-interactive
+readouts. Bolt headroom scales with the piece size up to the skin's usual cap,
+rather than leaving 64px of shaft above a 20px nut. The layout solves both sides
+of that cap. Piece size stays at least 20px and targets at least 44px. Puzzle
+contents, portrait header sizing, art definitions and flight rules are unchanged.
+
+The new cases check target/post boxes and compare rendered pixels outside the
+board with the stacks shown versus hidden. The moving clock is masked. Native
+browser image decoding needs no new dependency or fixed golden screenshot.
+An injected 48px upward piece translation produces outside-board pixels and
+proves that the paint check detects overflow even when target boxes stay put.
+An earlier SVG `getBBox` attempt was invalid: it counted clipped-away nut
+geometry as visible. It is not used as paint evidence. All six combined cases
+pass locally. The suite now has twelve explicit WebKit safe-area capability
+skips; ordinary rotation still runs in both engines. This proves the sampled
+layouts, not every possible viewport, zoom setting or physical device.
+
 ## still required before release
 
 1. Rerun the real old/new worker suite against final rebuilt artifacts after

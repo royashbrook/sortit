@@ -91,7 +91,8 @@ body {
 /* A short landscape phone needs its width to avoid stacking tall rows under
    the header. Keep the portrait board and the 44px stack targets unchanged. */
 @media (orientation: landscape) and (max-height: 500px) {
-  #game { max-width: none; --board-gap: 4px; }
+  #game { max-width: none; --board-gap: 4px; gap: .5rem; }
+  #game .bar .chip.flat { min-height: 2rem; padding-block: .25rem; }
 }
 
 /* menu and picker may scroll on very short screens; the game never does */
@@ -178,8 +179,9 @@ h1 {
     max(.4rem, env(safe-area-inset-left));
   background: rgb(61 50 48 / .92);
 }
-/* reserve the bar's height so no screen hides under it */
-#game, #levels { padding-bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
+/* The body already reserves its bottom inset. Count that space once when
+   clearing the fixed dock, including its separate home-indicator padding. */
+#game, #levels { padding-bottom: calc(4.4rem + env(safe-area-inset-bottom) - max(.8rem, env(safe-area-inset-bottom))); }
 #game-nav button {
   flex: 1;
   min-height: 2.9rem;

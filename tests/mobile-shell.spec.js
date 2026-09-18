@@ -48,10 +48,72 @@ async function safeBounds(locator, profile) {
   expect.soft(box.y + box.height, `${label} bottom`).toBeLessThanOrEqual(profile.height - profile.bottom + .1)
 }
 
+async function paintOutsideBoard(page, style = '') {
+  const frame = await page.locator('#board').boundingBox()
+  const options = { animations: 'disabled', mask: [page.getByLabel('time elapsed')] }
+  const shown = await page.screenshot({ ...options, style })
+  const hidden = await page.screenshot({ ...options, style: `${style}\n.tube { visibility: hidden !important }` })
+  return page.evaluate(async ({ shown, hidden, frame }) => {
+    const decode = async encoded => {
+      const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0))
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      return { width: canvas.width, height: canvas.height, data: ctx.getImageData(0, 0, canvas.width, canvas.height).data }
+    }
+    const a = await decode(shown), b = await decode(hidden)
+    const scale = a.width / innerWidth
+    let outside = 0
+    for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
+      if (x >= frame.x * scale && x < (frame.x + frame.width) * scale && y >= frame.y * scale && y < (frame.y + frame.height) * scale) continue
+      const i = (y * a.width + x) * 4
+      if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2] || a.data[i + 3] !== b.data[i + 3]) outside++
+    }
+    return outside
+  }, { shown: shown.toString('base64'), hidden: hidden.toString('base64'), frame })
+}
+
 test.describe('native safe-area environment values', () => {
   // WebKit does not expose this CDP override. Its ordinary viewport/rotation
   // coverage remains in rotation.spec; these are not physical-iPhone receipts.
   test.skip(({ browserName }) => browserName !== 'chromium', 'Chromium-only native env(safe-area-inset-*) override')
+
+  for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
+    test(`${skin}: dense board stays inside its card with landscape safe insets`, async ({ page, context }, testInfo) => {
+      await page.addInitScript(skin => {
+        localStorage.setItem('sortit:skin', skin)
+        localStorage.setItem('sortit:progress', JSON.stringify({ current: 600, done: {}, stars: {}, welcomed: true }))
+      }, skin)
+      await page.goto('/')
+      await expect(page.locator('#board')).toHaveAttribute('data-skin', skin)
+      const contents = () => page.locator('.tube').evaluateAll(tubes => tubes.map(tube => [...tube.querySelectorAll('.item')].map(item => item.dataset.uid)))
+      const before = await contents()
+      const cdp = await context.newCDPSession(page)
+      await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, right: 44, bottom: 21, left: 44 } })
+      await page.setViewportSize({ width: 640, height: 360 })
+      await expect.poll(() => page.locator('#board').evaluate(board => {
+        const frame = board.getBoundingClientRect()
+        const boxes = [...board.querySelectorAll('.tube, .bolt-post')].map(el => {
+          const r = el.getBoundingClientRect()
+          return { kind: el.classList.contains('tube') ? 'target' : 'post', left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }
+        })
+        return boxes.filter(box => box.left < frame.left - 1 || box.right > frame.right + 1 || box.top < frame.top - 1 || box.bottom > frame.bottom + 1 || (box.kind === 'target' && Math.min(box.width, box.height) < 44))
+      }), { message: `${skin}: the targets and posts must fit the card, not merely the viewport` }).toEqual([])
+      expect(await page.locator('#board').evaluate(el => parseFloat(getComputedStyle(el).getPropertyValue('--side')))).toBeGreaterThanOrEqual(20)
+      // getBBox includes clipped-away nut geometry. Compare the actual paint,
+      // with the moving clock masked, without depending on golden screenshots.
+      expect(await paintOutsideBoard(page)).toBe(0)
+      if (skin === 'bolts') expect(await paintOutsideBoard(page, '.item svg { transform: translateY(-48px) }')).toBeGreaterThan(0)
+      expect(await contents()).toEqual(before)
+      await page.screenshot({ path: testInfo.outputPath('dense-safe-board.png') })
+      await page.locator('.tube').first().tap()
+      await expect(page.locator('.tube').first()).toHaveClass(/sel/)
+    })
+  }
 
   for (const profile of profiles) {
     test(`${profile.name}: board, dock and scrolling sheets respect the safe rectangle`, async ({ page, context }, testInfo) => {
