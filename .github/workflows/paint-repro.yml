@@ -32,3 +32,36 @@ jobs:
           name: paint-reproduction-evidence
           path: test-results/
           retention-days: 7
+
+  native-retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SORTIT_PWA_WORK_ROOT: ${{ runner.temp }}/native-repro
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: mkdir -p "$SORTIT_PWA_WORK_ROOT"
+      - run: node tools/verify-pwa.mjs
+      - name: repeat the original retry sequence with its preceding consent case
+        run: |
+          manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
+          test "${#manifests[@]}" -eq 1
+          SORTIT_PWA_ARTIFACTS="${manifests[0]}" \
+          SORTIT_PWA_OUTPUT="$SORTIT_PWA_WORK_ROOT/repeat-results" \
+          npx playwright test --config playwright.pwa.config.js --project webkit \
+            --grep 'consent updates|a failed new-asset download' --repeat-each=100 --max-failures=1
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-retry-reproduction-evidence
+          path: |
+            ${{ runner.temp }}/native-repro/**/results/
+            ${{ runner.temp }}/native-repro/repeat-results/
+          retention-days: 7
