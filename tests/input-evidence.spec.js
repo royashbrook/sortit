@@ -38,6 +38,8 @@ for (const intercepted of [false, true]) {
     expect(result.actions.every(action => action.completed >= action.started)).toBe(true)
     expect(click.trusted).toBe(true)
     expect(click.target.owner).toBe(actual)
+    // These native taps have the same hit and target. Check the field value,
+    // not independence of the two observations; the trace retains both.
     expect(click.hit.owner).toBe(actual)
     expect(click.target.flying).toBe(intercepted)
     expect(click.after.map((stack, index) => stack.selected ? index : -1).filter(index => index >= 0)).toEqual([actual])
