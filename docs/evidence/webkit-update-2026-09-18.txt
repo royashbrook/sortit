@@ -1,0 +1,16 @@
+Selected unmodified lines from run 35404052022, not complete logs.
+Full-log hashes, source identity and interpretation: ../webkit-update-investigation.md
+
+native-processes.jsonl
+{"time":1789772624501,"event":"observed","pid":5759,"parent":5138,"name":"WPENetworkProce","start":"104233"}
+{"time":1789772628211,"event":"absent","pid":5759,"parent":1,"name":"WPENetworkProce","start":"104233"}
+
+native-browser.log
+2026-09-18T23:03:23.543Z pw:browser <launching> /home/runner/.cache/ms-playwright/webkit-2336/pw_run.sh --inspector-pipe --headless --no-startup-window
+{"trial":13,"page":"{\"event\":\"update-state\",\"time\":1789772625514,\"status\":\"failed\",\"ready\":false}"}
+2026-09-18T23:03:45.525Z pw:browser [pid=5132][err] malloc_consolidate(): unaligned fastbin chunk detected
+{"trial":13,"actualWorker":true,"controller":true,"reuseBrowser":true,"time":1789772626537,"result":null}
+2026-09-18T23:03:46.546Z pw:browser [pid=5132] <gracefully close start>
+
+native-signals.log
+5759  1789772625.526517 --- SIGABRT {si_signo=SIGABRT, si_code=SI_TKILL, si_pid=5759, si_uid=1001} ---
