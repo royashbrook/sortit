@@ -36,7 +36,7 @@ for (const level of [1, 29, 175, 600]) test(`hardware fits level ${level} at ${s
 
 test('a moving nut changes facets, clears its post, and survives undo', async ({ page }) => {
   await open(page)
-  const source = await page.locator('.tube').nth(0).boundingBox()
+  const source = await page.locator('.bolt-tip').nth(0).boundingBox()
   await page.locator('.tube').nth(0).click()
   await page.locator('.tube').nth(2).click()
   const moving = page.locator('.item.flying').first()
@@ -58,7 +58,7 @@ test('a moving nut changes facets, clears its post, and survives undo', async ({
   expect(clear.bottom).toBeLessThan(source.y)
   expect(Math.abs(clear.x - (source.x + source.width / 2))).toBeLessThan(1)
   await sample(.5)
-  expect(await moving.locator('.nut-crown').evaluate(path => path.isPointInFill(new DOMPoint(32, -16)))).toBe(true)
+  expect(await moving.locator('.nut-crown').evaluate(path => path.isPointInFill(new DOMPoint(32, -25)))).toBe(true)
   await page.getByRole('button', { name: 'UNDO', exact: true }).click()
   await expect(page.locator('.item.flying')).toHaveCount(0)
   await expect(page.locator('[data-turn]:not([data-turn="0.0000"])')).toHaveCount(0)
@@ -68,9 +68,9 @@ test('a moving nut changes facets, clears its post, and survives undo', async ({
 test('the post occludes the back crown and upper nuts hide lower crowns', async ({ page }) => {
   await open(page)
   const mounted = await page.locator('.tube').nth(0).locator('.item').last().locator('.nut-crown').evaluate(path => ({
-    rear: path.isPointInFill(new DOMPoint(32, -16)),
+    rear: path.isPointInFill(new DOMPoint(32, -25)),
     side: path.isPointInFill(new DOMPoint(15, -10)),
-    hole: path.isPointInFill(new DOMPoint(32, -9.6)),
+    hole: path.isPointInFill(new DOMPoint(32, -15)),
   }))
   expect(mounted).toEqual({ rear: false, side: true, hole: false })
   const stack = await page.locator('.tube').nth(0).evaluate(tube => {

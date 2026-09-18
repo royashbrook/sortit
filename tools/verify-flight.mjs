@@ -141,7 +141,7 @@ for (const skin of SKINS) {
 }
 
 const bolts = SKINS.find(skin => skin.key === 'bolts')
-if (bolts?.pieceRatio !== .625 || bolts?.pieceViewBox !== '0 0 64 40' || bolts?.tubeLip !== 64) {
+if (bolts?.pieceRatio !== .5625 || bolts?.pieceViewBox !== '0 0 64 36' || bolts?.tubeLip !== 64) {
   fail('bolts: projected nut pitch or shaft clearance drifted')
 }
 if ((bolts?.motion.seconds ?? 1) > .5) fail('bolts: single-nut move exceeds half a second')

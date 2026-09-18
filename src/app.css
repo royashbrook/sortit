@@ -355,8 +355,10 @@ h1 {
   filter: drop-shadow(0 1px 1px rgb(34 52 65 / .18));
 }
 [data-skin="bolts"] .item.flying { z-index: 30; }
+[data-skin="bolts"] .item.lift { animation: none; transform: none; z-index: 30; }
+[data-skin="bolts"] .item { transition: none; }
 [data-skin="bolts"] .item svg { overflow: visible; }
-[data-skin="bolts"] .tube.sel { box-shadow: none; }
+[data-skin="bolts"] .tube.sel { box-shadow: none; transform: none; }
 
 /* Scenery is decorative and clipped independently: a selected block and
    the pickaxe still need to clear the board's rounded edge. */
@@ -489,6 +491,11 @@ h1 {
    reads without a word. the same lift a tap gives, so it teaches the tap. */
 .tube.hint { animation: hintpulse 1s ease 2; }
 .tube.hint-from .item:last-child { transform: translateY(-10px) scale(1.06); animation: bob 1.5s ease-in-out .3s infinite; }
+[data-skin="bolts"] .tube.hint-from .item:last-child {
+  animation: none;
+  transform: none;
+  filter: drop-shadow(0 0 3px var(--accent));
+}
 @keyframes hintpulse {
   0%, 100% { box-shadow: none; }
   50% { box-shadow: 0 0 0 .3rem var(--accent); }
