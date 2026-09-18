@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { levelBoard } from '../src/lib/engine/levels.ts'
+import { inputEvidence } from './input-evidence.js'
 
-test('play, settings, save QR and explicit sharing keep puzzle data local', async ({ page, context, baseURL }) => {
+test('play, settings, save QR and explicit sharing keep puzzle data local', async ({ page, context, baseURL }, testInfo) => {
+  const evidence = await inputEvidence(page)
   const requests = []
   const sockets = []
   context.on('request', request => requests.push({ url: request.url(), method: request.method(), body: request.postData() }))
@@ -18,11 +20,15 @@ test('play, settings, save QR and explicit sharing keep puzzle data local', asyn
   await page.getByRole('button', { name: 'GOT IT', exact: true }).tap()
   await page.evaluate(() => navigator.serviceWorker.ready)
 
-  for (const move of levelBoard(1).solution) {
-    await page.locator('.tube').nth(move.from).tap()
-    await page.locator('.tube').nth(move.to).tap()
+  try {
+    for (const move of levelBoard(1).solution) {
+      await evidence.tap(move.from, () => page.locator('.tube').nth(move.from).tap())
+      await evidence.tap(move.to, () => page.locator('.tube').nth(move.to).tap())
+    }
+    await expect(page.locator('.won')).toBeVisible()
+  } finally {
+    await evidence.attach(testInfo)
   }
-  await expect(page.locator('.won')).toBeVisible()
   expect(await page.evaluate(() => window.testShares)).toEqual([])
   await page.getByRole('button', { name: 'SEND THIS PUZZLE TO A FRIEND', exact: true }).tap()
   const shared = await page.evaluate(() => window.testShares)

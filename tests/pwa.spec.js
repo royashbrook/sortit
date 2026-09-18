@@ -10,11 +10,14 @@ let server
 test.beforeAll(async () => { if (artifacts) server = await startArtifactServer(artifacts) })
 test.afterAll(async () => { await server?.close() })
 test.beforeEach(async ({ page, browserName }, info) => {
+  if (server) server.timeline.length = 0
   server?.serve('a')
   await page.addInitScript(() => {
+    const documentId = performance.timeOrigin
+    let operation = 0
     const record = (event, detail = {}) => {
       const events = JSON.parse(sessionStorage.getItem('pwa-timeline') || '[]')
-      events.push({ time: Date.now(), event, ...detail })
+      events.push({ time: Date.now(), documentId, event, ...detail })
       sessionStorage.setItem('pwa-timeline', JSON.stringify(events.slice(-150)))
     }
     const state = registration => ({
@@ -22,6 +25,16 @@ test.beforeEach(async ({ page, browserName }, info) => {
       installing: registration.installing?.state,
     })
     record('page', { url: location.href })
+    for (const event of ['pagehide', 'pageshow', 'online', 'offline', 'visibilitychange']) {
+      const target = event === 'visibilitychange' ? document : window
+      target.addEventListener(event, value => record(event, { persisted: value.persisted, visibility: document.visibilityState, online: navigator.onLine }))
+    }
+    let lastUI
+    new MutationObserver(() => {
+      const ui = { button: document.querySelector('.check-updates')?.textContent ?? null, toast: document.querySelector('.toast')?.textContent ?? null }
+      const value = JSON.stringify(ui)
+      if (value !== lastUI) { lastUI = value; record('update-ui', ui) }
+    }).observe(document, { subtree: true, childList: true, characterData: true })
     const nativeFetch = window.fetch
     window.fetch = function (...args) {
       const probe = String(args[0]).includes('update-probe')
@@ -50,15 +63,16 @@ test.beforeEach(async ({ page, browserName }, info) => {
     for (const [owner, key] of [[ServiceWorkerContainer.prototype, 'register'], [ServiceWorkerRegistration.prototype, 'update']]) {
       const native = owner[key]
       owner[key] = function (...args) {
-        record(`${key}-start`, key === 'update' ? state(this) : {})
+        const operationId = ++operation
+        record(`${key}-start`, { operationId, ...(key === 'update' ? state(this) : {}) })
         const promise = native.apply(this, args)
         promise.then(registration => {
-          record(`${key}-end`, state(registration))
+          record(`${key}-end`, { operationId, ...state(registration) })
           if (key === 'register') {
             watch(registration)
             registration.addEventListener('updatefound', () => { record('updatefound', state(registration)); watch(registration) })
           }
-        }, error => record(`${key}-error`, { name: error.name, message: error.message }))
+        }, error => record(`${key}-error`, { operationId, name: error.name, message: error.message }))
         return promise
       }
     }
@@ -67,8 +81,12 @@ test.beforeEach(async ({ page, browserName }, info) => {
   if (browserName === 'webkit') info.annotations.push({ type: 'platform-limit', description: 'Playwright WebKit offline emulation rejects navigation with an internal engine error. These offline checks instead cut every fixture-server socket; they do not certify OS/device offline mode.' })
 })
 test.afterEach(async ({ page }, info) => {
+  await info.attach('fixture-timeline', { body: JSON.stringify([...server.timeline, { time: Date.now(), event: 'snapshot' }], null, 2), contentType: 'application/json' })
   if (!page.isClosed()) {
-    const timeline = await page.evaluate(() => sessionStorage.getItem('pwa-timeline')).catch(error => JSON.stringify({ error: error.message }))
+    const timeline = await page.evaluate(() => JSON.stringify([
+      ...JSON.parse(sessionStorage.getItem('pwa-timeline') || '[]'),
+      { time: Date.now(), event: 'snapshot', documentId: performance.timeOrigin },
+    ])).catch(error => JSON.stringify({ error: error.message }))
     await info.attach('pwa-timeline', { body: timeline ?? '[]', contentType: 'application/json' })
   }
   if (info.status === info.expectedStatus) return
@@ -90,6 +108,7 @@ const puzzle = page => page.evaluate(() => {
   const { tubes, moves, history } = JSON.parse(localStorage.getItem('sortit:game'))
   return { tubes, moves, history }
 })
+const timeline = page => page.evaluate(() => JSON.parse(sessionStorage.getItem('pwa-timeline') || '[]'))
 async function about(page) {
   if (await page.locator('dialog').count()) await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'MORE', exact: true }).click()
@@ -226,7 +245,10 @@ test('a failed new-asset download leaves the old generation playable offline and
   await offlineFlow(page, context)
   expect(await puzzle(page)).toEqual(saved)
   await context.setOffline(false)
+  const priorRequests = server.timeline.filter(event => event.event === 'request').map(event => event.id)
   server.serve('b')
+  expect(server.timeline.filter(event => event.event === 'request').map(event => event.id)).toEqual(priorRequests)
+  expect(new Set((await timeline(page)).filter(event => event.event === 'page').map(event => event.documentId)).size).toBeGreaterThan(1)
   await check(page)
   await expect(page.locator('.toast')).toHaveText('update ready, tap to reload', { timeout: 15_000 })
   await accept(page, 'b')
@@ -247,12 +269,26 @@ test('a stalled native update reports failure without losing play or consent, th
     await expect(page.locator('.check-updates')).toHaveText('download failed, tap to retry', { timeout: 12_000 })
     expect(Date.now() - started).toBeGreaterThanOrEqual(7000)
     expect(server.requests.some(request => request.path === '/service-worker.js' && !request.finished)).toBe(true)
+    const before = await timeline(page)
+    const pending = before.findLast(event => event.event === 'update-start')
+    const failedUI = before.findLast(event => event.event === 'update-ui' && event.button === 'download failed, tap to retry')
+    expect(pending.time).toBeGreaterThanOrEqual(started)
+    expect(failedUI.documentId).toBe(pending.documentId)
+    expect(failedUI.time - pending.time).toBeGreaterThanOrEqual(7000)
+    const settled = event => event.documentId === pending.documentId && event.operationId === pending.operationId && ['update-end', 'update-error'].includes(event.event)
+    expect(before.filter(settled)).toEqual([])
+    const request = server.timeline.findLast(event => event.event === 'request' && event.url === '/service-worker.js')
+    expect(request.stalled).toBe(true)
+    expect(server.timeline.filter(event => event.id === request.id).map(event => event.event)).toEqual(['request'])
     expect(await workerVersion(page)).toBe(artifacts.a.fingerprint)
     expect(await puzzle(page)).toEqual(saved)
     await expect(page.locator('.toast')).toHaveCount(0)
     server.resume()
     await check(page)
     await expect(page.locator('.toast')).toHaveText('update ready, tap to reload', { timeout: 15_000 })
+    expect((await timeline(page)).filter(settled).map(event => event.event)).toEqual(['update-end'])
+    expect(server.timeline.filter(event => event.id === request.id).map(event => event.event)).toContain('response-finish')
+    expect((await timeline(page)).some(event => event.event === 'update-ui' && event.toast === 'update ready, tap to reload')).toBe(true)
     expect(await workerVersion(page)).toBe(artifacts.a.fingerprint)
     await accept(page, 'b')
     expect(await puzzle(page)).toEqual(saved)

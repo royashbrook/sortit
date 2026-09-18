@@ -30,10 +30,18 @@ export function startArtifactServer(artifacts, port = 4198) {
   let current = 'a', failures = new Set(), offline = false
   const stalledPaths = new Set(), pendingResponses = new Set()
   const requests = []
+  const timeline = []
+  let requestId = 0
+  const record = (event, detail = {}) => timeline.push({ time: Date.now(), event, build: current, offline, ...detail })
   const server = createServer((request, response) => {
     const url = new URL(request.url, 'http://localhost')
     const path = url.pathname === '/' ? '/index.html' : url.pathname
-    if (offline) { requests.push({ build: current, path, status: 0 }); response.destroy(); return }
+    const id = ++requestId
+    const build = current
+    record('request', { id, url: request.url, stalled: stalledPaths.has(path) })
+    response.once('finish', () => record('response-finish', { id, build }))
+    response.once('close', () => record('response-close', { id, build }))
+    if (offline) { requests.push({ build: current, path, status: 0 }); record('response-destroy', { id }); response.destroy(); return }
     // Cloudflare consumes these files and does not expose them as assets.
     const body = ['/_headers', '/_redirects'].includes(path) ? undefined : trees[current].get(path)
     const status = failures.has(path) ? 503 : body ? 200 : 404
@@ -44,6 +52,7 @@ export function startArtifactServer(artifacts, port = 4198) {
     const payload = status === 200 ? body : Buffer.from(`fixture ${status}`)
     const extension = path.slice(path.lastIndexOf('.'))
     const send = () => {
+      record('response-send', { id, status, build })
       response.writeHead(status, {
         'Content-Type': `${contentTypes[extension] ?? 'application/octet-stream'}; charset=utf-8`,
         'Content-Length': payload.length,
@@ -59,16 +68,21 @@ export function startArtifactServer(artifacts, port = 4198) {
     server.once('error', reject)
     server.listen(port, '127.0.0.1', () => resolveServer({
       requests,
+      timeline,
       serve(key, failedPaths = []) {
         assert(trees[key], `unknown fixture build ${key}`)
         current = key
         failures = new Set(failedPaths)
         offline = false
+        // Keep chronology across restore, while preserving the per-build list
+        // used by existing assertions. Otherwise the prior job vanishes.
+        record('serve', { failedPaths })
         requests.length = 0
       },
-      offline(value) { offline = value },
-      stall(path) { stalledPaths.add(path) },
+      offline(value) { offline = value; record('offline') },
+      stall(path) { stalledPaths.add(path); record('stall', { path }) },
       resume() {
+        record('resume')
         stalledPaths.clear()
         for (const send of pendingResponses) send()
         pendingResponses.clear()
