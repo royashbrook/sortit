@@ -6,30 +6,32 @@ import { createRequire } from 'node:module'
 
 const { webkit } = createRequire(import.meta.url)('@playwright/test')
 const artifacts = JSON.parse(readFileSync(process.argv[2], 'utf8'))
-const resources = new Map()
-const walk = (dir, prefix = '') => {
+const walk = (dir, prefix = '', resources = new Map()) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = `${prefix}/${entry.name}`
-    if (entry.isDirectory()) walk(join(dir, entry.name), path)
+    if (entry.isDirectory()) walk(join(dir, entry.name), path, resources)
     else if (entry.isFile() && !['_headers', '_redirects', 'service-worker.js'].includes(entry.name)) {
       resources.set(path, readFileSync(join(dir, entry.name)))
     }
   }
+  return resources
 }
-walk(artifacts.a.dir)
-const failedPath = [...resources.keys()].find(path => path.includes('/nodes/2.') && path.endsWith('.js'))
+const trees = { a: walk(artifacts.a.dir), b: walk(artifacts.b.dir) }
+const actualWorker = process.argv[4] === 'actual'
+const failedPath = [...trees.b.keys()].find(path => path.includes('/nodes/2.') && path.endsWith('.js'))
 assert.ok(failedPath)
 let generation = 'a'
 let fail = false
 const server = createServer((request, response) => {
   const path = new URL(request.url, 'http://fixture').pathname
+  const resources = trees[generation]
   let body, type = 'application/octet-stream', status = 200
   if (path === '/') {
     body = '<!doctype html><title>native cache install reproduction</title>'
     type = 'text/html'
   } else if (path === '/minimal-worker.js') {
     type = 'application/javascript'
-    body = `const VERSION=${JSON.stringify(generation)};
+    body = actualWorker ? readFileSync(join(artifacts[generation].dir, 'service-worker.js')) : `const VERSION=${JSON.stringify(generation)};
       self.addEventListener('install', event => event.waitUntil(caches.open('minimal-'+VERSION).then(cache => cache.addAll(${JSON.stringify([...resources.keys()])}))));
       self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
       self.addEventListener('message', event => { if(event.data.type==='SORTIT_VERSION') event.ports[0]?.postMessage(VERSION); });`
@@ -61,7 +63,8 @@ try {
         await navigator.serviceWorker.ready
         if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }))
       })
-      assert.equal(await identity(page), 'a')
+      const expected = actualWorker ? artifacts.a.fingerprint : 'a'
+      assert.equal(await identity(page), expected)
       generation = 'b'; fail = true
       await page.evaluate(async () => {
         const registration = await navigator.serviceWorker.getRegistration()
@@ -74,12 +77,11 @@ try {
             })
           }, { once: true })
         })
-        await registration.update()
-        await failed
+        await Promise.all([registration.update(), failed])
       })
       const result = await identity(page)
-      console.log(JSON.stringify({ trial, time: Date.now(), result }))
-      assert.equal(result, 'a', 'failed replacement must leave the prior worker responsive')
+      console.log(JSON.stringify({ trial, actualWorker, time: Date.now(), result }))
+      assert.equal(result, expected, 'failed replacement must leave the prior worker responsive')
     } finally { await browser.close() }
   }
 } finally { await new Promise(resolve => server.close(resolve)) }
