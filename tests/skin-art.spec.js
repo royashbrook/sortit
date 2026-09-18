@@ -18,7 +18,7 @@ for (const width of [360, 430]) test(`hardware thumbnail contains its crown and 
     const frame = svg.getBoundingClientRect()
     // Crown clip outlines are the painted boundary, not the deliberately
     // oversized subtraction path that lets the shaft show through the bore.
-    const nodes = svg.querySelectorAll('.nut-shell clipPath path, .nut-facet > path, .bolt-head path')
+    const nodes = svg.querySelectorAll('.nut-shell clipPath[id$="-crown"] path, .nut-facet > path, .bolt-head path')
     return [...nodes].map(node => {
       const b = node.getBBox(), m = node.getScreenCTM()
       const corners = [[b.x, b.y], [b.x + b.width, b.y + b.height]].map(([x,y]) => new DOMPoint(x,y).matrixTransform(m))

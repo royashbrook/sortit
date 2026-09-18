@@ -16,14 +16,14 @@ export function boltArt(seat: number, id: string, tip = 5): string {
   </defs>
   <ellipse cx="32" cy="${seat + 14}" rx="32" ry="8" fill="#253D49" opacity=".14"/>
   <g class="bolt-head">
-    <path d="M0 ${seat}L16 ${seat + 16}H48L64 ${seat}V${seat + 7}L48 ${seat + 23}H16L0 ${seat + 7}Z" fill="#768C99" stroke="#536A78" stroke-width=".8"/>
-    <path d="M16 ${seat + 16}H48V${seat + 23}H16Z" fill="#9EAEB6"/>
-    <path d="M48 ${seat + 16}L64 ${seat}V${seat + 7}L48 ${seat + 23}Z" fill="#526A78"/>
-    <path d="M0 ${seat}L16 ${seat - 16}H48L64 ${seat}L48 ${seat + 16}H16Z" fill="#D3DEE3" stroke="#6D8491" stroke-width=".8" stroke-linejoin="round"/>
-    <path d="M2 ${seat}L17 ${seat - 14.5}H47" fill="none" stroke="#F4F8FA" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M0 ${seat}L16 ${seat + 10}H48L64 ${seat}V${seat + 7}L48 ${seat + 17}H16L0 ${seat + 7}Z" fill="#768C99" stroke="#536A78" stroke-width=".8"/>
+    <path d="M16 ${seat + 10}H48V${seat + 17}H16Z" fill="#9EAEB6"/>
+    <path d="M48 ${seat + 10}L64 ${seat}V${seat + 7}L48 ${seat + 17}Z" fill="#526A78"/>
+    <path d="M0 ${seat}L16 ${seat - 10}H48L64 ${seat}L48 ${seat + 10}H16Z" fill="#D3DEE3" stroke="#6D8491" stroke-width=".8" stroke-linejoin="round"/>
+    <path d="M2 ${seat}L17 ${seat - 8.5}H47" fill="none" stroke="#F4F8FA" stroke-width="1.5" stroke-linecap="round"/>
   </g>
   <g class="bolt-shaft" clip-path="url(#${id}-shaft)">
     <rect x="22" width="20" height="${seat + 5}" fill="url(#${id}-metal)"/>${threads}
   </g>
-  <ellipse class="bolt-tip" cx="32" cy="${tip}" rx="10" ry="5" fill="#E5EEF2" stroke="#738996" stroke-width="1"/>`
+  <ellipse class="bolt-tip" cx="32" cy="${tip}" rx="10" ry="3.3" fill="#E5EEF2" stroke="#738996" stroke-width="1"/>`
 }

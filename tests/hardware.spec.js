@@ -58,7 +58,8 @@ test('a moving nut changes facets, clears its post, and survives undo', async ({
   expect(clear.bottom).toBeLessThan(source.y)
   expect(Math.abs(clear.x - (source.x + source.width / 2))).toBeLessThan(1)
   await sample(.5)
-  expect(await moving.locator('.nut-crown').evaluate(path => path.isPointInFill(new DOMPoint(32, -25)))).toBe(true)
+  // Inside the restored crown's rear edge (-17.914), above its bore (-14.4).
+  expect(await moving.locator('.nut-crown').evaluate(path => path.isPointInFill(new DOMPoint(32, -17)))).toBe(true)
   await page.getByRole('button', { name: 'UNDO', exact: true }).click()
   await expect(page.locator('.item.flying')).toHaveCount(0)
   await expect(page.locator('[data-turn]:not([data-turn="0.0000"])')).toHaveCount(0)
@@ -68,9 +69,9 @@ test('a moving nut changes facets, clears its post, and survives undo', async ({
 test('the post occludes the back crown and upper nuts hide lower crowns', async ({ page }) => {
   await open(page)
   const mounted = await page.locator('.tube').nth(0).locator('.item').last().locator('.nut-crown').evaluate(path => ({
-    rear: path.isPointInFill(new DOMPoint(32, -25)),
+    rear: path.isPointInFill(new DOMPoint(32, -17)),
     side: path.isPointInFill(new DOMPoint(15, -10)),
-    hole: path.isPointInFill(new DOMPoint(32, -15)),
+    hole: path.isPointInFill(new DOMPoint(32, -9.6)),
   }))
   expect(mounted).toEqual({ rear: false, side: true, hole: false })
   const stack = await page.locator('.tube').nth(0).evaluate(tube => {
@@ -80,6 +81,50 @@ test('the post occludes the back crown and upper nuts hide lower crowns', async 
     return { expected: upper.dataset.uid, visible: surface.closest('.item')?.dataset.uid }
   })
   expect(stack.visible).toBe(stack.expected)
+})
+
+test('a free nut has a shaded threaded interior, while a mounted nut leaves the shaft visible', async ({ page }, info) => {
+  await open(page)
+  const sampleBore = nut => nut.locator('svg').evaluate(async original => {
+    // Rasterize the actual current artwork, including both clipping layers.
+    // Path membership alone would miss an opaque wall painted over the shaft.
+    const svg = original.cloneNode(true)
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    svg.setAttribute('viewBox', '0 -20 64 60')
+    svg.setAttribute('width', '256')
+    svg.setAttribute('height', '240')
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }))
+    try {
+      const image = new Image()
+      image.src = url
+      await image.decode()
+      const canvas = document.createElement('canvas')
+      canvas.width = 256; canvas.height = 240
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(image, 0, 0)
+      const pixel = y => [...ctx.getImageData(128, Math.round((y + 20) * 4), 1, 1).data]
+      return { center: pixel(-9.6), upper: pixel(-12), lower: pixel(-7),
+        threads: original.querySelector('.nut-interior').querySelectorAll('path[stroke]').length }
+    } finally { URL.revokeObjectURL(url) }
+  })
+  const source = page.locator('.tube').first()
+  const mounted = await sampleBore(source.locator('.item').last())
+  expect(mounted.center[3]).toBe(0)
+  await source.click()
+  await page.locator('.tube').nth(2).click()
+  const flight = page.locator('.item.flying').first()
+  await flight.evaluate(async node => {
+    const animation = node.getAnimations().find(a => a.effect.getKeyframes().length > 2)
+    animation.pause()
+    animation.currentTime = Number(animation.effect.getTiming().duration) * .5
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  })
+  const free = await sampleBore(flight)
+  expect(free.center[3]).toBe(255)
+  expect(Math.max(...free.center.slice(0, 3))).toBeLessThan(150)
+  expect(free.upper.slice(0, 3)).not.toEqual(free.lower.slice(0, 3))
+  expect(free.threads).toBe(3)
+  await page.screenshot({ path: info.outputPath('threaded-interior.png') })
 })
 
 test('reduced motion makes the same move without a turn loop', async ({ page }) => {
