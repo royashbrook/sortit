@@ -28,6 +28,7 @@ export function startArtifactServer(artifacts, port = 4198) {
     return [key, files]
   }))
   let current = 'a', failures = new Set(), offline = false
+  const stalledPaths = new Set(), pendingResponses = new Set()
   const requests = []
   const server = createServer((request, response) => {
     const url = new URL(request.url, 'http://localhost')
@@ -42,13 +43,17 @@ export function startArtifactServer(artifacts, port = 4198) {
     response.once('close', () => { entry.closed = true })
     const payload = status === 200 ? body : Buffer.from(`fixture ${status}`)
     const extension = path.slice(path.lastIndexOf('.'))
-    response.writeHead(status, {
-      'Content-Type': `${contentTypes[extension] ?? 'application/octet-stream'}; charset=utf-8`,
-      'Content-Length': payload.length,
-      'Cache-Control': 'no-store',
-      ...(path === '/service-worker.js' ? { 'Service-Worker-Allowed': '/' } : {}),
-    })
-    response.end(payload)
+    const send = () => {
+      response.writeHead(status, {
+        'Content-Type': `${contentTypes[extension] ?? 'application/octet-stream'}; charset=utf-8`,
+        'Content-Length': payload.length,
+        'Cache-Control': 'no-store',
+        ...(path === '/service-worker.js' ? { 'Service-Worker-Allowed': '/' } : {}),
+      })
+      response.end(payload)
+    }
+    if (stalledPaths.has(path)) pendingResponses.add(send)
+    else send()
   })
   return new Promise((resolveServer, reject) => {
     server.once('error', reject)
@@ -62,6 +67,12 @@ export function startArtifactServer(artifacts, port = 4198) {
         requests.length = 0
       },
       offline(value) { offline = value },
+      stall(path) { stalledPaths.add(path) },
+      resume() {
+        stalledPaths.clear()
+        for (const send of pendingResponses) send()
+        pendingResponses.clear()
+      },
       bytes(key, path) { return trees[key].get(path) },
       paths(key) { return [...trees[key].keys()] },
       close: () => new Promise(done => { server.close(done); server.closeAllConnections() }),

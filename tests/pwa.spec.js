@@ -9,11 +9,68 @@ test.skip(!artifacts, 'run node tools/verify-pwa.mjs to build and serve two real
 let server
 test.beforeAll(async () => { if (artifacts) server = await startArtifactServer(artifacts) })
 test.afterAll(async () => { await server?.close() })
-test.beforeEach(async ({ browserName }, info) => {
+test.beforeEach(async ({ page, browserName }, info) => {
   server?.serve('a')
+  await page.addInitScript(() => {
+    const record = (event, detail = {}) => {
+      const events = JSON.parse(sessionStorage.getItem('pwa-timeline') || '[]')
+      events.push({ time: Date.now(), event, ...detail })
+      sessionStorage.setItem('pwa-timeline', JSON.stringify(events.slice(-150)))
+    }
+    const state = registration => ({
+      active: registration.active?.state, waiting: registration.waiting?.state,
+      installing: registration.installing?.state,
+    })
+    record('page', { url: location.href })
+    const nativeFetch = window.fetch
+    window.fetch = function (...args) {
+      const probe = String(args[0]).includes('update-probe')
+      if (probe) record('probe-start')
+      const promise = nativeFetch.apply(this, args)
+      if (probe) promise.then(response => record('probe-headers', { status: response.status }),
+        error => record('probe-error', { name: error.name, message: error.message }))
+      return promise
+    }
+    const NativeChannel = window.MessageChannel
+    window.MessageChannel = function (...args) {
+      const channel = new NativeChannel(...args)
+      channel.port1.addEventListener('message', event => record('identity-reply', { value: event.data }))
+      return channel
+    }
+    window.MessageChannel.prototype = NativeChannel.prototype
+    const nativePost = ServiceWorker.prototype.postMessage
+    ServiceWorker.prototype.postMessage = function (...args) {
+      record('worker-message', { type: args[0]?.type, worker: this.state })
+      return nativePost.apply(this, args)
+    }
+    const watch = registration => {
+      const worker = registration.installing
+      worker?.addEventListener('statechange', () => record('worker-state', { worker: worker.state, ...state(registration) }))
+    }
+    for (const [owner, key] of [[ServiceWorkerContainer.prototype, 'register'], [ServiceWorkerRegistration.prototype, 'update']]) {
+      const native = owner[key]
+      owner[key] = function (...args) {
+        record(`${key}-start`, key === 'update' ? state(this) : {})
+        const promise = native.apply(this, args)
+        promise.then(registration => {
+          record(`${key}-end`, state(registration))
+          if (key === 'register') {
+            watch(registration)
+            registration.addEventListener('updatefound', () => { record('updatefound', state(registration)); watch(registration) })
+          }
+        }, error => record(`${key}-error`, { name: error.name, message: error.message }))
+        return promise
+      }
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', () => record('controllerchange', { controller: navigator.serviceWorker.controller?.state }))
+  })
   if (browserName === 'webkit') info.annotations.push({ type: 'platform-limit', description: 'Playwright WebKit offline emulation rejects navigation with an internal engine error. These offline checks instead cut every fixture-server socket; they do not certify OS/device offline mode.' })
 })
 test.afterEach(async ({ page }, info) => {
+  if (!page.isClosed()) {
+    const timeline = await page.evaluate(() => sessionStorage.getItem('pwa-timeline')).catch(error => JSON.stringify({ error: error.message }))
+    await info.attach('pwa-timeline', { body: timeline ?? '[]', contentType: 'application/json' })
+  }
   if (info.status === info.expectedStatus) return
   await info.attach('artifact-requests', { body: JSON.stringify(server.requests, null, 2), contentType: 'application/json' })
   if (!page.isClosed()) {
@@ -174,6 +231,32 @@ test('a failed new-asset download leaves the old generation playable offline and
   await expect(page.locator('.toast')).toHaveText('update ready, tap to reload', { timeout: 15_000 })
   await accept(page, 'b')
   expect(await puzzle(page)).toEqual(saved)
+})
+
+test('a stalled native update reports failure without losing play or consent, then recovers', async ({ page }) => {
+  await open(page)
+  await move(page)
+  const saved = await puzzle(page)
+  await about(page)
+  await expect(page.locator('.check-updates')).toHaveText('up to date')
+  server.serve('b')
+  server.stall('/service-worker.js')
+  try {
+    const started = Date.now()
+    await check(page)
+    await expect(page.locator('.check-updates')).toHaveText('download failed, tap to retry', { timeout: 12_000 })
+    expect(Date.now() - started).toBeGreaterThanOrEqual(7000)
+    expect(server.requests.some(request => request.path === '/service-worker.js' && !request.finished)).toBe(true)
+    expect(await workerVersion(page)).toBe(artifacts.a.fingerprint)
+    expect(await puzzle(page)).toEqual(saved)
+    await expect(page.locator('.toast')).toHaveCount(0)
+    server.resume()
+    await check(page)
+    await expect(page.locator('.toast')).toHaveText('update ready, tap to reload', { timeout: 15_000 })
+    expect(await workerVersion(page)).toBe(artifacts.a.fingerprint)
+    await accept(page, 'b')
+    expect(await puzzle(page)).toEqual(saved)
+  } finally { server.resume() }
 })
 
 test('version and update probes never fall back to cached identities when offline', async ({ page, context }) => {

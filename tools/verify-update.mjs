@@ -32,10 +32,10 @@ function target() {
 }
 
 function controllerHarness({ deployed = newer, waiting = newer, installing = null, registrationPending = false,
-  reply = true, fetchPending = false, saved = true, source = controllerSource } = {}) {
+  reply = true, fetchPending = false, updatePending = false, saved = true, source = controllerSource } = {}) {
   const states = [], messages = [], channels = [], timers = new Map(), fetches = []
   const document = Object.assign(target(), { hidden: false })
-  const window = target(), serviceWorker = target(), pendingRegistration = deferred()
+  const window = target(), serviceWorker = target(), pendingRegistration = deferred(), pendingUpdate = deferred()
   let reloads = 0, saveChecks = 0, timerId = 0, updates = 0
   const makeWorker = (fingerprint, state) => Object.assign(target(), {
     state,
@@ -48,7 +48,7 @@ function controllerHarness({ deployed = newer, waiting = newer, installing = nul
   const registration = Object.assign(target(), {
     active, waiting: waiting ? makeWorker(waiting, 'installed') : null,
     installing: installing ? makeWorker(installing, 'installing') : null,
-    update: async () => { updates++ },
+    update: async () => { updates++; if (updatePending) await pendingUpdate.promise },
   })
   Object.assign(serviceWorker, {
     controller: active,
@@ -89,7 +89,7 @@ function controllerHarness({ deployed = newer, waiting = newer, installing = nul
   vm.runInNewContext(compile(source.replaceAll('import.meta.env', '__ENV__')), context)
   const api = context.exports.startUpdates(state => states.push(state), () => { saveChecks++; return saved })
   return { api, states, messages, channels, timers, fetches, document, window, serviceWorker, makeWorker,
-    registration, pendingRegistration, get reloads() { return reloads }, get saveChecks() { return saveChecks },
+    registration, pendingRegistration, pendingUpdate, get reloads() { return reloads }, get saveChecks() { return saveChecks },
     setDeployed: value => { deployed = value },
     setFetchPending: value => { fetchPending = value },
     get updates() { return updates }, last: () => states.at(-1),
@@ -114,6 +114,44 @@ async function acceptsFingerprint(fingerprint, source) {
 
 await acceptsFingerprint(newer)
 await acceptsFingerprint(rollback)
+
+async function stalledUpdateInvariant(source = controllerSource, dispose = false) {
+  const h = controllerHarness({ source, waiting: null, updatePending: true })
+  try {
+    await settle()
+    assert.equal(h.updates, 1)
+    assert.equal(h.last().status, 'checking')
+    const deadline = [...h.timers].find(([, timer]) => !timer.interval && timer.delay === 8000)
+    assert.ok(deadline, 'a native update must have an owned eight-second deadline')
+    if (dispose) {
+      h.api.dispose()
+      await settle()
+      h.assertDisposed()
+    } else {
+      h.timers.delete(deadline[0])
+      deadline[1].fn()
+      await settle()
+      assert.equal(h.last().status, 'failed', 'stalled update exits checking with a retryable failure')
+      assert.equal(h.last().ready, false)
+      assert.equal([...h.timers.values()].filter(timer => !timer.interval).length, 0)
+      h.registration.waiting = h.makeWorker(newer, 'installed')
+      await h.api.check()
+      assert.equal(h.last().status, 'ready', 'an explicit retry discovers a recovered download')
+      assert.equal(h.updates, 1, 'recovery reuses a downloaded worker')
+    }
+    const publications = h.states.length
+    h.pendingUpdate.resolve()
+    await settle()
+    assert.equal(h.states.length, publications, 'late native settlement cannot publish after timeout or disposal')
+    assert.equal(h.reloads, 0, 'native settlement never grants reload consent')
+  } finally { h.api.dispose(); await settle(); h.assertDisposed() }
+}
+await stalledUpdateInvariant()
+await stalledUpdateInvariant(controllerSource, true)
+const stalledUpdateMutant = controllerSource.replace('Promise.race([value.update(), deadline])', 'Promise.race([value.update(), deadline.catch(() => new Promise(() => {}))])')
+assert.notEqual(stalledUpdateMutant, controllerSource, 'deadline mutation reaches the native await')
+await assert.rejects(stalledUpdateInvariant(stalledUpdateMutant), /exits checking/, 'an ignored deadline cannot leave checking stuck')
+
 const lexicalMutant = controllerSource.replace('fingerprint !== __RELEASE__.fingerprint', 'fingerprint > __RELEASE__.fingerprint')
 assert.notEqual(lexicalMutant, controllerSource, 'the rollback mutation must hit its intended guard')
 await assert.rejects(acceptsFingerprint(rollback, lexicalMutant), /different fully downloaded/, 'lexical ordering mutant is caught')
@@ -699,4 +737,4 @@ const activeSnapshotMutant = workerSource.replace('worker.registration.active !=
 assert.notEqual(activeSnapshotMutant, workerSource, 'active-snapshot mutation reaches the intended defensive guard')
 await assert.rejects(activeChangedDuringRetirementInvariant(activeSnapshotMutant), /active worker changes during the event/, 'active-object defense mutant is caught')
 
-console.log('update controller/worker: nineteen guard mutants caught; consent, quiet handoff, activation timeout/redundancy/send-failure recovery, install/update sequencing, matching-page legacy handoff, downloaded-build reuse/supersession, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
+console.log('update controller/worker: twenty guard mutants caught; consent, quiet handoff, native-update deadline and late-settlement recovery, activation timeout/redundancy/send-failure recovery, install/update sequencing, matching-page legacy handoff, downloaded-build reuse/supersession, download readiness, save gate, abort/disposal, atomic install, waiting-replacement retirement and defensive active-object snapshot passed')
