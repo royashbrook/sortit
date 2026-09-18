@@ -1,0 +1,32 @@
+name: bounded landscape paint reproduction
+
+on:
+  pull_request:
+    branches: [codex/sortit-failure-evidence]
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Stop on the first mismatch and retain its original pair. This temporary
+      # branch is an investigation, not a replacement for the release gate.
+      - run: npm run test:browser -- tests/mobile-shell.spec.js --project chromium --grep 'dash: first-visit shared dense' --repeat-each=200 --max-failures=1
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: paint-reproduction-evidence
+          path: test-results/
+          retention-days: 7
