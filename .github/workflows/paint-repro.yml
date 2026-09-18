@@ -1,4 +1,4 @@
-name: shared browser update controller reproduction
+name: shared browser native layer comparison
 
 on:
   pull_request:
@@ -11,6 +11,10 @@ jobs:
   native-signals:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: [minimal, actual, controller]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -26,7 +30,9 @@ jobs:
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
-      - name: isolate repeated contexts with the real update controller
+      - name: isolate repeated contexts by native layer
+        env:
+          REPRO_LAYER: ${{ matrix.layer }}
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
@@ -36,12 +42,12 @@ jobs:
           DEBUG=pw:browser \
           strace -f -qq -ttt -e trace=clone,clone3,exit_group,wait4,waitid -e signal=all \
             -o "$SORTIT_PWA_WORK_ROOT/native-signals.log" \
-            node tools/native-cache-repro.mjs "${manifests[0]}" 50 controller shared \
+            node tools/native-cache-repro.mjs "${manifests[0]}" 50 "$REPRO_LAYER" shared \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: shared-controller-evidence
+          name: shared-${{ matrix.layer }}-evidence
           path: |
             ${{ runner.temp }}/native-repro/native-browser.log
             ${{ runner.temp }}/native-repro/native-processes.jsonl
