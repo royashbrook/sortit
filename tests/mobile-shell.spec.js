@@ -82,14 +82,16 @@ test.describe('native safe-area environment values', () => {
   // coverage remains in rotation.spec; these are not physical-iPhone receipts.
   test.skip(({ browserName }) => browserName !== 'chromium', 'Chromium-only native env(safe-area-inset-*) override')
 
-  for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
-    test(`${skin}: dense board stays inside its card with landscape safe insets`, async ({ page, context }, testInfo) => {
-      await page.addInitScript(skin => {
+  for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) for (const welcomed of [true, false]) {
+    test(`${skin}: ${welcomed ? 'welcomed' : 'first-visit shared'} dense board stays inside its card with landscape safe insets`, async ({ page, context }, testInfo) => {
+      await page.addInitScript(({ skin, welcomed }) => {
         localStorage.setItem('sortit:skin', skin)
-        localStorage.setItem('sortit:progress', JSON.stringify({ current: 600, done: {}, stars: {}, welcomed: true }))
-      }, skin)
-      await page.goto('/')
+        if (welcomed) localStorage.setItem('sortit:progress', JSON.stringify({ current: 600, done: {}, stars: {}, welcomed: true }))
+      }, { skin, welcomed })
+      await page.goto(welcomed ? '/' : '/?level=600')
       await expect(page.locator('#board')).toHaveAttribute('data-skin', skin)
+      await expect(page.locator('#board-label')).toHaveText('level 600')
+      await expect(page.locator('.first-run')).toHaveCount(welcomed ? 0 : 1)
       const contents = () => page.locator('.tube').evaluateAll(tubes => tubes.map(tube => [...tube.querySelectorAll('.item')].map(item => item.dataset.uid)))
       const before = await contents()
       const cdp = await context.newCDPSession(page)
@@ -107,11 +109,17 @@ test.describe('native safe-area environment values', () => {
       // getBBox includes clipped-away nut geometry. Compare the actual paint,
       // with the moving clock masked, without depending on golden screenshots.
       expect(await paintOutsideBoard(page)).toBe(0)
-      if (skin === 'bolts') expect(await paintOutsideBoard(page, '.item svg { transform: translateY(-48px) }')).toBeGreaterThan(0)
+      if (skin === 'bolts') {
+        const lift = await page.locator('#board').evaluate(board => Math.min(...[...board.querySelectorAll('.item svg')].map(svg => svg.getBoundingClientRect().top)) - board.getBoundingClientRect().top + 12)
+        expect(await paintOutsideBoard(page, `.item svg { transform: translateY(-${lift}px) }`)).toBeGreaterThan(0)
+      }
       expect(await contents()).toEqual(before)
-      await page.screenshot({ path: testInfo.outputPath('dense-safe-board.png') })
-      await page.locator('.tube').first().tap()
-      await expect(page.locator('.tube').first()).toHaveClass(/sel/)
+      await page.screenshot({ path: testInfo.outputPath(`dense-safe-${skin}-${welcomed ? 'returning' : 'first-visit'}.png`) })
+      const move = levelBoard(600).solution[0]
+      await page.locator('.tube').nth(move.from).tap()
+      await expect(page.locator('.tube').nth(move.from)).toHaveClass(/sel/)
+      await page.locator('.tube').nth(move.to).tap()
+      await expect(page.locator('.first-run')).toHaveCount(0)
     })
   }
 

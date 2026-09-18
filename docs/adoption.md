@@ -194,7 +194,7 @@ focus escape into the underlying game.
 At the clean `d2959ff` baseline, the twelve-stack bolts board overflows its
 vertical bounds at 640x360 in both Chromium and WebKit. The portrait width cap
 forces two rows while the minimum piece/target size prevents them fitting.
-Short landscape now uses the available width and a 4px layout gap. Portrait
+Short landscape now uses the available width and a compact layout gap. Portrait
 keeps its 8px gap and width cap; stack targets remain at least 44px. The layout
 calculation reads the rendered gap instead of maintaining a second constant.
 
@@ -249,19 +249,27 @@ test used zero insets. Six new combined cases fail on `2ebe517`, one per skin.
 The shell now subtracts the body's already-reserved bottom inset from its dock
 reservation. A short-landscape header compacts only its three non-interactive
 readouts. Bolt headroom scales with the piece size up to the skin's usual cap,
-rather than leaving 64px of shaft above a 20px nut. The layout solves both sides
-of that cap. Piece size stays at least 20px and targets at least 44px. Puzzle
+rather than leaving 64px of shaft above a 20px-wide nut. The layout solves both sides
+of that cap. The piece-layout width stays at least 20px and targets at least 44px.
+Nut height follows its existing .625 projection ratio, not a 20px height floor. Puzzle
 contents, portrait header sizing, art definitions and flight rules are unchanged.
 
 The new cases check target/post boxes and compare rendered pixels outside the
 board with the stacks shown versus hidden. The moving clock is masked. Native
 browser image decoding needs no new dependency or fixed golden screenshot.
-An injected 48px upward piece translation produces outside-board pixels and
+An injected piece translation above the card produces outside-board pixels and
 proves that the paint check detects overflow even when target boxes stay put.
 An earlier SVG `getBBox` attempt was invalid: it counted clipped-away nut
 geometry as visible. It is not used as paint evidence. All six combined cases
-pass locally. The suite now has twelve explicit WebKit safe-area capability
-skips; ordinary rotation still runs in both engines. This proves the sampled
+pass locally. Review then found the first-visit variant: opening a shared
+`?level=600` also shows the coaching card. Those six cases fail at `590a3e0`.
+A 2px landscape gap lets twelve 44px targets fit the 552px safe width in one
+row, leaving room for the coach without hiding it or shrinking targets. The
+same cases now cover both an existing player and that first-visit shared link,
+including an actual move that dismisses the coach. The paint negative control
+uses the current card/piece position, not a lift distance tied to two rows.
+The suite has eighteen explicit WebKit safe-area capability skips; ordinary
+rotation still runs in both engines. This proves the sampled
 layouts, not every possible viewport, zoom setting or physical device.
 
 ## still required before release

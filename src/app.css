@@ -91,7 +91,7 @@ body {
 /* A short landscape phone needs its width to avoid stacking tall rows under
    the header. Keep the portrait board and the 44px stack targets unchanged. */
 @media (orientation: landscape) and (max-height: 500px) {
-  #game { max-width: none; --board-gap: 4px; gap: .5rem; }
+  #game { max-width: none; --board-gap: 2px; gap: .5rem; }
   #game .bar .chip.flat { min-height: 2rem; padding-block: .25rem; }
 }
 
