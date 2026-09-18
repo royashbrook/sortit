@@ -1,4 +1,4 @@
-name: update controller without game reproduction
+name: shared browser update controller reproduction
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
-      - name: isolate the real update controller without the game runtime
+      - name: isolate repeated contexts with the real update controller
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
@@ -36,12 +36,12 @@ jobs:
           DEBUG=pw:browser \
           strace -f -qq -ttt -e trace=clone,clone3,exit_group,wait4,waitid -e signal=all \
             -o "$SORTIT_PWA_WORK_ROOT/native-signals.log" \
-            node tools/native-cache-repro.mjs "${manifests[0]}" 50 controller \
+            node tools/native-cache-repro.mjs "${manifests[0]}" 50 controller shared \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: update-controller-evidence
+          name: shared-controller-evidence
           path: |
             ${{ runner.temp }}/native-repro/native-browser.log
             ${{ runner.temp }}/native-repro/native-processes.jsonl

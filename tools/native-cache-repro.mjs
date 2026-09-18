@@ -64,11 +64,15 @@ const identity = page => page.evaluate(() => new Promise(resolve => {
   navigator.serviceWorker.controller.postMessage({ type: 'SORTIT_VERSION' }, [channel.port2])
 }))
 const count = Number(process.argv[3] ?? 50)
+const reuseBrowser = process.argv[5] === 'shared'
+let sharedBrowser
 try {
+  if (reuseBrowser) sharedBrowser = await webkit.launch()
   for (let trial = 1; trial <= count; trial++) {
-    const browser = await webkit.launch()
+    const browser = sharedBrowser ?? await webkit.launch()
+    const context = await browser.newContext()
     try {
-      const page = await browser.newPage()
+      const page = await context.newPage()
       if (controller) page.on('console', message => console.log(JSON.stringify({ trial, page: message.text() })))
       generation = 'a'; fail = false
       await page.goto(origin)
@@ -98,8 +102,14 @@ try {
         await Promise.all([registration.update(), failed])
       })
       const result = await identity(page)
-      console.log(JSON.stringify({ trial, actualWorker, controller, time: Date.now(), result }))
+      console.log(JSON.stringify({ trial, actualWorker, controller, reuseBrowser, time: Date.now(), result }))
       assert.equal(result, expected, 'failed replacement must leave the prior worker responsive')
-    } finally { await browser.close() }
+    } finally {
+      await context.close()
+      if (!sharedBrowser) await browser.close()
+    }
   }
-} finally { await new Promise(resolve => server.close(resolve)) }
+} finally {
+  await sharedBrowser?.close()
+  await new Promise(resolve => server.close(resolve))
+}
