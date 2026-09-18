@@ -2,6 +2,9 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
+  // Buffer attachments live in reporter output, not individual result files.
+  // Keep them under the directory uploaded by both release gates.
+  reporter: [['list'], ['json', { outputFile: 'test-results/browser-report.json' }]],
   workers: 1,
   use: { baseURL: 'http://127.0.0.1:4197', viewport: { width: 430, height: 932 } },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }, { name: 'webkit', use: { browserName: 'webkit' } }],

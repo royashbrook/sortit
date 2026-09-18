@@ -53,7 +53,7 @@ async function paintOutsideBoard(page, style = '') {
   const options = { animations: 'disabled', mask: [page.getByLabel('time elapsed')] }
   const shown = await page.screenshot({ ...options, style })
   const hidden = await page.screenshot({ ...options, style: `${style}\n.tube { visibility: hidden !important }` })
-  return page.evaluate(async ({ shown, hidden, frame }) => {
+  const diff = await page.evaluate(async ({ shown, hidden, frame }) => {
     const decode = async encoded => {
       const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0))
       const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))
@@ -68,13 +68,28 @@ async function paintOutsideBoard(page, style = '') {
     const a = await decode(shown), b = await decode(hidden)
     const scale = a.width / innerWidth
     let outside = 0
+    const pixels = []
+    let left = a.width, top = a.height, right = -1, bottom = -1
     for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
       if (x >= frame.x * scale && x < (frame.x + frame.width) * scale && y >= frame.y * scale && y < (frame.y + frame.height) * scale) continue
       const i = (y * a.width + x) * 4
-      if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2] || a.data[i + 3] !== b.data[i + 3]) outside++
+      if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2] || a.data[i + 3] !== b.data[i + 3]) {
+        outside++
+        left = Math.min(left, x); top = Math.min(top, y)
+        right = Math.max(right, x); bottom = Math.max(bottom, y)
+        if (pixels.length < 32) pixels.push({ x, y, shown: [...a.data.slice(i, i + 4)], hidden: [...b.data.slice(i, i + 4)] })
+      }
     }
-    return outside
+    return { outside, frame, scale, image: { width: a.width, height: a.height }, bounds: outside ? { left, top, right, bottom } : null, pixels }
   }, { shown: shown.toString('base64'), hidden: hidden.toString('base64'), frame })
+  // Preserve the actual pair, not a later screenshot after the changing paint
+  // is gone. Sampling after both captures leaves their timing unchanged.
+  if (diff.outside) {
+    await test.info().attach('board-paint-shown', { body: shown, contentType: 'image/png' })
+    await test.info().attach('board-paint-hidden', { body: hidden, contentType: 'image/png' })
+    await test.info().attach('board-paint-diff', { body: JSON.stringify({ ...diff, style }, null, 2), contentType: 'application/json' })
+  }
+  return diff.outside
 }
 
 test.describe('native safe-area environment values', () => {
