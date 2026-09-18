@@ -1,4 +1,4 @@
-name: bounded native handoff reproduction
+name: bounded native signal reproduction
 
 on:
   pull_request:
@@ -8,13 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  legacy-handoff:
+  native-signals:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        polling: [original, quiet]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,32 +19,35 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: prepare the exact shipped legacy install
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get install -y strace
+      - name: prepare the fixture directory
         run: |
-          git worktree add --detach "$RUNNER_TEMP/sortit-legacy" d9949e6263e98323a985ae8f09762a39ecadc335
-          npm ci --prefix "$RUNNER_TEMP/sortit-legacy"
-          npm run build --prefix "$RUNNER_TEMP/sortit-legacy"
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
-      - run: node tools/verify-pwa.mjs --legacy "$RUNNER_TEMP/sortit-legacy/build" --prepare-only
-      - name: compare original messages with passive handoff observation
-        env:
-          SORTIT_QUIET_HANDOFF: ${{ matrix.polling == 'quiet' && '1' || '' }}
+      - run: node tools/verify-pwa.mjs --prepare-only
+      - name: retain native process exit signals during the original retry sequence
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
+          node tools/native-process-observer.mjs > "$SORTIT_PWA_WORK_ROOT/native-processes.jsonl" &
+          observer=$!
+          trap 'kill "$observer" 2>/dev/null || true' EXIT
           DEBUG=pw:browser \
           SORTIT_PWA_ARTIFACTS="${manifests[0]}" \
           SORTIT_PWA_OUTPUT="$SORTIT_PWA_WORK_ROOT/repeat-results" \
-          npx playwright test --config playwright.pwa.config.js --project chromium \
-            --grep 'a new page finishes an already-waiting legacy handoff' --repeat-each=50 --max-failures=1 \
+          strace -f -qq -ttt -e trace=clone,clone3,exit_group,wait4,waitid -e signal=all \
+            -o "$SORTIT_PWA_WORK_ROOT/native-signals.log" \
+            node node_modules/@playwright/test/cli.js test --config playwright.pwa.config.js --project webkit \
+            --grep 'consent updates|a failed new-asset download' --repeat-each=50 --max-failures=1 \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: legacy-handoff-${{ matrix.polling }}-evidence
+          name: native-signal-evidence
           path: |
             ${{ runner.temp }}/native-repro/repeat-results/
             ${{ runner.temp }}/native-repro/native-browser.log
+            ${{ runner.temp }}/native-repro/native-processes.jsonl
+            ${{ runner.temp }}/native-repro/native-signals.log
           retention-days: 7
