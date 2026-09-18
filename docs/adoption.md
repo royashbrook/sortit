@@ -127,14 +127,14 @@ build is intentionally offered as an update even when gameplay code is unchanged
 | typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Hosted strict/artifact gates remain unwired. |
 | rules and generated content | pass | `npm run verify`: all 600 campaign boards/pars and 1,095 dailies. Independent pre-change comparison preserves boards, solutions, seeds, scoring and art. This is not a new gameplay/difficulty approval. |
 | input and lifecycle | pass | Integrated Chromium/WebKit suite: 88/88, covering real moves, undo/cancel, hidden/resumed boards, unmount/remount and reduced motion. Node checks cover gesture-lazy audio and controller disposal. |
-| phone layout and accessible controls | not checked | Existing geometry tests pass at 360x640/430x932. The focused follow-up below fixes nested-dialog keyboard focus and samples small-phone text contrast. Rotation, full accessibility and physical-device checks remain unverified. |
+| phone layout and accessible controls | partial | Small-phone contrast and nested-dialog keyboard tests pass. The rotation follow-up below covers six skins and five viewport sizes in both engines, including a reproduced dense-board fix. Level-screen navigation focus, full accessibility and physical-device checks remain open. |
 | local data survives | pass | Eleven save-safety cases, ten native save cases, transfer/rollback and legacy worker migration. Corrupt undo, unavailable/full storage, live-memory export, cancelled reset/import, stale tabs and denied recovery copies are covered. |
 | installed updates and offline | pass | Fresh native suite 10/10, then both legacy paths repeated ten times per engine, 40/40 with no retries/skips. Consent, lower fingerprints, failed download, held-tab assets, offline cold start/play and notices are covered. WebKit uses complete server socket outage, not its offline emulator. Real-origin and physical-device transition remain unverified. |
-| truthful privacy and copy | not checked | Copy lint and first-party source review are not an all-flow deployed-host request/cookie audit. Host-injected code must be checked after deployment. |
-| theme and art | not checked | Shell token/geometry and unchanged art checks pass. The focused follow-up below fixes measured shell contrast defects across all three themes. That is not coverage of every game-art/composited pair or every theme-swap state. |
+| truthful privacy and copy | partial | Copy lint and the two-engine local journey below cover requests, cookies, WebSockets and explicit share/copy handoffs. Synthetic cookie and unexpected-query controls fail. This is not an all-flow or deployed-host audit; host-injected code must be checked after deployment. |
+| theme and art | partial | Shell token/geometry and unchanged art checks pass. The focused follow-up below fixes measured shell contrast defects across all three themes. The privacy journey switches all six looks and three themes. That is not coverage of every game-art/composited pair or every theme-swap state. |
 | reproducible release identity | not checked | Version-history fixtures, input fingerprint and artifact rejection tests pass. The next milestone, actual CI ordering, validated-artifact deployment and live comparison remain pending. |
 | distribution rights | pass | Built inventory identifies emitted package modules, complete upstream notices and copied static assets. Repository art and synthesized audio are first-party code; fonts use local/system stacks, with no font/audio files in the static asset inventory. Both native engines serve notices offline. Production serving remains to be checked. |
-| product quality | not checked | Existing user feedback supports keeping the puzzle/art. Automated wins do not prove first-use clarity, enjoyable pacing or sound feel at this candidate. A short real-control review with a named audience/substitute remains required. |
+| product quality | partial | An independent technical reviewer exercised fresh first-run coaching, a real move, undo, hint and levels at 430x932 and 360x640 without injected saves or console/page errors. This is a substitute sanity pass, not evidence of child preference, enjoyable pacing or sound feel. |
 
 No house row is marked not applicable wholesale. Continuous-physics/frame-rate
 equivalence is not applicable to this discrete turn-based puzzle, but its
@@ -149,7 +149,11 @@ Escape: the nested sheet's opener had been removed with MORE. WebKit showed a
 body-focus snapshot too, but passed the retrying keyboard assertion, so a lasting
 WebKit failure is not claimed. The dialog now falls back to the surviving MORE
 control only when native restoration has no surviving focused element. Closing
-LOOKS still restores LOOKS, rather than forcing every close to MORE.
+Keyboard-opened LOOKS still restores LOOKS in both engines, rather than forcing
+every close to MORE. Pointer-opened LOOKS in WebKit uses the MORE fallback when
+native focus has no opener. Screen navigation is separate: entering LEVELS
+removes the old navigation node and loses focus before any Escape key. LEVELS
+is a main screen, not a dialog; that navigation-focus follow-up remains open.
 
 The same audit found secondary Daylight text at 3.84:1 against About, and the
 version stamp at about 2.08:1 in Daylight and 3.46:1 in Dusk. Broader control checks
@@ -176,6 +180,31 @@ The normal-text target follows
 The tested controls require opaque flat colours and opacity-one ancestors.
 Native Tab navigation reaching browser chrome is not classified as a
 focus escape into the underlying game.
+
+### rotation and local privacy follow-up
+
+At the clean `d2959ff` baseline, the twelve-stack bolts board overflows its
+vertical bounds at 640x360 in both Chromium and WebKit. The portrait width cap
+forces two rows while the minimum piece/target size prevents them fitting.
+Short landscape now uses the available width and a 4px layout gap. Portrait
+keeps its 8px gap and width cap; stack targets remain at least 44px. The layout
+calculation reads the rendered gap instead of maintaining a second constant.
+
+`tests/rotation.spec.js` covers all six skins through actual viewport changes
+430x932, 932x430, 360x640, 640x360 and 430x740. It checks stack/dock bounds, hit
+ownership, target size, unchanged piece identities and working controls after
+rotation. The bolts cases fail on the clean baseline in both engines; all
+twelve cases pass on the local fix. This is browser emulation, not a phone run.
+
+`tests/local-privacy.spec.js` plays a fresh puzzle to a win, switches looks and
+themes, toggles sound, generates a save QR and checks for an update. Requests
+remain same-origin GETs without bodies or save-code queries, with no cookies or
+WebSockets. The only share/copy payloads appear after their explicit actions.
+Native OS handoffs are intercepted; the test neither writes the clipboard nor
+proves behavior inside the operating system's share sheet. Both engines pass.
+Adding a synthetic cookie or unexpected request query makes each engine fail
+the corresponding assertion. The test does not certify unvisited flows or code
+injected by the eventual deployment host.
 
 ## still required before release
 

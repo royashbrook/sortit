@@ -16,13 +16,13 @@
   let tubeH = $state(200)
   let rowCount = $state(1)
 
-  const GAP = 8, PAD = 5, LIP = 10
+  const PAD = 5, LIP = 10
 
-  // rows + tube size chosen to fill the board across viewport, rows and capacity
-  // at once, ported verbatim from the vanilla layout so phones fit the same way
+  // Rows and piece size share the rendered gap so landscape layout and CSS agree.
   function measure() {
     if (!boardEl) return
     const cs = getComputedStyle(boardEl)
+    const gap = parseFloat(cs.rowGap)
     const availW = boardEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
     const availHTotal = boardEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
     const count = store.tubes.length
@@ -38,10 +38,10 @@
     let best: { rc: number; s: number } | null = null
     for (let rc = 1; rc <= Math.min(4, count); rc++) {
       const widest = Math.ceil(count / rc)
-      if (widest * TUBE_MIN + (widest - 1) * GAP > availW) continue // 44px tubes don't fit this row count
-      const availH = availHTotal - (rc - 1) * GAP
+      if (widest * TUBE_MIN + (widest - 1) * gap > availW) continue // 44px tubes don't fit this row count
+      const availH = availHTotal - (rc - 1) * gap
       const bySide = (availH / rc - tubeLip - PAD) / (capacity * pieceRatio)
-      const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
+      const byWidth = (availW - (widest - 1) * gap) / widest - PAD * 2
       // a small board (level 1: four posts of three) sat as a toy in the middle
       // of an empty card at 64px, so the cap rises when a row holds few pieces
       const cap = capacity * rc <= 4 ? 96 : 64
@@ -52,7 +52,6 @@
     rowCount = best.rc
     side = Math.max(20, best.s)
     tubeH = side * capacity * pieceRatio + tubeLip + PAD
-    rowCount = best.rc
   }
 
   $effect(() => {

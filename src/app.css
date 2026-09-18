@@ -89,6 +89,12 @@ body {
   margin: 0 auto;
 }
 
+/* A short landscape phone needs its width to avoid stacking tall rows under
+   the header. Keep the portrait board and the 44px stack targets unchanged. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #game { max-width: none; --board-gap: 4px; }
+}
+
 /* menu and picker may scroll on very short screens; the game never does */
 #menu, #levels { overflow-y: auto; }
 #game { overflow: hidden; }
@@ -243,7 +249,7 @@ h1 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: var(--board-gap, 8px);
   width: 100%;
   min-height: 0;
   padding: .4rem 0 1rem;
@@ -254,7 +260,7 @@ h1 {
 
 .row {
   display: flex;
-  gap: 8px;
+  gap: var(--board-gap, 8px);
   justify-content: center;
 }
 
@@ -327,8 +333,6 @@ h1 {
   border-radius: 0;
   background: transparent;
 }
-#board[data-skin="bolts"] { gap: 8px; }
-#board[data-skin="bolts"] .row { gap: 8px; }
 .bolt-post {
   position: absolute;
   top: 0;
