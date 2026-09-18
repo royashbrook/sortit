@@ -4,7 +4,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
 
-const { webkit } = createRequire(import.meta.url)('@playwright/test')
+const require = createRequire(import.meta.url)
+const { webkit } = require('@playwright/test')
 const artifacts = JSON.parse(readFileSync(process.argv[2], 'utf8'))
 const walk = (dir, prefix = '', resources = new Map()) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -17,7 +18,15 @@ const walk = (dir, prefix = '', resources = new Map()) => {
   return resources
 }
 const trees = { a: walk(artifacts.a.dir), b: walk(artifacts.b.dir) }
-const actualWorker = process.argv[4] === 'actual'
+const controller = process.argv[4] === 'controller'
+const actualWorker = process.argv[4] === 'actual' || controller
+const controllerModule = controller ? require('esbuild').transformSync(readFileSync(new URL('../src/lib/ui/update.ts', import.meta.url), 'utf8'), {
+  loader: 'ts', format: 'esm', define: {
+    'import.meta.env.BASE_URL': JSON.stringify('/'),
+    'import.meta.env.PROD': 'true',
+    __RELEASE__: JSON.stringify(artifacts.a),
+  },
+}).code : ''
 const failedPath = [...trees.b.keys()].find(path => path.includes('/nodes/2.') && path.endsWith('.js'))
 assert.ok(failedPath)
 let generation = 'a'
@@ -28,8 +37,12 @@ const server = createServer((request, response) => {
   let body, type = 'application/octet-stream', status = 200
   if (path === '/') {
     body = '<!doctype html><title>native cache install reproduction</title>'
+    if (controller) body += `<script type="module">import { startUpdates } from '/update-control.js'; window.updater=startUpdates(state=>{window.updateState=state; console.log(JSON.stringify({event:'update-state',time:Date.now(),...state}))},()=>true)</script>`
     type = 'text/html'
-  } else if (path === '/minimal-worker.js') {
+  } else if (path === '/update-control.js') {
+    body = controllerModule
+    type = 'application/javascript'
+  } else if (path === '/minimal-worker.js' || path === '/service-worker.js') {
     type = 'application/javascript'
     body = actualWorker ? readFileSync(join(artifacts[generation].dir, 'service-worker.js')) : `const VERSION=${JSON.stringify(generation)};
       self.addEventListener('install', event => event.waitUntil(caches.open('minimal-'+VERSION).then(cache => cache.addAll(${JSON.stringify([...resources.keys()])}))));
@@ -56,9 +69,11 @@ try {
     const browser = await webkit.launch()
     try {
       const page = await browser.newPage()
+      if (controller) page.on('console', message => console.log(JSON.stringify({ trial, page: message.text() })))
       generation = 'a'; fail = false
       await page.goto(origin)
-      await page.evaluate(async () => {
+      if (controller) await page.waitForFunction(() => window.updateState?.status === 'current', undefined, { timeout: 15000 })
+      else await page.evaluate(async () => {
         await navigator.serviceWorker.register('/minimal-worker.js', { updateViaCache: 'none' })
         await navigator.serviceWorker.ready
         if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }))
@@ -66,7 +81,10 @@ try {
       const expected = actualWorker ? artifacts.a.fingerprint : 'a'
       assert.equal(await identity(page), expected)
       generation = 'b'; fail = true
-      await page.evaluate(async () => {
+      if (controller) {
+        await page.evaluate(() => window.updater.check())
+        await page.waitForFunction(() => window.updateState?.status === 'failed', undefined, { timeout: 15000 })
+      } else await page.evaluate(async () => {
         const registration = await navigator.serviceWorker.getRegistration()
         const failed = new Promise((resolve, reject) => {
           const timer = setTimeout(() => reject(new Error('replacement did not become redundant')), 15000)
@@ -80,7 +98,7 @@ try {
         await Promise.all([registration.update(), failed])
       })
       const result = await identity(page)
-      console.log(JSON.stringify({ trial, actualWorker, time: Date.now(), result }))
+      console.log(JSON.stringify({ trial, actualWorker, controller, time: Date.now(), result }))
       assert.equal(result, expected, 'failed replacement must leave the prior worker responsive')
     } finally { await browser.close() }
   }
