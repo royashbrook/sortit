@@ -1,4 +1,4 @@
-name: bounded landscape paint reproduction
+name: bounded native update reproduction
 
 on:
   pull_request:
@@ -8,31 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  reproduce:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      # Stop on the first mismatch and retain its original pair. This temporary
-      # branch is an investigation, not a replacement for the release gate.
-      - run: >-
-          npm run test:browser -- tests/mobile-shell.spec.js --project chromium
-          --grep 'dash: first-visit shared dense' --repeat-each=200 --max-failures=1
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: paint-reproduction-evidence
-          path: test-results/
-          retention-days: 7
-
   native-retry:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -52,10 +27,15 @@ jobs:
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
+          node tools/native-process-observer.mjs > "$SORTIT_PWA_WORK_ROOT/native-processes.jsonl" &
+          observer=$!
+          trap 'kill "$observer" 2>/dev/null || true' EXIT
+          DEBUG=pw:browser \
           SORTIT_PWA_ARTIFACTS="${manifests[0]}" \
           SORTIT_PWA_OUTPUT="$SORTIT_PWA_WORK_ROOT/repeat-results" \
           npx playwright test --config playwright.pwa.config.js --project webkit \
-            --grep 'consent updates|a failed new-asset download' --repeat-each=100 --max-failures=1
+            --grep 'consent updates|a failed new-asset download' --repeat-each=100 --max-failures=1 \
+            > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -63,4 +43,6 @@ jobs:
           path: |
             ${{ runner.temp }}/native-repro/**/results/
             ${{ runner.temp }}/native-repro/repeat-results/
+            ${{ runner.temp }}/native-repro/native-browser.log
+            ${{ runner.temp }}/native-repro/native-processes.jsonl
           retention-days: 7
