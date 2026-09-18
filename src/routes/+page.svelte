@@ -291,7 +291,7 @@
     <button onclick={() => store.goGame()}>PLAY</button>
     <button data-active onclick={() => store.openLevels()}>LEVELS</button>
     <button onclick={() => store.openDialog('looks')}>LOOKS</button>
-    <button onclick={() => store.openDialog('more')}>MORE</button>
+    <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
   </nav>
 {/if}
 
@@ -320,7 +320,7 @@
       <button onclick={() => store.undo()}>UNDO</button>
       <button onclick={resetBoard}>RESET</button>
       <button onclick={() => store.openDialog('looks')}>LOOKS</button>
-      <button onclick={() => store.openDialog('more')}>MORE</button>
+      <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
     </nav>
 
     {#if store.stuck && !store.won}

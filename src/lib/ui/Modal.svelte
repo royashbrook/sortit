@@ -23,9 +23,18 @@
   })
 
   const close = () => el?.close()
+  function handleClose() {
+    if (unmounting) return
+    onclose?.()
+    // A nested sheet's opener belonged to the discarded MORE dialog. Native
+    // restoration cannot focus it, so return to the surviving menu control.
+    if (document.activeElement === document.body || el.contains(document.activeElement)) {
+      document.querySelector<HTMLElement>('[data-menu-opener]')?.focus()
+    }
+  }
   function onclick(e: MouseEvent) { if (e.target === el) el.close() } // backdrop click
 </script>
 
-<dialog bind:this={el} aria-label={label} onclose={() => { if (!unmounting) onclose?.() }} {onclick}>
+<dialog bind:this={el} aria-label={label} onclose={handleClose} {onclick}>
   {@render children(close)}
 </dialog>

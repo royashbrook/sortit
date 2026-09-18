@@ -89,6 +89,9 @@ without changing the puzzle or claiming a framework makes its animation faster.
   probes through the outgoing worker. Controller change resumes normal checks.
   Supersession, rejected activation messages and an eight-second deadline release
   the lock with visible failure and permit retry. Disposal clears the deadline.
+  Eight seconds is a chosen recovery budget to avoid an indefinitely disabled
+  update action, not measured cold-phone activation latency. Expiry neither
+  deletes saved data nor forces a reload; the player can retry.
   An unrelated worker failure does not release the selected handoff. The unit
   regression fails on `37873d0` by issuing three probes instead of one.
 - The quiet-period diagnostic passed 10/10 original legacy tests with unchanged
@@ -111,20 +114,24 @@ without changing the puzzle or claiming a framework makes its animation faster.
 Runtime source: `e145f131fa5ea9d8f7971bb19f97c4a7688a2626`. Clean development
 artifact: `1.1.29-dev`, fingerprint
 `b65ce4f0e053d9f02e454e417181301525d552abcdc4a0831be631ca75066875`.
-The table describes local evidence at that source, not a hosted release receipt.
+The rules, save and PWA results below are pinned to that source. The later
+keyboard/theme follow-up is called out separately. Neither is a hosted receipt.
 The eventual release issue must record the integrated source/build and CI/live
 results. A local pass does not certify that deployment runs the check.
+The commit-count version changes on documentation-only commits too; that changes
+the embedded version and therefore the build fingerprint. If deployed, such a
+build is intentionally offered as an update even when gameplay code is unchanged.
 
 | house claim | local status | evidence and limits |
 |---|---|---|
 | typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Hosted strict/artifact gates remain unwired. |
 | rules and generated content | pass | `npm run verify`: all 600 campaign boards/pars and 1,095 dailies. Independent pre-change comparison preserves boards, solutions, seeds, scoring and art. This is not a new gameplay/difficulty approval. |
 | input and lifecycle | pass | Integrated Chromium/WebKit suite: 88/88, covering real moves, undo/cancel, hidden/resumed boards, unmount/remount and reduced motion. Node checks cover gesture-lazy audio and controller disposal. |
-| phone layout and accessible controls | not checked | Artifact tests cover 360x640 and 430x932 layouts, paint bounds and target ownership in both engines; a 430px WebKit board capture was inspected. Full focus/contrast/rotation review and physical-device checks are not established by those geometry tests. |
+| phone layout and accessible controls | not checked | Existing geometry tests pass at 360x640/430x932. The focused follow-up below fixes nested-dialog keyboard focus and samples small-phone text contrast. Rotation, full accessibility and physical-device checks remain unverified. |
 | local data survives | pass | Eleven save-safety cases, ten native save cases, transfer/rollback and legacy worker migration. Corrupt undo, unavailable/full storage, live-memory export, cancelled reset/import, stale tabs and denied recovery copies are covered. |
 | installed updates and offline | pass | Fresh native suite 10/10, then both legacy paths repeated ten times per engine, 40/40 with no retries/skips. Consent, lower fingerprints, failed download, held-tab assets, offline cold start/play and notices are covered. WebKit uses complete server socket outage, not its offline emulator. Real-origin and physical-device transition remain unverified. |
 | truthful privacy and copy | not checked | Copy lint and first-party source review are not an all-flow deployed-host request/cookie audit. Host-injected code must be checked after deployment. |
-| theme and art | not checked | Shell token tests, both-theme geometry checks and unchanged art comparisons pass. That does not establish every composited contrast pair or full shell theme-swap coverage. |
+| theme and art | not checked | Shell token/geometry and unchanged art checks pass. The focused follow-up below fixes measured shell contrast defects across all three themes. That is not coverage of every game-art/composited pair or every theme-swap state. |
 | reproducible release identity | not checked | Version-history fixtures, input fingerprint and artifact rejection tests pass. The next milestone, actual CI ordering, validated-artifact deployment and live comparison remain pending. |
 | distribution rights | pass | Built inventory identifies emitted package modules, complete upstream notices and copied static assets. Repository art and synthesized audio are first-party code; fonts use local/system stacks, with no font/audio files in the static asset inventory. Both native engines serve notices offline. Production serving remains to be checked. |
 | product quality | not checked | Existing user feedback supports keeping the puzzle/art. Automated wins do not prove first-use clarity, enjoyable pacing or sound feel at this candidate. A short real-control review with a named audience/substitute remains required. |
@@ -134,6 +141,41 @@ equivalence is not applicable to this discrete turn-based puzzle, but its
 presentation/input lifetimes still are. Outstanding checks stay owned by the
 release work in #67; none is waived by this table. No physical-device performance
 or child-preference claim is made.
+
+### focused keyboard and theme follow-up
+
+The local audit found a persistent Chromium focus loss after MORE → ABOUT →
+Escape: the nested sheet's opener had been removed with MORE. WebKit showed a
+body-focus snapshot too, but passed the retrying keyboard assertion, so a lasting
+WebKit failure is not claimed. The dialog now falls back to the surviving MORE
+control only when native restoration has no surviving focused element. Closing
+LOOKS still restores LOOKS, rather than forcing every close to MORE.
+
+The same audit found secondary Daylight text at 3.84:1 against About, and the
+version stamp at about 2.08:1 in Daylight and 3.46:1 in Dusk. Broader control checks
+then failed all six theme/engine cases: Dusk's selected button text was 1.55:1,
+unselected look labels 1.18:1, and Bubblegum's selected theme/navigation labels
+2.53:1. Completed-level stars also failed in Daylight and Dusk.
+
+The fix strengthens secondary ink, removes fading from readable version/sound
+labels, spends the existing on-accent ink for selected controls, and gives
+completed levels a theme-owned green surface. Stars inherit their tile's ink.
+The game-specific `--surface-complete` token keeps the existing light-theme green
+while supplying a dark green surface under Dusk's light text. No puzzle, save,
+piece art, animation or worker code changes in this follow-up.
+
+`tests/shell-accessibility.spec.js` passes 18/18 at 360x640 in Chromium and WebKit:
+three themes, direct/nested keyboard closes, the LOOKS focus-return control,
+secondary text, regular/selected buttons, muted sound and completed-level stars.
+These are scoped normal-text checks, not a whole-app accessibility certificate.
+
+Contrast is calculated from browser-computed sRGB colours, including the version
+element's opacity against its flat surface before a modal backdrop appears.
+The normal-text target follows
+[WCAG contrast minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+The tested controls require opaque flat colours and opacity-one ancestors.
+Native Tab navigation reaching browser chrome is not classified as a
+focus escape into the underlying game.
 
 ## still required before release
 
