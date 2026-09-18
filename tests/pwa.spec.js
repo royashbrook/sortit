@@ -239,13 +239,13 @@ test('consent updates to a lower fingerprint, preserves saves and holds old-tab 
     ]).toContainEqual(error)
   }
   server.offline(false)
-  await context.setOffline(false)
+  if (browserName !== 'webkit' || !process.env.SORTIT_SKIP_WEBKIT_ONLINE) await context.setOffline(false)
   await check(page)
   await expect(page.locator('.check-updates')).toHaveText('up to date')
   expect(errors).toEqual([])
 })
 
-test('a failed new-asset download leaves the old generation playable offline and retries honestly', async ({ page, context }) => {
+test('a failed new-asset download leaves the old generation playable offline and retries honestly', async ({ page, context, browserName }) => {
   await open(page)
   await move(page)
   const saved = await puzzle(page)
@@ -259,7 +259,7 @@ test('a failed new-asset download leaves the old generation playable offline and
   await page.keyboard.press('Escape')
   await offlineFlow(page, context)
   expect(await puzzle(page)).toEqual(saved)
-  await context.setOffline(false)
+  if (browserName !== 'webkit' || !process.env.SORTIT_SKIP_WEBKIT_ONLINE) await context.setOffline(false)
   const priorRequests = server.timeline.filter(event => event.event === 'request').map(event => event.id)
   server.serve('b')
   expect(server.timeline.filter(event => event.event === 'request').map(event => event.id)).toEqual(priorRequests)
