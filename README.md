@@ -28,8 +28,8 @@ npm run dev     # Vite prints the local URL
 - PWA features: offline shell (`src/service-worker.ts`), update banner,
   install helper, share-a-board, and QR/code save transfer with one-step rollback.
 - SvelteKit + Vite shell with strict TypeScript application code and a framework-free
-  puzzle engine. Hosted release/update adoption is still tracked in
-  [#67](https://github.com/royashbrook/sortit/issues/67), not claimed complete.
+  puzzle engine. The hosted release/update rollout and its receipt are tracked in
+  [#67](https://github.com/royashbrook/sortit/issues/67).
   See the [adoption evidence](docs/adoption.md) and [art decisions](docs/polish.md).
 
 ## tools

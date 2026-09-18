@@ -1,6 +1,8 @@
 # release adoption (refs #67)
 
-In progress, not a release receipt. Baseline: `d9949e6`, version 1.1.21.
+Implementation and development evidence. The hosted and live rollout receipt is
+recorded in [#67](https://github.com/royashbrook/sortit/issues/67), not inferred
+from this document's local results. Baseline: `d9949e6`, version 1.1.21.
 The DOM/SVG board, canvas effects, controls, levels, scoring and art remain the
 product. SvelteKit stays because the static shell and deployment already use it.
 
@@ -111,7 +113,7 @@ without changing the puzzle or claiming a framework makes its animation faster.
   the separate real-artifact suite. Both candidate workflows now run it with a
   pinned legacy build; hosted success remains to be recorded.
 
-## local house evidence map
+## historical local house evidence map
 
 Runtime source: `e145f131fa5ea9d8f7971bb19f97c4a7688a2626`. Clean development
 artifact: `1.1.29-dev`, fingerprint
@@ -274,7 +276,7 @@ The suite has eighteen explicit WebKit safe-area capability skips; ordinary
 rotation still runs in both engines. This proves the sampled
 layouts, not every possible viewport, zoom setting or physical device.
 
-## still required before release
+## release checklist
 
 1. Rerun the real old/new worker suite against final rebuilt artifacts after
    integration. Browser offline emulation and
@@ -294,7 +296,8 @@ layouts, not every possible viewport, zoom setting or physical device.
    anchor, obtain exact-head review and verify the
    production bytes and installed-client transition after deployment.
 
-No claim of physical-phone performance or completion of #67 is made here.
+The rollout receipt records these outcomes at the released source/build. No
+claim of physical-phone performance is made from browser emulation.
 
 ### candidate release path
 
