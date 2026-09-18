@@ -130,7 +130,7 @@ function buildFixtures(root, work) {
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { legacy: { type: 'string' }, artifacts: { type: 'string' } } })
+  const { values } = parseArgs({ options: { legacy: { type: 'string' }, artifacts: { type: 'string' }, 'prepare-only': { type: 'boolean' } } })
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const work = mkdtempSync(join(process.env.SORTIT_PWA_WORK_ROOT ?? tmpdir(), 'sortit-pwa-'))
   const artifacts = values.artifacts ? JSON.parse(readFileSync(resolve(values.artifacts), 'utf8')) : buildFixtures(root, work)
@@ -146,6 +146,7 @@ async function main() {
   const manifest = join(work, 'artifacts.json')
   writeFileSync(manifest, JSON.stringify(artifacts, null, 2) + '\n')
   console.log(`PWA fixtures: ${manifest}\nA ${artifacts.a.fingerprint}\nB ${artifacts.b.fingerprint} (lower hash)\nlegacy ${artifacts.legacy?.source ?? 'not supplied'}`)
+  if (values['prepare-only']) { console.log('Fixtures prepared only; no browser assertions run.'); return }
   run(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.pwa.config.js'], {
     cwd: root,
     env: { ...process.env, SORTIT_PWA_ARTIFACTS: manifest, SORTIT_PWA_OUTPUT: join(work, 'results') },

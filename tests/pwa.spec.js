@@ -129,15 +129,16 @@ async function about(page) {
   await page.getByRole('button', { name: 'MORE', exact: true }).click()
   await page.getByRole('button', { name: 'ABOUT', exact: true }).click()
 }
-async function workerVersion(page) {
-  return page.evaluate(() => new Promise(resolve => {
+async function workerVersion(page, timeout = 1000) {
+  if (timeout <= 0) return null
+  return page.evaluate(timeout => new Promise(resolve => {
     const worker = navigator.serviceWorker.controller
     if (!worker) return resolve(null)
     const channel = new MessageChannel()
-    const timer = setTimeout(() => { channel.port1.close(); resolve(null) }, 1000)
+    const timer = setTimeout(() => { channel.port1.close(); resolve(null) }, timeout)
     channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); resolve(event.data) }
     worker.postMessage({ type: 'SORTIT_VERSION' }, [channel.port2])
-  }))
+  }), timeout)
 }
 async function open(page, key = 'a') {
   await page.addInitScript(() => {
@@ -389,7 +390,19 @@ test('a new page finishes an already-waiting legacy handoff without another relo
   await page.reload()
   await expect(page.locator('.version-stamp')).toHaveText(`v${artifacts.a.version}`)
   await page.evaluate(() => { window.migrationDocument = 'same page' })
-  await expect.poll(() => workerVersion(page), { timeout: 15_000 }).toBe(artifacts.a.fingerprint)
+  const deadline = Date.now() + 15_000
+  await expect.poll(async () => {
+    if (process.env.SORTIT_QUIET_HANDOFF) {
+      const settled = await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration()
+        const ready = Boolean(registration?.active && !registration.waiting && registration.active.state === 'activated' && registration.active === navigator.serviceWorker.controller)
+        if (ready) void window.recordPwaEvent({ time: Date.now(), event: 'quiet-handoff-ready' })
+        return ready
+      })
+      if (!settled) return null
+    }
+    return workerVersion(page, Math.min(1000, deadline - Date.now()))
+  }, { timeout: 15_000 }).toBe(artifacts.a.fingerprint)
   expect(await page.evaluate(() => window.migrationDocument)).toBe('same page')
   await expect(page.locator('.toast')).toHaveCount(0)
   expect(await puzzle(page)).toEqual(saved)
