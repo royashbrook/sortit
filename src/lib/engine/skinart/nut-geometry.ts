@@ -34,6 +34,14 @@ export function renderNut(key: string, color: string, lit: string, shade: string
   const hole = postTip !== null && postTip < TOP - 2.654
     ? `M22 ${postTip}H42V${TOP - 2.654}A12 4.8 0 1 1 22 ${TOP - 2.654}Z`
     : `M20 ${TOP}a12 4.8 0 1 0 24 0a12 4.8 0 1 0 -24 0Z`
+  const opening = `M20 ${TOP}a12 4.8 0 1 0 24 0a12 4.8 0 1 0 -24 0Z`
+  // The bore has a recessed threaded wall, not a window onto the floor.
+  // Subtract the actual shaft so that wall never paints over the bolt.
+  const shaft = postTip !== null && postTip < TOP + 4.8
+    ? `M22 ${postTip}A10 3.3 0 0 1 42 ${postTip}V${TOP + 8}H22Z` : ''
+  const threads = [0, 2.4, 4.8].map(y =>
+    `<path d="M19 ${TOP - 3 + y}Q32 ${TOP + 3 + y} 45 ${TOP - 3 + y}" fill="none" stroke="#A3B3BE" stroke-width=".65" opacity=".55"/>`
+  ).join('')
   const body = faces.map(({ index, a, b, width, slope }) => {
     const light = Math.max(-.38, Math.min(.22, -.10 - slope * 1.3))
     const fill = blend(color, light > 0 ? 255 : 0, Math.abs(light))
@@ -48,7 +56,13 @@ export function renderNut(key: string, color: string, lit: string, shade: string
       (index === 1 ? `<g color="#fffaf0" transform="matrix(${width / 30} ${width / 30 * slope} 0 1 ${cx} ${cy})">${mark}</g>` : '') + '</g>'
   }).join('')
   return `<g class="nut-shell" data-nut="${key}" data-art-id="${id}" data-turn="${turn.toFixed(4)}">` +
-    `<defs><clipPath id="${id}-crown"><path d="${crown}"/></clipPath></defs>` +
+    `<defs><clipPath id="${id}-crown"><path d="${crown}"/></clipPath>` +
+    `<clipPath id="${id}-bore"><path d="${opening}"/></clipPath>` +
+    `<clipPath id="${id}-wall"><path d="${opening}${shaft}" clip-rule="evenodd"/></clipPath>` +
+    `<linearGradient id="${id}-depth" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">` +
+    `<stop stop-color="#17232C"/><stop offset=".55" stop-color="#344752"/><stop offset="1" stop-color="#718792"/></linearGradient></defs>` +
+    `<g clip-path="url(#${id}-bore)"><g class="nut-interior" clip-path="url(#${id}-wall)">` +
+    `<path class="nut-inner-wall" d="${opening}" fill="url(#${id}-depth)"/>${threads}</g></g>` +
     `<path class="nut-crown" clip-path="url(#${id}-crown)" d="${crown}${hole}" fill="${lit}" fill-rule="evenodd"/>` +
     `<path class="nut-bore" d="M20 ${TOP}a12 4.8 0 0 0 24 0" fill="none" stroke="#53616B" stroke-width="1.5"/>` +
     body + '</g>'

@@ -9,6 +9,19 @@ async function open(page, level = 29) {
   await expect(page.locator('.bolt-tip').first()).toBeVisible()
 }
 
+async function expectLoosened(nut) {
+  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
+  const pose = await nut.evaluate(node => ({
+    rise: -new DOMMatrix(getComputedStyle(node).transform).m42 / node.getBoundingClientRect().width,
+    angle: Number(node.querySelector('[data-nut]').dataset.turn),
+    bottom: node.getBoundingClientRect().bottom,
+    tip: node.closest('.tube').querySelector('.bolt-tip').getBoundingClientRect().top,
+  }))
+  expect(pose.rise).toBeCloseTo(12 / 64, 4)
+  expect(pose.angle).toBeCloseTo(-Math.PI / 3, 4)
+  expect(pose.bottom).toBeGreaterThan(pose.tip)
+}
+
 for (const level of [1, 29, 175, 600]) test(`full posts do not imply another slot, level ${level}`, async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await open(page, level)
@@ -30,25 +43,25 @@ for (const level of [1, 29, 175, 600]) test(`full posts do not imply another slo
   await page.screenshot({ path: info.outputPath(`hardware-${level}.png`) })
 })
 
-test('selection winds fully clear, holds without bobbing, then screws back down', async ({ page }, info) => {
+test('selection loosens on the thread, holds without bobbing, then screws back down', async ({ page }, info) => {
   await open(page)
   const nut = page.locator('.tube').first().locator('.item').last()
   const before = await nut.boundingBox()
   await page.locator('.tube').first().click()
+  await expect(page.locator('.tube').first().locator('.lift')).toHaveCount(1)
   const winding = await nut.evaluate(async node => {
     const a = node.getAnimations()[0]
     a.pause()
-    a.currentTime = 70
+    a.currentTime = 140
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
     const angle = Number(node.querySelector('[data-nut]').dataset.turn)
     a.finish()
     return angle
   })
   expect(winding).toBeLessThan(-.2)
-  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
+  await expectLoosened(nut)
   const held = await nut.boundingBox()
-  const tip = await page.locator('.bolt-tip').first().boundingBox()
-  expect(held.y + held.height).toBeLessThan(tip.y - 3)
+  expect(before.y - held.y).toBeCloseTo(before.width * 12 / 64, 3)
   await page.waitForTimeout(800)
   expect(await nut.boundingBox()).toEqual(held)
   await page.screenshot({ path: info.outputPath('selected.png') })
@@ -56,13 +69,13 @@ test('selection winds fully clear, holds without bobbing, then screws back down'
   const returning = await nut.evaluate(async node => {
     const a = node.getAnimations()[0]
     a.pause()
-    a.currentTime = 70
+    a.currentTime = 140
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
     const angle = Number(node.querySelector('[data-nut]').dataset.turn)
     a.finish()
     return angle
   })
-  expect(returning).toBeGreaterThan(-Math.PI * 2)
+  expect(returning).toBeGreaterThan(-Math.PI / 3)
   expect(returning).toBeLessThan(-.2)
   await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
   expect(await nut.boundingBox()).toEqual(before)
@@ -100,9 +113,7 @@ test('reduced motion holds clearly without a spinning or bobbing loop', async ({
   await open(page)
   await page.locator('.tube').first().click()
   const nut = page.locator('.tube').first().locator('.item').last()
-  expect(await nut.evaluate(n => n.getAnimations().length)).toBe(0)
-  const held = await nut.boundingBox(), tip = await page.locator('.bolt-tip').first().boundingBox()
-  expect(held.y + held.height).toBeLessThan(tip.y)
+  await expectLoosened(nut)
 })
 
 test('selection survives resize, cancels in the background, and rapid reselection stays owned', async ({ page }) => {
@@ -115,10 +126,8 @@ test('selection survives resize, cancels in the background, and rapid reselectio
   await page.locator('.tube').first().dispatchEvent('click')
   await page.locator('.tube').first().dispatchEvent('click')
   await page.setViewportSize({ width: 740, height: 390 })
-  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
-  const held = await nut.boundingBox(), tip = await page.locator('.bolt-tip').first().boundingBox()
-  expect(held.y + held.height).toBeLessThan(tip.y - 3)
-  const paintedTop = await nut.locator('clipPath path').evaluate(path => {
+  await expectLoosened(nut)
+  const paintedTop = await nut.locator('clipPath[id$="-crown"] path').evaluate(path => {
     const box = path.getBBox()
     return new DOMPoint(box.x, box.y).matrixTransform(path.getScreenCTM()).y
   })
@@ -132,16 +141,14 @@ test('selection survives resize, cancels in the background, and rapid reselectio
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     document.dispatchEvent(new Event('visibilitychange'))
   })
-  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
-  const resumed = await nut.boundingBox()
-  expect(resumed.y + resumed.height).toBeLessThan(tip.y - 3)
+  await expectLoosened(nut)
   expect(errors).toEqual([])
 })
 
-test('a matching run lifts one nut as the cue, moves the whole run and undoes cleanly', async ({ page }) => {
+test('three matching nuts loosen together without changing their spacing, then move and undo cleanly', async ({ page }, info) => {
   await open(page, 29)
-  // Build a matching run with two legal moves, not a fabricated save.
-  for (const from of [0, 1]) {
+  // Build a matching run with three legal moves, not a fabricated save.
+  for (const from of [0, 1, 2]) {
     await page.locator('.tube').nth(from).click()
     await page.locator('.tube').nth(6).click()
     await expect(page.locator('.item.flying')).toHaveCount(0)
@@ -149,10 +156,32 @@ test('a matching run lifts one nut as the cue, moves the whole run and undoes cl
   const source = page.locator('.tube').nth(6), target = page.locator('.tube').nth(7)
   const before = await source.locator('.item').count()
   const saved = await page.evaluate(() => localStorage.getItem('sortit:game'))
+  const boxes = await source.locator('.item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()))
   await source.click()
-  await expect(source.locator('.lift')).toHaveCount(1)
+  await expect(source.locator('.lift')).toHaveCount(3)
+  const halfway = await source.locator('.item').evaluateAll(async nodes => {
+    const animations = nodes.map(n => n.getAnimations()[0])
+    for (const a of animations) { a.pause(); a.currentTime = 140 }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const poses = nodes.map(n => ({ y: n.getBoundingClientRect().y, turn: Number(n.querySelector('[data-nut]').dataset.turn) }))
+    for (const a of animations) a.finish()
+    return poses
+  })
+  for (let i = 0; i < 3; i++) {
+    expect(boxes[i].y - halfway[i].y).toBeCloseTo(boxes[i].width * 6 / 64, 2)
+    expect(halfway[i].turn).toBeCloseTo(-Math.PI / 6, 3)
+    await expectLoosened(source.locator('.item').nth(i))
+  }
+  const held = await source.locator('.item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().y))
+  for (let i = 1; i < 3; i++) expect(held[i] - held[i - 1]).toBeCloseTo(boxes[i].y - boxes[i - 1].y, 3)
+  await page.screenshot({ path: info.outputPath('group-selected.png') })
+  await source.click()
+  await expect.poll(() => source.locator('.item').evaluateAll(nodes => nodes.reduce((count, n) => count + n.getAnimations().length, 0))).toBe(0)
+  expect(await source.locator('.item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()))).toEqual(boxes)
+  await expect(source.locator('.lift')).toHaveCount(0)
+  await source.click()
   await target.click()
-  await expect(target.locator('.item')).toHaveCount(2)
+  await expect(target.locator('.item')).toHaveCount(3)
   await expect(page.locator('.item.flying')).toHaveCount(0)
   await page.getByRole('button', { name: 'UNDO', exact: true }).click()
   await expect(source.locator('.item')).toHaveCount(before)
@@ -161,18 +190,16 @@ test('a matching run lifts one nut as the cue, moves the whole run and undoes cl
   expect(restored.moves).toBe(JSON.parse(saved).moves)
 })
 
-test('hint teaches the same wind-off gesture without restoring the generic bob', async ({ page }) => {
+test('hint teaches the same loosening gesture without restoring the generic bob', async ({ page }) => {
   await open(page, 1)
   await page.getByRole('button', { name: 'HINT', exact: true }).click()
   const source = page.locator('.tube.hint-from'), nut = source.locator('.item').last()
   await expect(source).toHaveCount(1)
-  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
-  const held = await nut.boundingBox(), tip = await source.locator('.bolt-tip').boundingBox()
-  expect(held.y + held.height).toBeLessThan(tip.y - 3)
+  await expectLoosened(nut)
   expect(await nut.evaluate(n => getComputedStyle(n).animationName)).toBe('none')
 })
 
-test('selecting an arriving nut lets its carry finish before winding it off again', async ({ page }) => {
+test('selecting an arriving nut lets its carry finish before loosening again', async ({ page }) => {
   await page.addInitScript(() => {
     const animate = Element.prototype.animate
     window.competingNutMotion = []
@@ -198,7 +225,5 @@ test('selecting an arriving nut lets its carry finish before winding it off agai
   await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(1)
   expect(await nut.evaluate(n => n.getAnimations()[0].effect.getKeyframes().length)).toBeGreaterThan(2)
   await nut.evaluate(n => n.getAnimations()[0].finish())
-  await expect.poll(() => nut.evaluate(n => n.getAnimations().length)).toBe(0)
-  const held = await nut.boundingBox(), tip = await page.locator('.tube').nth(2).locator('.bolt-tip').boundingBox()
-  expect(held.y + held.height).toBeLessThan(tip.y - 3)
+  await expectLoosened(nut)
 })

@@ -42,6 +42,11 @@ assert.match(rest, /fill-rule="evenodd"/)
 assert.match(free, /nut-bore/)
 assert.match(rest, /id="one-crown"/)
 assert.match(free, /url\(#two-crown\)/)
+for (const suffix of ['bore', 'wall', 'depth']) {
+  assert.match(rest, new RegExp(`id="one-${suffix}"`))
+  assert.match(free, new RegExp(`url\\(#two-${suffix}\\)`))
+}
+assert.match(free, /class="nut-inner-wall"/)
 assert.match(nutArt('hid'), /stroke-linecap="round"/)
 assert.equal(nutTurn(0), 0)
 assert.ok(Math.abs(nutTurn(.3) + 2 * Math.PI) < 1e-9)

@@ -265,13 +265,12 @@
     return `stack ${index + 1}: ${named.join(', ') || 'empty'}`
   }
 
-  const isLifted = (index: number, item: GameItem) => {
-    if (store.selected !== index) return false
+  const isInTopRun = (index: number, item: GameItem) => {
     const tube = store.tubes[index]
-    if (store.skin.key === 'bolts') return item === tube[tube.length - 1]
     const run = store.visibleRun(index)
     return tube.indexOf(item) >= tube.length - run
   }
+  const isLifted = (index: number, item: GameItem) => store.selected === index && isInTopRun(index, item)
 </script>
 
 <!-- only classic tints the card with its world's art. a conversion skin paints
@@ -304,7 +303,7 @@
           {#if store.skin.key === 'bolts'}<BoltPost {side} height={tubeH} capacity={store.capacity}/>{/if}
           {#each store.tubes[index] as item, itemIndex (item.uid)}
             <span
-              use:hardwareHold={{ selected: isLifted(index, item) || (store.hintTubes[0] === index && itemIndex === store.tubes[index].length - 1), side }}
+              use:hardwareHold={{ selected: isLifted(index, item) || (store.hintTubes[0] === index && isInTopRun(index, item)), side }}
               class="item"
               class:hid={item.hid}
               class:lift={isLifted(index, item)}

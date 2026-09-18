@@ -4,8 +4,8 @@ import { tick } from 'svelte'
 
 type Hold = { selected: boolean; side: number }
 
-// Selection owns only the top nut. A matching run stays seated until the
-// move, rather than stacking a tower of waiting nuts over the row above it.
+// Loosen a matching run together, still on the thread. Clearing the entire
+// post belongs to the committed move, after a destination has been chosen.
 export function holdNut(node: HTMLElement, initial: Hold) {
   let state = initial
   let animation: Animation | undefined
@@ -46,14 +46,16 @@ export function holdNut(node: HTMLElement, initial: Hold) {
     const angle = Number(svg.querySelector<SVGGElement>('[data-nut]')?.dataset.turn ?? 0)
     const box = node.getBoundingClientRect()
     const tip = node.closest('.tube')!.querySelector('.bolt-tip')!.getBoundingClientRect()
-    const target = next.selected ? tip.top - (box.bottom - offset) - 4 : 0
+    const target = next.selected ? -next.side * 12 / 64 : 0
+    const endAngle = next.selected ? -Math.PI / 3 : 0
     if (next.selected && ownsPose && !animation && Math.abs(target - offset) < .1) return
     stop()
     if (document.hidden) return
     ownsPose = true
     const settle = () => {
       node.style.transform = `translateY(${target}px)`
-      svg.innerHTML = next.selected ? nutArt(key, -Math.PI * 2, null, id) : rest
+      const postTip = (tip.top + tip.height / 2 - (box.top - offset + target)) * 64 / next.side
+      svg.innerHTML = next.selected ? nutArt(key, endAngle, postTip, id) : rest
       ownsPose = next.selected
       if (!next.selected) node.style.removeProperty('transform')
     }
@@ -63,7 +65,6 @@ export function holdNut(node: HTMLElement, initial: Hold) {
       { transform: `translateY(${target}px)` },
     ], { duration: 280, easing: 'ease-in-out', fill: 'forwards' })
     animation = current
-    const endAngle = next.selected ? -Math.PI * 2 : 0
     restoreTurn = turnNut(node, current, [{ x: tip.left + tip.width / 2, y: tip.top + tip.height / 2 }],
       p => angle + (endAngle - angle) * p)
     current.finished.then(() => {
