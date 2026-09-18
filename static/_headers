@@ -4,9 +4,9 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 /
-  Cache-Control: no-store
+  Cache-Control: no-store, no-transform
 /index.html
-  Cache-Control: no-store
+  Cache-Control: no-store, no-transform
 /service-worker.js
   Cache-Control: no-store
 /release.json

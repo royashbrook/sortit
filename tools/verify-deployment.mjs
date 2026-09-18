@@ -6,6 +6,11 @@ const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'
 const deploy = read('.github/workflows/deploy-site.yml')
 const check = read('.github/workflows/pr-check.yml')
 const pkg = JSON.parse(read('package.json'))
+const headers = read('static/_headers')
+for (const path of ['/', '/index.html']) {
+  const block = headers.split('\n\n').flatMap(part => part.split(/\n(?=\/)/)).find(part => part.startsWith(`${path}\n`))
+  assert.match(block ?? '', /Cache-Control: no-store, no-transform/, `${path} preserves uncached, unmodified HTML`)
+}
 const { default: config } = await import('../svelte.config.js')
 for (const path of ['_headers', '_redirects']) assert.equal(config.kit.serviceWorker.files(path), false, `${path} is host configuration, not an offline asset`)
 for (const path of ['manifest.json', 'icon-192.png']) assert.equal(config.kit.serviceWorker.files(path), true)
