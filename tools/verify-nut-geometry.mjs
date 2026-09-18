@@ -11,12 +11,13 @@ for (let n = 0; n < 72; n++) {
   assert.ok(faces.length >= 2 && faces.length <= 3)
   const xs = vertices.map(p => p.x)
   const ys = vertices.map(p => p.y)
-  assert.ok(Math.max(...ys) - Math.min(...ys) >= 25.9, 'top plane is flattened')
+  const crownDepth = Math.max(...ys) - Math.min(...ys)
+  assert.ok(crownDepth >= 16.6 && crownDepth <= 19.201, 'top plane no longer matches the approved shallow projection')
   const visibleWidth = faces.reduce((sum, face) => sum + face.width, 0)
   assert.ok(Math.abs(visibleWidth - (Math.max(...xs) - Math.min(...xs))) < 1e-6, 'visible faces leave a gap')
   for (const p of vertices) {
     assert.ok(p.x >= 1.99 && p.x <= 62.01)
-    assert.ok(p.y <= .001 && p.y >= -30.001)
+    assert.ok(p.y <= .001 && p.y >= -19.201)
   }
   for (const face of faces) assert.ok(Number.isFinite(face.slope))
   const art = nutArt('red', angle)
@@ -31,8 +32,8 @@ for (let n = 0; n < 72; n++) {
   }
   assert.doesNotMatch(art, /NaN|Infinity|undefined/)
 }
-assert.equal(NUT_PITCH, 36)
-assert.equal(NUT_TOP, -15)
+assert.equal(NUT_PITCH, 40)
+assert.equal(NUT_TOP, -9.6)
 assert.notDeepEqual(nutGeometry(0), nutGeometry(Math.PI / 6), 'rotation does not change the silhouette')
 const rest = nutArt('red', 0, -100, 'one')
 const free = nutArt('red', 0, null, 'two')

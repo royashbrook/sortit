@@ -17,6 +17,7 @@
 //   sound    material palette in sounds.js: metal | stone | neon | pop
 //   preview  inner svg for the LOOKS card, viewBox 0 0 64 64
 import bolts, { nutArt } from './skinart/bolts.ts'
+import { NUT_PITCH, NUT_TOP } from './skinart/nut-geometry.ts'
 import { boltArt } from './skinart/bolt-geometry.ts'
 import mine from './skinart/mine.ts'
 import dash from './skinart/dash.ts'
@@ -35,8 +36,8 @@ export const SKINS: Skin[] = [
     title: 'Nuts & Bolts',
     pieces: bolts.pieces,
     hidden: bolts.hidden,
-    pieceRatio: .5625,
-    pieceViewBox: '0 0 64 36',
+    pieceRatio: NUT_PITCH / 64,
+    pieceViewBox: `0 0 64 ${NUT_PITCH}`,
     tubeLip: 64,
     // The nut's projected facets turn about the post. Planar rotation would
     // tumble it in screen space instead of screwing it along the shaft.
@@ -44,9 +45,9 @@ export const SKINS: Skin[] = [
     sound: 'metal',
     preview:
       `<g class="hardware-preview" transform="translate(16 1) scale(.5)">` +
-      boltArt(100, 'look-bolt', 14) +
-      `<g transform="translate(0 79)">${nutArt('red', 0, -1000, 'look-red')}</g>` +
-      `<g transform="translate(0 43)">${nutArt('blue', 0, -1000, 'look-blue')}</g></g>`,
+      boltArt(100, 'look-bolt', 100 - NUT_PITCH * 2 - 14) +
+      `<g transform="translate(0 ${100 - NUT_PITCH - NUT_TOP})">${nutArt('red', 0, -1000, 'look-red')}</g>` +
+      `<g transform="translate(0 ${100 - NUT_PITCH * 2 - NUT_TOP})">${nutArt('blue', 0, -1000, 'look-blue')}</g></g>`,
   },
   {
     key: 'mine',

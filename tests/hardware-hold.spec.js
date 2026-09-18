@@ -16,12 +16,17 @@ for (const level of [1, 29, 175, 600]) test(`full posts do not imply another slo
     const top = tube.querySelector('.item:last-child').getBoundingClientRect()
     const tip = tube.querySelector('.bolt-tip').getBoundingClientRect()
     const svg = tube.querySelector('.item:last-child svg')
-    const crown = new DOMPoint(32, -15).matrixTransform(svg.getScreenCTM())
-    return { exposed: crown.y - tip.top, pitch: top.height, axis: Math.abs(crown.x - (tip.left + tip.width / 2)) }
+    const matrix = svg.getScreenCTM()
+    const crown = new DOMPoint(32, -9.6).matrixTransform(matrix)
+    return { exposed: crown.y - tip.top, pitch: top.height, axis: Math.abs(crown.x - (tip.left + tip.width / 2)),
+      scaleX: matrix.a, scaleY: matrix.d, width: top.width, viewBox: svg.getAttribute('viewBox') }
   })
   expect(full.exposed).toBeGreaterThan(0)
   expect(full.exposed).toBeLessThan(full.pitch * .55)
   expect(full.axis).toBeLessThan(.5)
+  expect(full.viewBox).toBe('0 0 64 40')
+  expect(full.scaleX).toBeCloseTo(full.scaleY, 4)
+  expect(full.pitch / full.width).toBeCloseTo(40 / 64, 3)
   await page.screenshot({ path: info.outputPath(`hardware-${level}.png`) })
 })
 
