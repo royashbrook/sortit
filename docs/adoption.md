@@ -127,14 +127,14 @@ build is intentionally offered as an update even when gameplay code is unchanged
 | typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Hosted strict/artifact gates remain unwired. |
 | rules and generated content | pass | `npm run verify`: all 600 campaign boards/pars and 1,095 dailies. Independent pre-change comparison preserves boards, solutions, seeds, scoring and art. This is not a new gameplay/difficulty approval. |
 | input and lifecycle | pass | Integrated Chromium/WebKit suite: 88/88, covering real moves, undo/cancel, hidden/resumed boards, unmount/remount and reduced motion. Node checks cover gesture-lazy audio and controller disposal. |
-| phone layout and accessible controls | partial | Small-phone contrast and nested-dialog keyboard tests pass. The rotation follow-up below covers six skins and five viewport sizes in both engines, including a reproduced dense-board fix. Level-screen navigation focus, full accessibility and physical-device checks remain open. |
+| phone layout and accessible controls | not checked | Scoped local contrast, dialog/screen focus and six-skin rotation checks pass, as detailed below. The complete row still needs physical-device observations and the remaining gesture/safe-area review. This is not a whole-app accessibility certificate. |
 | local data survives | pass | Eleven save-safety cases, ten native save cases, transfer/rollback and legacy worker migration. Corrupt undo, unavailable/full storage, live-memory export, cancelled reset/import, stale tabs and denied recovery copies are covered. |
 | installed updates and offline | pass | Fresh native suite 10/10, then both legacy paths repeated ten times per engine, 40/40 with no retries/skips. Consent, lower fingerprints, failed download, held-tab assets, offline cold start/play and notices are covered. WebKit uses complete server socket outage, not its offline emulator. Real-origin and physical-device transition remain unverified. |
-| truthful privacy and copy | partial | Copy lint and the two-engine local journey below cover requests, cookies, WebSockets and explicit share/copy handoffs. Synthetic cookie and unexpected-query controls fail. This is not an all-flow or deployed-host audit; host-injected code must be checked after deployment. |
-| theme and art | partial | Shell token/geometry and unchanged art checks pass. The focused follow-up below fixes measured shell contrast defects across all three themes. The privacy journey switches all six looks and three themes. That is not coverage of every game-art/composited pair or every theme-swap state. |
+| truthful privacy and copy | not checked | Copy lint and the two-engine local journey below cover requests, cookies, WebSockets and explicit share/copy handoffs. Synthetic cookie and unexpected-query controls fail. The full deployed-host row remains open; host-injected code must be checked after deployment. |
+| theme and art | not checked | Shell token/geometry and unchanged art checks pass. The focused follow-up below fixes measured shell contrast defects across all three themes. The privacy journey switches all six looks and three themes. Final visual review remains separate from these scoped checks. |
 | reproducible release identity | not checked | Version-history fixtures, input fingerprint and artifact rejection tests pass. The next milestone, actual CI ordering, validated-artifact deployment and live comparison remain pending. |
 | distribution rights | pass | Built inventory identifies emitted package modules, complete upstream notices and copied static assets. Repository art and synthesized audio are first-party code; fonts use local/system stacks, with no font/audio files in the static asset inventory. Both native engines serve notices offline. Production serving remains to be checked. |
-| product quality | partial | An independent technical reviewer exercised fresh first-run coaching, a real move, undo, hint and levels at 430x932 and 360x640 without injected saves or console/page errors. This is a substitute sanity pass, not evidence of child preference, enjoyable pacing or sound feel. |
+| product quality | not checked | An independent technical reviewer exercised fresh first-run coaching, a real move, undo, hint and levels at 430x932 and 360x640 without injected saves or console/page errors. This is a substitute sanity pass, not evidence of child preference, enjoyable pacing or sound feel. The broader product review remains open. |
 
 No house row is marked not applicable wholesale. Continuous-physics/frame-rate
 equivalence is not applicable to this discrete turn-based puzzle, but its
@@ -152,8 +152,16 @@ control only when native restoration has no surviving focused element. Closing
 Keyboard-opened LOOKS still restores LOOKS in both engines, rather than forcing
 every close to MORE. Pointer-opened LOOKS in WebKit uses the MORE fallback when
 native focus has no opener. Screen navigation is separate: entering LEVELS
-removes the old navigation node and loses focus before any Escape key. LEVELS
-is a main screen, not a dialog; that navigation-focus follow-up remains open.
+removed the old navigation node and lost focus before any Escape key. LEVELS
+is a main screen, not a dialog. A page-owned effect now focuses the new named
+main after a screen change, without moving focus on first mount or on dialog
+changes. There is no new Escape action, timer or document listener.
+
+`tests/screen-focus.spec.js` covers LEVELS entry, all three game-return routes
+(back, PLAY and a level tile), a working keyboard stack selection, unchanged
+Escape behavior and initial/dialog focus controls. Before the fix, eight route
+cases failed across both engines while the two controls passed. All ten pass
+afterward, alongside the existing eighteen dialog/contrast cases.
 
 The same audit found secondary Daylight text at 3.84:1 against About, and the
 version stamp at about 2.08:1 in Daylight and 3.46:1 in Dusk. Broader control checks

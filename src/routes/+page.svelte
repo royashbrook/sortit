@@ -21,6 +21,16 @@
 
   const store = createStore()
   const version = __APP_VERSION__
+  let previousScreen = store.screen
+
+  $effect(() => {
+    const screen = store.screen
+    if (screen === previousScreen) return
+    previousScreen = screen
+    // Navigation removes its own focused control. Name and focus the new screen,
+    // but leave initial mount and same-screen dialogs to their native behavior.
+    document.getElementById(screen)!.focus({ preventScroll: true })
+  })
 
   let muted = $state(sound.muted)
   let installEvent = $state<BeforeInstallPromptEvent | null>(null)
@@ -253,10 +263,10 @@
 {/if}
 
 {#if store.screen === 'levels'}
-  <main class="screen" id="levels">
+  <main class="screen" id="levels" tabindex="-1" aria-labelledby="levels-label">
     <header class="bar">
       <button class="chip" onclick={() => store.goGame()} aria-label="back to the game">&larr;</button>
-      <span class="chip flat">world {store.world + 1} &middot; {worldTheme.title}</span>
+      <span class="chip flat" id="levels-label">world {store.world + 1} &middot; {worldTheme.title}</span>
     </header>
     <div class="world-nav">
       <button class="chip" disabled={store.world === 0} onclick={() => store.setWorld(store.world - 1)}>&laquo; PREV</button>
@@ -296,7 +306,7 @@
 {/if}
 
 {#if store.screen === 'game'}
-  <main class="screen" id="game">
+  <main class="screen" id="game" tabindex="-1" aria-labelledby="board-label">
     <header class="bar">
       <span class="chip flat" id="board-label">{store.boardLabel}</span>
       <span class="chip flat mono" aria-label="time elapsed">{store.clock}</span>
