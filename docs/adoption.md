@@ -47,7 +47,8 @@ without changing the puzzle or claiming a framework makes its animation faster.
   only this app's caches. The mounted controller compares fingerprints by
   inequality, offers consent, and owns its listeners, polling and requests.
 - Release identity, input fingerprint, bundled licence inventory and artifact
-  integrity tools exist. These are not yet the deployment path.
+  integrity tools are wired into the candidate deployment path. Hosted and live
+  validation remain required before this is a release receipt.
 
 ## evidence so far
 
@@ -102,12 +103,13 @@ without changing the puzzle or claiming a framework makes its animation faster.
   test timeout increase, skip, unregister or cache purge was used. The browser's
   internal reason for the stall is not claimed from these interventions.
 - The development artifact builds and passes its integrity/licensing checks.
-  The strict release path and hosted deployment are not yet integrated.
+  The candidate strict release path still needs its first hosted deployment.
 - `verify:release`: tag/history fixtures, fingerprints, notices and artifact
   rejection tests pass. This does not prove deployment ordering is wired in CI.
 - `npm run verify` includes the release, save safety, presentation lifecycle and
   worker/controller checks. `node tools/verify-pwa.mjs --legacy <shipped-build>` runs
-  the separate real-artifact suite; it is not yet wired into hosted workflows.
+  the separate real-artifact suite. Both candidate workflows now run it with a
+  pinned legacy build; hosted success remains to be recorded.
 
 ## local house evidence map
 
@@ -124,7 +126,7 @@ build is intentionally offered as an update even when gameplay code is unchanged
 
 | house claim | local status | evidence and limits |
 |---|---|---|
-| typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Hosted strict/artifact gates remain unwired. |
+| typed Svelte app, Vite artifact | pass | Strict `svelte-check` reports zero errors/warnings; `allowJs:false`, `strict:true`; `build:dev` emits the static artifact and passes integrity/licence checks. The pinned browser dependency is in the lockfile. Candidate hosted strict/artifact wiring still needs a successful run. |
 | rules and generated content | pass | `npm run verify`: all 600 campaign boards/pars and 1,095 dailies. Independent pre-change comparison preserves boards, solutions, seeds, scoring and art. This is not a new gameplay/difficulty approval. |
 | input and lifecycle | pass | Integrated Chromium/WebKit suite: 88/88, covering real moves, undo/cancel, hidden/resumed boards, unmount/remount and reduced motion. Node checks cover gesture-lazy audio and controller disposal. |
 | phone layout and accessible controls | not checked | Scoped local contrast, dialog/screen focus and six-skin rotation checks pass, as detailed below. The complete row still needs physical-device observations and the remaining gesture/safe-area review. This is not a whole-app accessibility certificate. |
@@ -280,11 +282,45 @@ layouts, not every possible viewport, zoom setting or physical device.
 2. Run the full integrated suite at the final head, independent old/new comparison,
    and final visual/control review. Preserve the passing save/storage/cancellation
    and lifecycle checks while integrating the release work.
-3. Wire all new checks into the existing verify/CI path, preserve and deploy
-   the validated artifact, pin the deployment CLI, and prevent stale deployments.
-   Both workflow files are unchanged in this checkpoint.
-4. Record every house evidence row, establish the next immutable major/minor
-   anchor without rewriting old tags, obtain exact-head review and verify the
+3. Exercise the updated verify/CI path on hosted runners. The candidate now
+   builds the pinned pre-migration app at `d9949e6`, runs the native update suite,
+   validates the sealed build and deploys that same directory with Wrangler
+   `4.134.0`. Both workflows retain browser failure evidence for seven days.
+   Serialized deployments do not cancel an active run. Each checks out current
+   main, not the potentially delayed triggering commit, and checks main again
+   before publication. The workflow-text and scheduling-policy tests are not
+   proof of a hosted Actions execution.
+4. Record every house evidence row and the retained immutable major/minor
+   anchor, obtain exact-head review and verify the
    production bytes and installed-client transition after deployment.
 
 No claim of physical-phone performance or completion of #67 is made here.
+
+### candidate release path
+
+The existing immutable `v1.1` anchor remains the first-parent milestone for this
+adoption. Every reachable commit after it contributes to the patch number. No
+old tag moves and no tag must race a main-branch deployment. The strict release
+build has no development suffix and must move forward from the shipped 1.1.21.
+
+`tools/release-live.mjs` compares every served artifact byte and the complete
+manifest, checks shell/worker/metadata no-store and immutable bundle headers,
+and requires Cloudflare-only control files to return 404. It retries the full
+comparison for up to three minutes of edge propagation, never accepting a mixed
+set of files. The local rejection checks include missing notices, changed bytes,
+stale manifest, missing cache/security headers and exposed host configuration.
+This is a byte/header receipt, not an installed-client or product playtest.
+
+`static/_headers` supplies those host cache policies and basic browser safety
+headers. SvelteKit excludes `_headers` and `_redirects` from its static precache
+list. The native PWA fixture server returns 404 for those paths too, so the update
+suite exercises the real host-file behavior rather than serving a false success.
+
+The development install still reports three low audit entries from one chain:
+cookie 0.6.0 through SvelteKit 2.70.3 and adapter-static. The
+[cookie serialization advisory](https://github.com/advisories/GHSA-pxg6-pf52-xh8x)
+concerns unsafe cookie name/path/domain fields. App source has no cookie-setting
+path, the host publishes only the static build, and the reviewed emitted-module
+inventory/source maps contain no cookie or server runtime. This bounds current
+browser exposure, not the installed toolchain warning. No downgrade, override or
+audit suppression is used; revisit on a Kit update or addition of server cookies.

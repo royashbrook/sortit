@@ -11,3 +11,4 @@ vite.config.ts.timestamp-*
 .claude/scheduled_tasks.lock
 /test-results
 /playwright-report
+/.wrangler

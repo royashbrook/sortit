@@ -102,7 +102,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     assertCurrentDeploy(process.argv[3], process.argv[4], process.argv[5])
   } else {
     const release = verifyArtifact(process.argv[2] || 'build', {
-      allowDevelopment: process.argv.includes('--development'), expectedSource: process.env.GITHUB_SHA,
+      allowDevelopment: process.argv.includes('--development'),
+      expectedSource: process.env.SORTIT_EXPECTED_SOURCE ?? process.env.GITHUB_SHA,
     })
     console.log(`artifact verified: ${release.version} ${release.fingerprint}`)
   }

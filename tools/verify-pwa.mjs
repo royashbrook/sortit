@@ -33,7 +33,8 @@ export function startArtifactServer(artifacts, port = 4198) {
     const url = new URL(request.url, 'http://localhost')
     const path = url.pathname === '/' ? '/index.html' : url.pathname
     if (offline) { requests.push({ build: current, path, status: 0 }); response.destroy(); return }
-    const body = trees[current].get(path)
+    // Cloudflare consumes these files and does not expose them as assets.
+    const body = ['/_headers', '/_redirects'].includes(path) ? undefined : trees[current].get(path)
     const status = failures.has(path) ? 503 : body ? 200 : 404
     const entry = { build: current, path, status, finished: false, closed: false }
     requests.push(entry)
@@ -106,7 +107,7 @@ function buildFixtures(root, work) {
 async function main() {
   const { values } = parseArgs({ options: { legacy: { type: 'string' }, artifacts: { type: 'string' } } })
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-  const work = mkdtempSync(join(tmpdir(), 'sortit-pwa-'))
+  const work = mkdtempSync(join(process.env.SORTIT_PWA_WORK_ROOT ?? tmpdir(), 'sortit-pwa-'))
   const artifacts = values.artifacts ? JSON.parse(readFileSync(resolve(values.artifacts), 'utf8')) : buildFixtures(root, work)
   if (values.legacy) {
     const dir = resolve(values.legacy)

@@ -11,7 +11,7 @@
     "build:dev": "node tools/release-build.mjs --development",
     "preview": "vite preview",
     "svelte-check": "svelte-check --tsconfig ./tsconfig.json",
-    "verify:release": "node tools/verify-version.mjs && node tools/release-artifact.mjs --test && node tools/license-inventory.mjs --test",
+    "verify:release": "node tools/verify-version.mjs && node tools/release-artifact.mjs --test && node tools/license-inventory.mjs --test && node tools/release-live.mjs --test && node tools/verify-deployment.mjs",
     "verify:artifact": "node tools/release-artifact.mjs build",
     "verify:save-safety": "node tools/verify-save-safety.mjs",
     "verify:updates": "node tools/verify-update.mjs",
@@ -35,6 +35,7 @@
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.3",
     "typescript": "6.0.3",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "wrangler": "4.134.0"
   }
 }

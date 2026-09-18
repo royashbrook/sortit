@@ -14,6 +14,10 @@ export default {
     // UI metadata, Kit's version manifest and the worker share this identity.
     version: { name: release.fingerprint },
     // The mounted update controller owns registration, polling and consent.
-    serviceWorker: { register: false },
+    serviceWorker: {
+      register: false,
+      // Static-host control files return 404 and cannot join an atomic precache.
+      files: path => !['_headers', '_redirects'].includes(path),
+    },
   },
 }
