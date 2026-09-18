@@ -51,8 +51,11 @@ async function safeBounds(locator, profile) {
 async function paintOutsideBoard(page, style = '') {
   const frame = await page.locator('#board').boundingBox()
   const options = { animations: 'disabled', mask: [page.getByLabel('time elapsed')] }
-  const shown = await page.screenshot({ ...options, style })
-  const hidden = await page.screenshot({ ...options, style: `${style}\n.tube { visibility: hidden !important }` })
+  // The coach's rounded border can repaint between captures on Linux. Hide
+  // its paint, not its layout or its rectangle: escaped pieces must stay visible.
+  const isolated = `.first-run { visibility: hidden !important }\n${style}`
+  const shown = await page.screenshot({ ...options, style: isolated })
+  const hidden = await page.screenshot({ ...options, style: `${isolated}\n.tube { visibility: hidden !important }` })
   const diff = await page.evaluate(async ({ shown, hidden, frame }) => {
     const decode = async encoded => {
       const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0))
@@ -89,7 +92,7 @@ async function paintOutsideBoard(page, style = '') {
     await test.info().attach('board-paint-hidden', { body: hidden, contentType: 'image/png' })
     await test.info().attach('board-paint-diff', { body: JSON.stringify({ ...diff, style }, null, 2), contentType: 'application/json' })
   }
-  return diff.outside
+  return diff
 }
 
 test.describe('native safe-area environment values', () => {
@@ -123,10 +126,10 @@ test.describe('native safe-area environment values', () => {
       expect(await page.locator('#board').evaluate(el => parseFloat(getComputedStyle(el).getPropertyValue('--side')))).toBeGreaterThanOrEqual(20)
       // getBBox includes clipped-away nut geometry. Compare the actual paint,
       // with the moving clock masked, without depending on golden screenshots.
-      expect(await paintOutsideBoard(page)).toBe(0)
+      expect((await paintOutsideBoard(page)).outside).toBe(0)
       if (skin === 'bolts') {
         const lift = await page.locator('#board').evaluate(board => Math.min(...[...board.querySelectorAll('.item svg')].map(svg => svg.getBoundingClientRect().top)) - board.getBoundingClientRect().top + 12)
-        expect(await paintOutsideBoard(page, `.item svg { transform: translateY(-${lift}px) }`)).toBeGreaterThan(0)
+        expect((await paintOutsideBoard(page, `.item svg { transform: translateY(-${lift}px) }`)).outside).toBeGreaterThan(0)
       }
       expect(await contents()).toEqual(before)
       await page.screenshot({ path: testInfo.outputPath(`dense-safe-${skin}-${welcomed ? 'returning' : 'first-visit'}.png`) })
@@ -137,6 +140,40 @@ test.describe('native safe-area environment values', () => {
       await expect(page.locator('.first-run')).toHaveCount(0)
     })
   }
+
+  test('board paint excludes changing coach paint but detects pieces in its rectangle', async ({ page, context }) => {
+    await page.addInitScript(() => localStorage.setItem('sortit:skin', 'bolts'))
+    await page.goto('/?level=600')
+    await expect(page.locator('.first-run')).toBeVisible()
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, right: 44, bottom: 21, left: 44 } })
+    await page.setViewportSize({ width: 640, height: 360 })
+
+    const coach = await page.locator('.first-run').boundingBox()
+    const inCoach = ({ x, y }) => x >= coach.x && x < coach.x + coach.width && y >= coach.y && y < coach.y + coach.height
+    const screenshot = page.screenshot.bind(page)
+    let captures = 0
+    page.screenshot = options => screenshot({
+      ...options,
+      style: `${options.style}\n${++captures % 2 === 0 ? '.first-run { border-color: red !important; background: blue !important }' : ''}`,
+    })
+    try {
+      const unisolated = await paintOutsideBoard(page, '.first-run { visibility: visible !important }')
+      expect(unisolated.outside).toBeGreaterThan(0)
+      expect(unisolated.pixels.some(inCoach)).toBe(true)
+      expect((await paintOutsideBoard(page)).outside).toBe(0)
+    } finally {
+      page.screenshot = screenshot
+    }
+
+    const piece = page.locator('.tube').first().locator('.item svg').first()
+    await piece.evaluate(svg => svg.id = 'paint-control')
+    const box = await piece.boundingBox()
+    const lift = box.y + box.height / 2 - (coach.y + coach.height / 2)
+    const escaped = await paintOutsideBoard(page, `#paint-control { translate: 0 -${lift}px }`)
+    expect(escaped.outside).toBeGreaterThan(0)
+    expect(escaped.pixels.some(inCoach)).toBe(true)
+  })
 
   for (const profile of profiles) {
     test(`${profile.name}: board, dock and scrolling sheets respect the safe rectangle`, async ({ page, context }, testInfo) => {
