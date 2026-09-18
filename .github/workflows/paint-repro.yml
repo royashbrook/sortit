@@ -1,4 +1,4 @@
-name: bounded native signal reproduction
+name: stripped native cache reproduction
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
-      - name: retain native process exit signals during the original retry sequence
+      - name: isolate failed cache installation without the game runtime
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
@@ -34,19 +34,15 @@ jobs:
           observer=$!
           trap 'kill "$observer" 2>/dev/null || true' EXIT
           DEBUG=pw:browser \
-          SORTIT_PWA_ARTIFACTS="${manifests[0]}" \
-          SORTIT_PWA_OUTPUT="$SORTIT_PWA_WORK_ROOT/repeat-results" \
           strace -f -qq -ttt -e trace=clone,clone3,exit_group,wait4,waitid -e signal=all \
             -o "$SORTIT_PWA_WORK_ROOT/native-signals.log" \
-            node node_modules/@playwright/test/cli.js test --config playwright.pwa.config.js --project webkit \
-            --grep 'consent updates|a failed new-asset download' --repeat-each=50 --max-failures=1 \
+            node tools/native-cache-repro.mjs "${manifests[0]}" 50 \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: native-signal-evidence
+          name: minimal-cache-evidence
           path: |
-            ${{ runner.temp }}/native-repro/repeat-results/
             ${{ runner.temp }}/native-repro/native-browser.log
             ${{ runner.temp }}/native-repro/native-processes.jsonl
             ${{ runner.temp }}/native-repro/native-signals.log
