@@ -2,9 +2,9 @@
 // The browser owns pixels; this gate owns the data that makes those pixels
 // possible: twelve unique pieces, a mystery piece, valid per-piece verbs,
 // stable Classic fallback, and flights that start and finish where they say.
-import { SKINS } from '../src/lib/engine/skins.js'
-import { flightKeyframes, flightOptions, landingTimes } from '../src/lib/ui/flight.js'
-import { pickaxeSwing } from '../src/lib/ui/actors.js'
+import { SKINS } from '../src/lib/engine/skins.ts'
+import { flightKeyframes, flightOptions, landingTimes } from '../src/lib/ui/flight.ts'
+import { pickaxeSwing } from '../src/lib/ui/actors.ts'
 import { readFileSync } from 'node:fs'
 
 let failures = 0

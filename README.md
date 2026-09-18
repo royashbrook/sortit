@@ -19,26 +19,29 @@ npm run dev     # Vite prints the local URL
   a **daily puzzle** that is the same board for everyone in the world.
 - every board is dealt deterministically from its level number / date and
   **proven solvable by an exact solver before it is shown**: see
-  [solver.js](src/lib/engine/solver.js) and [levels.js](src/lib/engine/levels.js).
+  [solver.ts](src/lib/engine/solver.ts) and [levels.ts](src/lib/engine/levels.ts).
   `npm run verify` re-proves all 600 levels and 3 years of dailies; allow a few minutes.
 - unlimited **undo**, an honest **hint** (it replays the solver from your
   current position), mystery boards, capacity-5 tubes, confetti.
 - SVG art lives in `src/lib/engine/art/` and `src/lib/engine/skinart/`.
-  Sound is synthesised in [sounds.js](src/lib/ui/sounds.js), without third-party media requests.
-- PWA features: offline shell (`src/service-worker.js`), update banner,
+  Sound is synthesised in [sounds.ts](src/lib/ui/sounds.ts), without third-party media requests.
+- PWA features: offline shell (`src/service-worker.ts`), update banner,
   install helper, share-a-board, and QR/code save transfer with one-step rollback.
-- SvelteKit + Vite shell, currently JavaScript. Strict TypeScript and the remaining
-  house release/update gates are tracked in [#67](https://github.com/royashbrook/sortit/issues/67),
-  not claimed complete. See [the polish plan](docs/polish.md).
+- SvelteKit + Vite shell with strict TypeScript application code and a framework-free
+  puzzle engine. The hosted release/update rollout and its receipt are tracked in
+  [#67](https://github.com/royashbrook/sortit/issues/67).
+  See the [adoption evidence](docs/adoption.md) and [art decisions](docs/polish.md).
 
 ## tools
 
 ```sh
 npm run verify   # prove every level + 3 years of dailies solvable, twice
 npm run svelte-check
-npm run build
+npm run build:dev  # explicitly labelled local artifact
+npm run build      # strict release: clean tree, complete history, valid milestone tag
 npx playwright install chromium webkit
 npm run test:browser  # phone layouts, hardware flight/occlusion, reduced motion
+node tools/verify-pwa.mjs --legacy /path/to/shipped/build  # real old-to-new worker tests
 npm run e2e          # built shell
 npm run e2e:first-run
 npm run icons    # regenerate install PNGs from assets/branding source art

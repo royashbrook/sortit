@@ -1,6 +1,6 @@
-<script>
-  import { boltArt } from '../engine/skinart/bolt-geometry.js'
-  let { side, height } = $props()
+<script lang="ts">
+  import { boltArt } from '../engine/skinart/bolt-geometry.ts'
+  let { side, height }: { side: number; height: number } = $props()
   const id = $props.id()
   const viewHeight = $derived(height * 64 / side)
   // The nut's bottom plane and the head's top plane share one seat. The

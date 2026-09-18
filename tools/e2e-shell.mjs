@@ -13,7 +13,7 @@ import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { levelBoard } from '../src/lib/engine/levels.js'
+import { levelBoard } from '../src/lib/engine/levels.ts'
 
 const require = createRequire(process.env.PLAYWRIGHT_HOME ? join(process.env.PLAYWRIGHT_HOME, 'package.json') : import.meta.url)
 const { chromium } = require('@playwright/test')

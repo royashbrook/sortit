@@ -5,7 +5,7 @@
 // the shell rules that must read those tokens are checked in app.css.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { SHELL_THEMES, THEME_TOKENS } from '../src/lib/ui/themes.js'
+import { SHELL_THEMES, THEME_TOKENS } from '../src/lib/ui/themes.ts'
 
 const css = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
 const root = /:root \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''

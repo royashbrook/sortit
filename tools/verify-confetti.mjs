@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { confetti, clearConfetti } from '../src/lib/ui/confetti.js'
-import { drawConfettiPiece } from '../src/lib/ui/confetti-art.js'
-import { SKINS } from '../src/lib/engine/skins.js'
+import { confetti, clearConfetti } from '../src/lib/ui/confetti.ts'
+import { drawConfettiPiece } from '../src/lib/ui/confetti-art.ts'
+import { SKINS } from '../src/lib/engine/skins.ts'
 
 let now = 0, id = 0, reduced = false
 const frames = new Map(), attached = new Set(), calls = []

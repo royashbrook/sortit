@@ -3,7 +3,7 @@
 // the real store on a fake page: a fresh save shows the card and flags it
 // at once, a second boot of the same save does not, a save with progress
 // from before the flag counts as welcomed, and the first move takes it down.
-import { registerHooks } from 'node:module'
+import { registerHooks, stripTypeScriptTypes } from 'node:module'
 import { compileModule } from 'svelte/compiler'
 
 const fail = message => { console.error(`FAIL ${message}`); process.exitCode = 1 }
@@ -11,8 +11,8 @@ const fail = message => { console.error(`FAIL ${message}`); process.exitCode = 1
 registerHooks({
   load(url, context, next) {
     const loaded = next(url, context)
-    if (!url.endsWith('.svelte.js')) return loaded
-    return { format: 'module', shortCircuit: true, source: compileModule(String(loaded.source), { generate: 'client', filename: url }).js.code }
+    if (!url.endsWith('.svelte.ts')) return loaded
+    return { format: 'module', shortCircuit: true, source: compileModule(stripTypeScriptTypes(String(loaded.source)), { generate: 'client', filename: url }).js.code }
   },
 })
 const stored = new Map()
@@ -25,7 +25,7 @@ globalThis.document = { hidden: false, addEventListener() {}, documentElement: {
 globalThis.addEventListener = () => {}
 globalThis.matchMedia = () => ({ matches: true }) // reduced motion: no confetti canvas to build
 globalThis.window = globalThis
-const { createStore } = await import('../src/lib/ui/store.svelte.js')
+const { createStore } = await import('../src/lib/ui/store.svelte.ts')
 
 let store = createStore()
 if (store.welcome !== true) fail('a fresh save did not show the first-run card')

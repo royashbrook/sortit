@@ -4,7 +4,7 @@
 // owns the pixels; this gate owns the drawing data that makes them readable:
 // every block has a top face colour of its own, and every ore carries one
 // seam big enough to be a silhouette at that size, not a scatter of specks.
-import mine from '../src/lib/engine/skinart/mine.js'
+import mine from '../src/lib/engine/skinart/mine.ts'
 
 let failures = 0
 const fail = msg => { failures += 1; console.error('FAIL ' + msg) }

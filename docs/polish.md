@@ -72,19 +72,5 @@ are unchanged.
 
 ## remaining adoption work (#67)
 
-1. Share one pure save normalizer between local resume and transfer. Validate
-   undo snapshots before using them: a malformed history entry can currently
-   survive resume and throw when Undo is pressed. Preserve readable legacy saves
-   and retain unreadable bytes for recovery rather than silently discarding them.
-2. Introduce strict TypeScript at the engine/save boundaries, then the rune store
-   and UI. Keep deterministic old/new comparison through the conversion. The
-   current Svelte check is useful but does not establish strict JavaScript types.
-3. Give the service worker app-scoped cache ownership and explicit update
-   consent. Prove old/new tabs, offline navigation, retained save bytes and cache
-   retirement with real two-build browser tests.
-4. Adopt the house release identity, packaged licence inventory, deploy ordering
-   and live-byte receipts. Pin the safety tests in CI. This change adds the locked
-   browser runner and runs its suites in both check and deploy; it does not close
-   all release requirements.
-5. Finish listener/timer teardown at the shell boundary, then test repeated
-   mounts and exits. Avoid restructuring stable gameplay merely for appearance.
+The implementation status, evidence and remaining release gates now live in
+[release adoption](adoption.md). This art/lifecycle receipt does not close #67.

@@ -7,14 +7,20 @@
   "scripts": {
     "prepare": "svelte-kit sync",
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node tools/release-build.mjs",
+    "build:dev": "node tools/release-build.mjs --development",
     "preview": "vite preview",
-    "svelte-check": "svelte-check --tsconfig ./jsconfig.json",
+    "svelte-check": "svelte-check --tsconfig ./tsconfig.json",
+    "verify:release": "node tools/verify-version.mjs && node tools/release-artifact.mjs --test && node tools/license-inventory.mjs --test && node tools/release-live.mjs --test && node tools/verify-deployment.mjs",
+    "verify:artifact": "node tools/release-artifact.mjs build",
+    "verify:save-safety": "node tools/verify-save-safety.mjs",
+    "verify:updates": "node tools/verify-update.mjs",
+    "test:pwa": "node tools/verify-pwa.mjs",
     "icons": "node tools/make-icons.mjs",
     "lint:copy": "node tools/lint-copy.mjs",
     "e2e": "node tools/e2e-shell.mjs",
     "e2e:first-run": "node tools/e2e-first-run.mjs",
-    "verify": "node tools/verify-version.mjs && node tools/verify-shell.mjs && node tools/verify-first-run.mjs && node tools/verify-levels.mjs && node tools/verify-stars.mjs && node tools/verify-flight.mjs && node tools/verify-mine-cues.mjs && node tools/verify-play-clock.mjs && node tools/verify-save-transfer.mjs && node tools/verify-save-lifecycle.mjs && node tools/verify-nut-geometry.mjs && node tools/verify-dice-art.mjs && node tools/verify-confetti.mjs",
+    "verify": "npm run verify:release && node tools/verify-shell.mjs && node tools/verify-first-run.mjs && node tools/verify-levels.mjs && node tools/verify-stars.mjs && node tools/verify-flight.mjs && node tools/verify-mine-cues.mjs && node tools/verify-play-clock.mjs && node tools/verify-save-transfer.mjs && node tools/verify-save-lifecycle.mjs && node tools/verify-save-safety.mjs && node tools/verify-presentation-lifecycle.mjs && node tools/verify-update.mjs && node tools/verify-nut-geometry.mjs && node tools/verify-dice-art.mjs && node tools/verify-confetti.mjs",
     "test:browser": "playwright test"
   },
   "dependencies": {
@@ -25,8 +31,11 @@
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.1",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@types/qrcode": "1.5.6",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.3",
-    "vite": "^8.1.5"
+    "typescript": "6.0.3",
+    "vite": "^8.1.5",
+    "wrangler": "4.134.0"
   }
 }

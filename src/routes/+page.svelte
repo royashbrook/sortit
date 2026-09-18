@@ -1,40 +1,65 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte'
-  import { createStore, LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT } from '$lib/ui/store.svelte.js'
-  import { themeForWorld } from '$lib/engine/art/index.js'
-  import { dailySeed } from '$lib/engine/seed.js'
-  import { updated } from '$app/state'
-  import { sound } from '$lib/ui/sounds.js'
+  import { createStore, LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT } from '$lib/ui/store.svelte.ts'
+  import { themeForWorld } from '$lib/engine/art/index.ts'
+  import { dailySeed } from '$lib/engine/seed.ts'
+  import type { Board as PuzzleBoard } from '$lib/engine/types.ts'
+  import { SAVE_GENERATION_KEY } from '$lib/storage.ts'
+  import { startUpdates, type UpdateState } from '$lib/ui/update.ts'
+  import { sound } from '$lib/ui/sounds.ts'
   import QRCode from 'qrcode'
   import {
     codeFromHash,
-    encodeSave,
+    encodeSaveSlots,
     hasRollback,
     importSave,
     restoreRollback,
     saveLink,
-  } from '$lib/ui/save-transfer.js'
+  } from '$lib/ui/save-transfer.ts'
   import Board from '$lib/ui/Board.svelte'
   import Modal from '$lib/ui/Modal.svelte'
 
   const store = createStore()
   const version = __APP_VERSION__
+  let previousScreen = store.screen
+
+  $effect(() => {
+    const screen = store.screen
+    if (screen === previousScreen) return
+    previousScreen = screen
+    // Navigation removes its own focused control. Name and focus the new screen,
+    // but leave initial mount and same-screen dialogs to their native behavior.
+    document.getElementById(screen)!.focus({ preventScroll: true })
+  })
 
   let muted = $state(sound.muted)
-  let installEvent = $state(null)
+  let installEvent = $state<BeforeInstallPromptEvent | null>(null)
   let installable = $state(false)
   let iosInstall = $state(false)
-  let updateState = $state('')
+  let updateState = $state<UpdateState>({ status: 'idle', ready: false })
+  let updates: ReturnType<typeof startUpdates> | undefined
   let saveCode = $state('')
   let saveImport = $state('')
   let transferMsg = $state('')
   let qrShown = $state(false)
   let rollbackReady = $state(false)
-  let saveCodeEl = $state()
-  let qrCanvas = $state()
+  let saveCodeEl = $state<HTMLTextAreaElement>()
+  let qrCanvas = $state<HTMLCanvasElement>()
+  let transferBusy = $state(false)
+  let transferRequest: AbortController | undefined
+  let transferEpoch = 0
+  let disposed = false
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+  function later(run: () => void, delay: number) {
+    if (disposed) return
+    const id = setTimeout(() => { timers.delete(id); run() }, delay)
+    timers.add(id)
+  }
 
   // a shared link drops the player onto their friend's exact board
   onMount(() => {
+    sound.mount()
+    updates = startUpdates(value => updateState = value, () => store.flushSave())
     const params = new URLSearchParams(location.search)
     const lvl = Number.parseInt(params.get('level') ?? '', 10)
     const seed = Number.parseInt(params.get('seed') ?? '', 10)
@@ -50,17 +75,20 @@
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
     const isInstalled = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
     if (isIos && !isInstalled) { iosInstall = true; installable = true }
-    addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; installable = true })
-    addEventListener('appinstalled', () => { installable = false })
+    const onInstallPrompt = (event: Event) => { event.preventDefault(); installEvent = event as BeforeInstallPromptEvent; installable = true }
+    const onInstalled = () => { installable = false }
+    addEventListener('beforeinstallprompt', onInstallPrompt)
+    addEventListener('appinstalled', onInstalled)
 
     // two tabs sharing one store: adopt the better progress rather than clobber
-    addEventListener('storage', e => { if (e.key === 'sortit:progress') store.mergeExternalProgress() })
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === SAVE_GENERATION_KEY) { store.reloadSave(); sound.reloadSettings(); muted = sound.muted }
+      else if (event.key === 'sortit:progress') store.mergeExternalProgress()
+    }
+    addEventListener('storage', onStorage)
 
-    // kit polls the deployed version on its own interval; coming back to the
-    // app is the moment a player would want to know, so ask right then too
     const onVisibility = () => {
       store.setVisible(!document.hidden)
-      if (!document.hidden) updated.check().catch(() => {})
     }
     const onPageHide = () => store.setVisible(false)
     const onPageShow = () => store.setVisible(true)
@@ -68,30 +96,41 @@
     addEventListener('pagehide', onPageHide)
     addEventListener('pageshow', onPageShow)
     return () => {
+      disposed = true
+      transferEpoch++
+      transferRequest?.abort()
       document.removeEventListener('visibilitychange', onVisibility)
       removeEventListener('pagehide', onPageHide)
       removeEventListener('pageshow', onPageShow)
+      removeEventListener('beforeinstallprompt', onInstallPrompt)
+      removeEventListener('appinstalled', onInstalled)
+      removeEventListener('storage', onStorage)
+      for (const timer of timers) clearTimeout(timer)
+      timers.clear()
+      updates?.dispose()
+      store.dispose()
+      sound.dispose()
     }
   })
 
-  function toggleSound() { muted = sound.toggle() }
+  function toggleSound() { muted = store.toggleSound() }
 
-  async function share(subject) {
+  async function share(subject: PuzzleBoard | null) {
     const url = new URL(location.href)
     url.search = ''
     if (subject?.kind === 'level') url.searchParams.set('level', String(subject.n))
-    else url.searchParams.set('seed', String(subject?.seed ?? dailySeed()))
+    else url.searchParams.set('seed', String(subject?.kind === 'seed' ? subject.seed : dailySeed()))
     const payload = { title: 'Sort It', text: 'play this exact Sort It puzzle with me', url: url.toString() }
     try {
       if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) { await navigator.share(payload); return 'shared' }
-    } catch (e) { if (e?.name === 'AbortError') return 'cancelled' }
+    } catch (e) { if (e instanceof Error && e.name === 'AbortError') return 'cancelled' }
     try { await navigator.clipboard.writeText(url.toString()); return 'copied' } catch { return 'failed' }
   }
 
   let winShareLabel = $state('SEND THIS PUZZLE TO A FRIEND')
   async function shareWin() {
     const r = await share(store.board)
-    if (r === 'copied') { winShareLabel = 'LINK COPIED, SEND IT'; setTimeout(() => winShareLabel = 'SEND THIS PUZZLE TO A FRIEND', 2400) }
+    if (r === 'copied') { winShareLabel = 'LINK COPIED, SEND IT'; later(() => winShareLabel = 'SEND THIS PUZZLE TO A FRIEND', 2400) }
   }
 
   async function doInstall() {
@@ -106,18 +145,21 @@
   }
 
   async function openTransfer(incoming = '') {
+    const epoch = ++transferEpoch
     store.openDialog('transfer')
-    store.flushSave() // export the live board and time, including just after resume
     saveImport = incoming
     qrShown = false
     rollbackReady = hasRollback()
     transferMsg = 'building your save code...'
     try {
-      saveCode = await encodeSave()
+      const code = await encodeSaveSlots(store.saveSnapshot())
+      if (disposed || epoch !== transferEpoch) return
+      saveCode = code
       transferMsg = incoming ? 'a save arrived. tap LOAD THIS SAVE to use it.' : 'ready to move.'
     } catch (error) {
+      if (disposed || epoch !== transferEpoch) return
       saveCode = ''
-      transferMsg = error?.message ?? 'your save could not be read.'
+      transferMsg = error instanceof Error ? error.message : 'your save could not be read.'
     }
   }
 
@@ -145,24 +187,34 @@
   }
 
   async function loadSave() {
+    if (transferBusy) return
     if (!saveImport.trim()) { transferMsg = 'paste a save code first.'; return }
     if (!confirm('Replace this shortcut\'s progress? Its current save will be kept as a one-step rollback.')) return
+    transferBusy = true
+    const request = new AbortController()
+    transferRequest = request
     try {
-      await importSave(saveImport)
-      store.stopSaving() // pagehide must not overwrite the imported board (refs #67)
-      transferMsg = 'progress moved. restarting...'
+      await importSave(saveImport, undefined, undefined, request.signal)
+      if (disposed || request.signal.aborted) return
+      store.reloadSave()
+      sound.reloadSettings()
+      muted = sound.muted
+      rollbackReady = hasRollback()
+      transferMsg = 'progress moved.'
       clearSaveLink()
-      setTimeout(() => location.reload(), 500)
     } catch (error) {
-      transferMsg = error?.message ?? 'that save code did not work.'
-    }
+      if (disposed || request.signal.aborted) return
+      transferMsg = error instanceof Error ? error.message : 'that save code did not work.'
+    } finally { if (transferRequest === request) { transferRequest = undefined; transferBusy = false } }
   }
 
   function clearSaveLink() {
-    if (codeFromHash(location.hash)) location.replace(location.pathname + location.search)
+    if (codeFromHash(location.hash)) history.replaceState(history.state, '', location.pathname + location.search)
   }
 
-  function closeTransfer(close) {
+  function closeTransfer(close: () => void) {
+    transferEpoch++
+    transferRequest?.abort()
     close()
     clearSaveLink()
   }
@@ -171,25 +223,22 @@
     if (!confirm('Put back the save from before the last transfer?')) return
     try {
       restoreRollback()
-      store.stopSaving() // the outgoing board no longer owns the saved slot
-      transferMsg = 'old save restored. restarting...'
-      setTimeout(() => location.reload(), 500)
+      store.reloadSave()
+      sound.reloadSettings()
+      muted = sound.muted
+      rollbackReady = hasRollback()
+      transferMsg = 'old save restored.'
     } catch (error) {
-      transferMsg = error?.message ?? 'the rollback could not be restored.'
+      transferMsg = error instanceof Error ? error.message : 'the rollback could not be restored.'
     }
   }
 
-  // kit's own version check: `updated.current` is true when the DEPLOYED version
-  // differs from the one THIS build booted with (the version is baked into the
-  // running bundle, so there is no stale-baseline trap). updated.check() forces it.
-  async function checkUpdates() {
-    if (updateState === 'stale') { location.reload(); return } // the button IS the reload once an update is ready
-    updateState = 'checking'
-    try {
-      const stale = await updated.check()
-      updateState = stale || updated.current ? 'stale' : 'current'
-    } catch { updateState = 'offline' }
-    if (updateState !== 'stale') setTimeout(() => updateState = '', 2500)
+  function checkUpdates() { if (updateState.ready) updates?.apply(); else void updates?.check() }
+
+  function resetBoard() {
+    if (store.moves && !confirm('Start this puzzle over? Your level progress stays.')) return false
+    store.replay()
+    return true
   }
 
   function doHint() { store.hint() }
@@ -202,16 +251,22 @@
      quantamari's soft treatment). -->
 <div class="version-stamp" aria-hidden="true">v{version}</div>
 
+{#if store.storageMessage}
+  <div class="storage-warning" role="status"><span>{store.storageMessage}</span><button onclick={() => openTransfer()}>SAVE TRANSFER</button></div>
+{/if}
+
 <!-- a deploy happened while this shell was open: one tap reloads into it -->
-{#if updated.current}
-  <button class="toast" onclick={() => location.reload()}>update ready, tap to reload</button>
+{#if updateState.ready}
+  <button class="toast" onclick={() => updates?.apply()} disabled={updateState.status === 'applying'}>
+    {updateState.status === 'applying' ? 'updating...' : updateState.status === 'unsaved' ? 'save unavailable, transfer your progress before updating' : 'update ready, tap to reload'}
+  </button>
 {/if}
 
 {#if store.screen === 'levels'}
-  <main class="screen" id="levels">
+  <main class="screen" id="levels" tabindex="-1" aria-labelledby="levels-label">
     <header class="bar">
       <button class="chip" onclick={() => store.goGame()} aria-label="back to the game">&larr;</button>
-      <span class="chip flat">world {store.world + 1} &middot; {worldTheme.title}</span>
+      <span class="chip flat" id="levels-label">world {store.world + 1} &middot; {worldTheme.title}</span>
     </header>
     <div class="world-nav">
       <button class="chip" disabled={store.world === 0} onclick={() => store.setWorld(store.world - 1)}>&laquo; PREV</button>
@@ -246,12 +301,12 @@
     <button onclick={() => store.goGame()}>PLAY</button>
     <button data-active onclick={() => store.openLevels()}>LEVELS</button>
     <button onclick={() => store.openDialog('looks')}>LOOKS</button>
-    <button onclick={() => store.openDialog('more')}>MORE</button>
+    <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
   </nav>
 {/if}
 
 {#if store.screen === 'game'}
-  <main class="screen" id="game">
+  <main class="screen" id="game" tabindex="-1" aria-labelledby="board-label">
     <header class="bar">
       <span class="chip flat" id="board-label">{store.boardLabel}</span>
       <span class="chip flat mono" aria-label="time elapsed">{store.clock}</span>
@@ -273,16 +328,16 @@
       <button onclick={() => store.openLevels()}>LEVELS</button>
       <button onclick={doHint}>HINT</button>
       <button onclick={() => store.undo()}>UNDO</button>
-      <button onclick={() => store.replay()}>RESET</button>
+      <button onclick={resetBoard}>RESET</button>
       <button onclick={() => store.openDialog('looks')}>LOOKS</button>
-      <button onclick={() => store.openDialog('more')}>MORE</button>
+      <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
     </nav>
 
     {#if store.stuck && !store.won}
       <div class="stuck">
         <p>no moves left!</p>
         <button class="chip" onclick={() => store.undo()}>UNDO</button>
-        <button class="chip" onclick={() => store.replay()}>START OVER</button>
+        <button class="chip" onclick={resetBoard}>START OVER</button>
       </div>
     {/if}
 
@@ -308,7 +363,7 @@
     {#snippet children(close)}
       <h2>More</h2>
       <div class="more-list">
-        <button class="big secondary" onclick={() => { store.replay(); close() }}>START THIS ONE OVER</button>
+        <button class="big secondary" onclick={() => { if (resetBoard()) close() }}>START THIS ONE OVER</button>
         <button class="big secondary" onclick={() => { store.startDaily(); close() }}>TODAY'S PUZZLE</button>
         <button class="big secondary" onclick={() => store.openDialog('howto')}>HOW TO PLAY</button>
         <button class="big secondary sound-toggle" class:muted onclick={toggleSound} aria-pressed={!muted}>SOUND {muted ? 'OFF' : 'ON'}</button>
@@ -335,8 +390,8 @@
       <textarea class="save-code" readonly bind:this={saveCodeEl} aria-label="Your save code">{saveCode}</textarea>
       <label class="save-label" for="save-import">Paste a save code here:</label>
       <textarea id="save-import" class="save-code" bind:value={saveImport} spellcheck="false" placeholder="si1..."></textarea>
-      <button class="big" onclick={loadSave}>LOAD THIS SAVE</button>
-      {#if rollbackReady}<button class="big secondary" onclick={useRollback}>UNDO LAST TRANSFER</button>{/if}
+      <button class="big" disabled={transferBusy} onclick={loadSave}>LOAD THIS SAVE</button>
+      {#if rollbackReady}<button class="big secondary" disabled={transferBusy} onclick={useRollback}>UNDO LAST TRANSFER</button>{/if}
       <p class="transfer-status" role="status" aria-live="polite">{transferMsg}</p>
       <p class="small center">Nothing is uploaded. The QR carries the save inside the link.</p>
       <button class="big secondary" onclick={close}>BACK</button>
@@ -406,8 +461,10 @@
         <span aria-hidden="true" class="mark-dot">&middot;</span>
         <a href="https://github.com/sponsors/royashbrook" target="_blank" rel="noreferrer" class="mark-sponsor">sponsor me</a></p>
       <p class="small center">version {version}</p>
-      <button class="big secondary check-updates" class:ready={updateState === 'stale'} onclick={checkUpdates}>
-        {#if updateState === 'checking'}checking...{:else if updateState === 'current'}up to date{:else if updateState === 'stale'}update ready, tap to reload{:else if updateState === 'offline'}offline{:else}check for updates{/if}
+      <p class="small center">build {__RELEASE__.fingerprint.slice(0, 12)} · source {__RELEASE__.source.slice(0, 12)}</p>
+      <p class="small center"><a href="./third-party-notices.txt" rel="license">licences</a></p>
+      <button class="big secondary check-updates" class:ready={updateState.ready} disabled={updateState.status === 'applying'} onclick={checkUpdates}>
+        {#if updateState.status === 'checking'}checking...{:else if updateState.status === 'unsaved'}save unavailable, use save transfer{:else if updateState.ready}update ready, tap to reload{:else if updateState.status === 'current'}up to date{:else if updateState.status === 'downloading'}downloading update...{:else if updateState.status === 'failed'}download failed, tap to retry{:else if updateState.status === 'offline'}offline, tap to retry{:else}check for updates{/if}
       </button>
       <button class="big" onclick={close}>BACK</button>
     {/snippet}

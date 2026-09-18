@@ -1,34 +1,38 @@
 name: deploy sortit.royashbrook.com
 
-# The game deploys ITSELF, the same pattern as craftrush / scoopaloo / quarry:
-# pushing to main ships it to its own Cloudflare origin.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - ".github/**"
-      - "**/*.md"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: sortit-deploy-${{ github.ref }}
-  cancel-in-progress: true
+  group: sortit-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          # full history so the build stamps a real git-tag version, not 0.0.0-dev
+          # Delayed older events validate the current tip, not their stale payload.
+          ref: main
           fetch-depth: 0
+      - id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm ci
+      - name: build the pinned pre-migration app
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/sortit-legacy" d9949e6263e98323a985ae8f09762a39ecadc335
+          npm ci --prefix "$RUNNER_TEMP/sortit-legacy"
+          npm run build --prefix "$RUNNER_TEMP/sortit-legacy"
       # no banned public copy ships (false-privacy, em-dash) across *.md/*.html/*.svelte
       - run: npm run lint:copy
       # the verifier IS the test suite: every level + 3 years of dailies must be
@@ -40,17 +44,39 @@ jobs:
       - run: npm run test:browser
       - run: npm run e2e
       - run: npm run e2e:first-run
-      - name: check the build is present
+      - run: node tools/verify-pwa.mjs --legacy "$RUNNER_TEMP/sortit-legacy/build"
+        env:
+          SORTIT_PWA_WORK_ROOT: ${{ runner.temp }}
+      - run: npm run verify:artifact
+        env:
+          SORTIT_EXPECTED_SOURCE: ${{ steps.source.outputs.sha }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: validated-production
+          path: build/
+          retention-days: 7
+      - name: refuse a superseded release
         run: |
-          test -f build/index.html
-          test -f build/service-worker.js
-          test -f build/manifest.json
+          git fetch origin main --no-tags
+          node tools/release-artifact.mjs --current "$(git rev-parse HEAD)" "$(git rev-parse origin/main)" "$GITHUB_REF"
       - name: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SORTIT_EXPECTED_SOURCE: ${{ steps.source.outputs.sha }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "CLOUDFLARE_API_TOKEN is not set. add the repo secret to enable deploys."
             exit 1
           fi
-          npx wrangler deploy
+          npm run verify:artifact
+          npm exec --no -- wrangler deploy
+      - name: verify live bytes and headers
+        run: node tools/release-live.mjs build https://sortit.royashbrook.com
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            test-results/
+            ${{ runner.temp }}/sortit-pwa-*/results/
+          retention-days: 7

@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - name: build the pinned pre-migration app
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/sortit-legacy" d9949e6263e98323a985ae8f09762a39ecadc335
+          npm ci --prefix "$RUNNER_TEMP/sortit-legacy"
+          npm run build --prefix "$RUNNER_TEMP/sortit-legacy"
       # the public copy carries no banned claim (false-privacy, em-dash), scanning
       # *.md/*.html AND *.svelte so the about/footer/maker-mark text is covered
       - run: npm run lint:copy
@@ -31,3 +36,15 @@ jobs:
       - run: npm run test:browser
       - run: npm run e2e
       - run: npm run e2e:first-run
+      - run: node tools/verify-pwa.mjs --legacy "$RUNNER_TEMP/sortit-legacy/build"
+        env:
+          SORTIT_PWA_WORK_ROOT: ${{ runner.temp }}
+      - run: npm run verify:artifact
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            test-results/
+            ${{ runner.temp }}/sortit-pwa-*/results/
+          retention-days: 7

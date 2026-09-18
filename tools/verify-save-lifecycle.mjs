@@ -3,16 +3,16 @@
 // pagehide on reload. Testing the storage helpers alone cannot catch this race.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { registerHooks } from 'node:module'
+import { registerHooks, stripTypeScriptTypes } from 'node:module'
 import { compileModule, parse } from 'svelte/compiler'
-import { levelBoard } from '../src/lib/engine/levels.js'
-import { codeFromHash, decodeSave, encodeSave, hasRollback, importSave, restoreRollback } from '../src/lib/ui/save-transfer.js'
+import { levelBoard } from '../src/lib/engine/levels.ts'
+import { codeFromHash, decodeSave, encodeSave, encodeSaveSlots, hasRollback, importSave, restoreRollback } from '../src/lib/ui/save-transfer.ts'
 
 registerHooks({
   load(url, context, next) {
     const loaded = next(url, context)
-    if (!url.endsWith('.svelte.js')) return loaded
-    return { format: 'module', shortCircuit: true, source: compileModule(String(loaded.source), { generate: 'client', filename: url }).js.code }
+    if (!url.endsWith('.svelte.ts')) return loaded
+    return { format: 'module', shortCircuit: true, source: compileModule(stripTypeScriptTypes(String(loaded.source)), { generate: 'client', filename: url }).js.code }
   },
 })
 
@@ -24,7 +24,7 @@ class MemoryStorage {
 }
 const storage = new MemoryStorage()
 globalThis.localStorage = storage
-globalThis.document = { hidden: false, addEventListener() {}, documentElement: { style: { setProperty() {} } } }
+globalThis.document = { hidden: false, addEventListener() {}, documentElement: { dataset: {}, style: { setProperty() {} } } }
 globalThis.addEventListener = () => {}
 globalThis.matchMedia = () => ({ matches: true })
 globalThis.window = globalThis
@@ -32,21 +32,24 @@ globalThis.window = globalThis
 globalThis.setInterval = () => 0
 let now = 1000
 Date.now = () => now
-const { createStore } = await import('../src/lib/ui/store.svelte.js')
+const { createStore } = await import('../src/lib/ui/store.svelte.ts')
 
 const page = readFileSync(new URL('../src/routes/+page.svelte', import.meta.url), 'utf8')
 const script = parse(page).instance.content
 const functions = ['openTransfer', 'loadSave', 'clearSaveLink', 'useRollback'].map(name => {
   const node = script.body.find(node => node.type === 'FunctionDeclaration' && node.id.name === name)
   assert.ok(node, `page handler ${name} is missing`)
-  return page.slice(node.start, node.end)
+  return stripTypeScriptTypes(page.slice(node.start, node.end))
 }).join('\n')
 const mount = script.body.find(node => node.type === 'ExpressionStatement' && node.expression.callee?.name === 'onMount')
 const hide = mount.expression.arguments[0].body.body.flatMap(node => node.declarations ?? []).find(node => node.id.name === 'onPageHide')
 assert.ok(hide, 'the actual pagehide callback is missing')
 assert.match(page, /addEventListener\('pagehide', onPageHide\)/)
-const makeHandlers = new Function('store', 'encodeSave', 'importSave', 'restoreRollback', 'hasRollback', 'codeFromHash', 'confirm', 'location', 'setTimeout', `
-  let saveCode = '', saveImport = '', transferMsg = '', qrShown = false, rollbackReady = false;
+const makeHandlers = new Function('store', 'encodeSaveSlots', 'importSave', 'restoreRollback', 'hasRollback', 'codeFromHash', 'confirm', 'location', 'setTimeout', `
+  let saveCode = '', saveImport = '', transferMsg = '', qrShown = false, rollbackReady = false, transferBusy = false, muted = true;
+  let transferEpoch = 0, disposed = false, transferRequest;
+  const sound = { muted: true, reloadSettings() {} };
+  const history = { state: null, replaceState() { location.hash = '' } };
   ${functions}
   const onPageHide = ${page.slice(hide.init.start, hide.init.end)};
   return { openTransfer, loadSave, useRollback, onPageHide,
@@ -57,11 +60,11 @@ const makeHandlers = new Function('store', 'encodeSave', 'importSave', 'restoreR
 function pageHandlers(store, hash = '') {
   const scheduled = []
   const location = { hash, pathname: '/', search: '' }
-  const handlers = makeHandlers(store, encodeSave, importSave, restoreRollback, hasRollback, codeFromHash,
+  const handlers = makeHandlers(store, encodeSaveSlots, importSave, restoreRollback, hasRollback, codeFromHash,
     () => true, location, fn => scheduled.push(fn))
   location.reload = () => handlers.onPageHide()
   location.replace = () => handlers.onPageHide()
-  return { handlers, reload: () => { assert.ok(scheduled.length, 'page did not schedule a reload'); scheduled.splice(0).forEach(fn => fn()) } }
+  return { handlers, reload: () => { assert.equal(scheduled.length, 0, 'save adoption must not depend on reload'); handlers.onPageHide() } }
 }
 
 function playedStore() {

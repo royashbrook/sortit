@@ -1,26 +1,28 @@
-<script>
-  import { flightKeyframes, flightOptions } from './flight.js'
-  import { fx } from './fx.js'
-  import { mine as mineActors } from './actors.js'
-  import { turnNut } from './nut-turn.js'
+<script lang="ts">
+  import { flightKeyframes, flightOptions } from './flight.ts'
+  import { fx } from './fx.ts'
+  import { mine as mineActors, type ActorTrip } from './actors.ts'
+  import { turnNut } from './nut-turn.ts'
+  import type { Store } from './store.svelte.ts'
+  import type { GameItem } from '../save-schema.ts'
   import BoltPost from './BoltPost.svelte'
   import MineScene from './MineScene.svelte'
-  import { nutArt } from '../engine/skinart/bolts.js'
+  import { nutArt } from '../engine/skinart/bolts.ts'
 
-  let { store } = $props()
+  let { store }: { store: Store } = $props()
 
-  let boardEl
+  let boardEl: HTMLDivElement
   let side = $state(44)
   let tubeH = $state(200)
   let rowCount = $state(1)
 
-  const GAP = 8, PAD = 5, LIP = 10
+  const PAD = 5, LIP = 10
 
-  // rows + tube size chosen to fill the board across viewport, rows and capacity
-  // at once, ported verbatim from the vanilla layout so phones fit the same way
+  // Rows and piece size share the rendered gap so landscape layout and CSS agree.
   function measure() {
     if (!boardEl) return
     const cs = getComputedStyle(boardEl)
+    const gap = parseFloat(cs.rowGap)
     const availW = boardEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
     const availHTotal = boardEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
     const count = store.tubes.length
@@ -33,13 +35,17 @@
     // width: without this check the layout picked a wide row and the css floor
     // overflowed it, clipping the edge tubes' hit area (level 175 at 375px).
     const TUBE_MIN = 44
-    let best = null
+    let best: { rc: number; s: number } | null = null
     for (let rc = 1; rc <= Math.min(4, count); rc++) {
       const widest = Math.ceil(count / rc)
-      if (widest * TUBE_MIN + (widest - 1) * GAP > availW) continue // 44px tubes don't fit this row count
-      const availH = availHTotal - (rc - 1) * GAP
-      const bySide = (availH / rc - tubeLip - PAD) / (capacity * pieceRatio)
-      const byWidth = (availW - (widest - 1) * GAP) / widest - PAD * 2
+      if (widest * TUBE_MIN + (widest - 1) * gap > availW) continue // 44px tubes don't fit this row count
+      const availH = availHTotal - (rc - 1) * gap
+      // Headroom shrinks with the art, up to the skin's normal lip. Solve
+      // both sides of that cap instead of keeping a 64px shaft above tiny nuts.
+      const pieceStack = capacity * pieceRatio
+      const rowHeight = availH / rc - PAD
+      const bySide = Math.max((rowHeight - tubeLip) / pieceStack, rowHeight / (pieceStack + 1))
+      const byWidth = (availW - (widest - 1) * gap) / widest - PAD * 2
       // a small board (level 1: four posts of three) sat as a toy in the middle
       // of an empty card at 64px, so the cap rises when a row holds few pieces
       const cap = capacity * rc <= 4 ? 96 : 64
@@ -49,8 +55,7 @@
     if (!best) best = { rc: Math.min(4, count), s: 20 } // pathological fallback
     rowCount = best.rc
     side = Math.max(20, best.s)
-    tubeH = side * capacity * pieceRatio + tubeLip + PAD
-    rowCount = best.rc
+    tubeH = side * capacity * pieceRatio + Math.min(tubeLip, side) + PAD
   }
 
   $effect(() => {
@@ -67,14 +72,14 @@
   // tube lists, so positions are captured BEFORE the DOM updates ($effect.pre)
   // and the trip is played AFTER with the web animations api: flight.js builds
   // the path (lift, arc, the skin's landing verb), fx.js bursts on touchdown.
-  let before = new Map()
+  let before = new Map<number, { rect: DOMRect; tubeTop: number; verb: string }>()
   $effect.pre(() => {
     const uids = store.lastMovedUids
     store.moveSeq // re-run each move
     before = new Map()
     if (!boardEl) return
     for (const uid of uids) {
-      const node = boardEl.querySelector(`[data-uid="${uid}"]`)
+      const node = boardEl.querySelector<HTMLElement>(`[data-uid="${uid}"]`)
       if (!node) continue
       const tube = node.closest('.tube')
       before.set(uid, {
@@ -88,18 +93,39 @@
   // any later sequence (a second move, undo, reset, a skin change) or an
   // unmount tears it down before it can keep performing over a board that no
   // longer has that move.
-  let actorRun = null
-  $effect(() => () => { actorRun?.cancel(); actorRun = null }) // unmount only
+  let actorRun: (ReturnType<typeof mineActors> & { seq: string }) | null = null
+  const activeFlights = new Set<() => void>()
+  let renderedSeq: string | null = null
+  function cancelFlights() {
+    for (const cancel of activeFlights) cancel()
+    actorRun?.cancel()
+    actorRun = null
+  }
+  function stopMotion() {
+    cancelFlights()
+    fx.dispose()
+  }
+  $effect(() => {
+    const hidden = () => { if (document.hidden) stopMotion() }
+    document.addEventListener('visibilitychange', hidden)
+    return () => {
+      document.removeEventListener('visibilitychange', hidden)
+      stopMotion()
+    }
+  })
   $effect(() => {
     const flightSeq = String(store.moveSeq)
     if (!boardEl) return
     // a re-run for the SAME sequence (a resize re-measuring `side`) keeps the
     // performance; only a new sequence ends it
-    if (actorRun && actorRun.seq !== flightSeq) { actorRun.cancel(); actorRun = null }
+    if (renderedSeq !== flightSeq) {
+      cancelFlights()
+      renderedSeq = flightSeq
+    }
     // A rapid second move or undo owns the node now. Cancel the old compositor
     // work before starting (or declining) this sequence; its settled promise
     // is sequence-guarded below so it cannot tear down the new flight's cue.
-    for (const node of boardEl.querySelectorAll('.item.flying')) {
+    for (const node of boardEl.querySelectorAll<HTMLElement>('.item.flying')) {
       if (node.dataset.flightSeq === flightSeq) continue
       for (const animation of node.getAnimations()) animation.cancel()
       node.classList.remove('flying')
@@ -108,9 +134,9 @@
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { before = new Map(); return }
     const motion = store.skin.motion ?? { seconds: .22, lift: 1, spin: 0, stagger: 0, land: 'drop' }
     let index = 0
-    const trips = [] // what an actor-driven move needs to know about each item
+    const trips: ActorTrip[] = [] // what an actor-driven move needs to know about each item
     for (const [uid, from] of before) {
-      const node = boardEl.querySelector(`[data-uid="${uid}"]`)
+      const node = boardEl.querySelector<HTMLElement>(`[data-uid="${uid}"]`)
       if (!node) continue
       const to = node.getBoundingClientRect()
       const destTube = node.closest('.tube')
@@ -139,34 +165,47 @@
       const burst = index < 4 // a long convoy bursts only its head, not 7 puffs
       const options = flightOptions(motion, index)
       const anim = node.animate(keyframes, options)
-      if (verb === 'screw') turnNut(node, anim, [
+      const restoreNut = verb === 'screw' ? turnNut(node, anim, [
         { x: from.rect.left + from.rect.width / 2, y: from.tubeTop + 5 * side / 64 },
         { x: to.left + to.width / 2, y: destTop + 5 * side / 64 },
-      ])
+      ]) : () => {}
+      let burstTimer: ReturnType<typeof setTimeout> | undefined
+      let live = true
+      const cleanup = () => {
+        if (!live) return
+        live = false
+        clearTimeout(burstTimer)
+        restoreNut()
+        anim.cancel()
+        activeFlights.delete(cleanup)
+        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
+      }
+      activeFlights.add(cleanup)
       // a broken block bursts where it BROKE, at the source, when the shudder
       // ends (the flight's own timing), not where it respawns
       if (burst && (verb === 'breakpop' || verb === 'mine')) {
-        setTimeout(() => {
-          if (node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
+        burstTimer = setTimeout(() => {
+          if (live && node.isConnected && node.dataset.flightSeq === flightSeq) fx.land(from.rect, 'breakpop', [pieceColor(uid)])
         }, options.delay + options.duration * (verb === 'mine' ? 0.32 : 0.42))
       }
       anim.finished.then(() => {
-        if (node.dataset.flightSeq !== flightSeq) return
-        node.classList.remove('flying')
-        if (burst) fx.land(node.getBoundingClientRect(), verb, artColors())
-      }).catch(() => {
-        if (node.dataset.flightSeq === flightSeq) node.classList.remove('flying')
-      })
+        if (!live) return
+        const landed = node.isConnected && node.dataset.flightSeq === flightSeq
+        cleanup()
+        if (landed && burst) fx.land(node.getBoundingClientRect(), verb, artColors())
+      }, cleanup)
       trips.push({ from: from.rect, to, svg: node.innerHTML, color: pieceColor(uid) })
       index += 1
     }
     // the mine move is PERFORMED: a pickaxe mines the source, a carrier brings
     // the run over and sets it down. actors ride the pieces' seconds/stagger.
     if (trips.length && motion.land === 'mine') {
-      actorRun = mineActors(boardEl, trips, motion, {
-        warp: rect => fx.land(rect, 'warp', ['#D46BFF', '#7A2BC9']),
-      })
-      actorRun.seq = flightSeq
+      actorRun = {
+        ...mineActors(boardEl, trips, motion, {
+          warp: rect => fx.land(rect, 'warp', ['#D46BFF', '#7A2BC9']),
+        }),
+        seq: flightSeq,
+      }
       actorRun.done.then(() => { if (actorRun?.seq === flightSeq) actorRun = null })
     }
     before = new Map()
@@ -176,7 +215,7 @@
     const count = store.tubes.length
     const base = Math.floor(count / rowCount)
     const extra = count % rowCount
-    const out = Array.from({ length: rowCount }, () => [])
+    const out: number[][] = Array.from({ length: rowCount }, () => [])
     let t = 0
     for (let r = 0; r < rowCount; r++) {
       const size = base + (r < extra ? 1 : 0)
@@ -186,25 +225,25 @@
   })
 
   const HID_ART = '<circle cx="32" cy="32" r="22" fill="#C9BCB2" stroke="#3D3230" stroke-width="3"/><path d="M26 28 Q26 21 32 21 Q38 21 38 27 Q38 32 32 33 L32 36" stroke="#3D3230" stroke-width="3.6" fill="none" stroke-linecap="round"/><circle cx="32" cy="43" r="2.4" fill="#3D3230"/>'
-  const pieceFor = item => store.skin.pieces?.[item.c] ?? store.theme.items[item.c]
-  const artFor = item => store.skin.key === 'bolts'
+  const pieceFor = (item: GameItem) => store.skin.pieces?.[item.c] ?? store.theme.items[item.c]
+  const artFor = (item: GameItem) => store.skin.key === 'bolts'
     ? nutArt(item.hid ? 'hid' : pieceFor(item).key.split(' ')[0], 0, -1000, `nut-${item.uid}`)
     : item.hid ? (store.skin.hidden ?? HID_ART) : pieceFor(item).svg
-  const verbFor = item => pieceFor(item)?.verb ?? store.skin.motion?.land ?? 'drop'
+  const verbFor = (item: GameItem) => pieceFor(item)?.verb ?? store.skin.motion?.land ?? 'drop'
   const artColors = () => (store.skin.pieces ?? store.theme?.items ?? []).map(item => item.color)
-  const pieceColor = uid => {
+  const pieceColor = (uid: number) => {
     for (const tube of store.tubes) for (const item of tube) if (item.uid === uid) return pieceFor(item).color
     return '#8A6142'
   }
 
   // the vanilla rich label: a screen-reader player solves by contents, so name
   // each piece (or "mystery"), or "empty"
-  const tubeLabel = (index) => {
+  const tubeLabel = (index: number) => {
     const named = store.tubes[index].map(i => i.hid ? 'mystery' : pieceFor(i).key)
     return `stack ${index + 1}: ${named.join(', ') || 'empty'}`
   }
 
-  const isLifted = (index, item) => {
+  const isLifted = (index: number, item: GameItem) => {
     if (store.selected !== index) return false
     const tube = store.tubes[index]
     const run = store.visibleRun(index)

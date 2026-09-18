@@ -1,14 +1,14 @@
-// The phone clock measures visible play, and RESET stays one tap from a game.
+// The phone clock measures visible play; RESET is visible and cancellable.
 //
 // three layers: the raw clock, the session rule (first move starts it, any
 // gate holds it), and the real store driven with a fake time, so the
 // dialog + hidden-tab overlap is proved on the code the phone runs.
 import { readFileSync } from 'node:fs'
-import { registerHooks } from 'node:module'
-import { compileModule } from 'svelte/compiler'
-import { createPlayClock, createSessionClock, formatPlayTime } from '../src/lib/ui/play-clock.js'
-import { levelBoard } from '../src/lib/engine/levels.js'
-import { optimal } from '../src/lib/engine/solver.js'
+import { registerHooks, stripTypeScriptTypes } from 'node:module'
+import { compileModule, parse } from 'svelte/compiler'
+import { createPlayClock, createSessionClock, formatPlayTime } from '../src/lib/ui/play-clock.ts'
+import { levelBoard } from '../src/lib/engine/levels.ts'
+import { optimal } from '../src/lib/engine/solver.ts'
 
 let now = 1_000
 const clock = createPlayClock(() => now)
@@ -80,8 +80,8 @@ Date.now = () => now
 registerHooks({
   load(url, context, next) {
     const loaded = next(url, context)
-    if (!url.endsWith('.svelte.js')) return loaded
-    return { format: 'module', shortCircuit: true, source: compileModule(String(loaded.source), { generate: 'client', filename: url }).js.code }
+    if (!url.endsWith('.svelte.ts')) return loaded
+    return { format: 'module', shortCircuit: true, source: compileModule(stripTypeScriptTypes(String(loaded.source)), { generate: 'client', filename: url }).js.code }
   },
 })
 const stored = new Map()
@@ -94,7 +94,7 @@ globalThis.document = { hidden: false, addEventListener() {}, documentElement: {
 globalThis.addEventListener = () => {}
 globalThis.matchMedia = () => ({ matches: true }) // reduced motion: no confetti canvas to build
 globalThis.window = globalThis
-const { createStore } = await import('../src/lib/ui/store.svelte.js')
+const { createStore } = await import('../src/lib/ui/store.svelte.ts')
 
 // level 1 is two colours, capacity 3, two empties: tube 0 to an empty tube is
 // always a legal first move, and its proof solution is a legal win
@@ -263,9 +263,17 @@ await settle()
 if (store.board.par !== newPar) fail(`a current board restored with the wrong par: ${store.board.par}`)
 
 const page = readFileSync(new URL('../src/routes/+page.svelte', import.meta.url), 'utf8')
-if (!page.includes('<button onclick={() => store.replay()}>RESET</button>')) fail('RESET is not a direct game control')
+if (!page.includes('<button onclick={resetBoard}>RESET</button>')) fail('RESET is not a direct game control')
+const resetNode = parse(page).instance.content.body.find(node => node.type === 'FunctionDeclaration' && node.id.name === 'resetBoard')
+const resetHandler = new Function('store', 'confirm', `${page.slice(resetNode.start, resetNode.end)}; return resetBoard`)
+let resets = 0
+const resetStore = { moves: 1, replay() { resets++ } }
+resetHandler(resetStore, () => false)()
+if (resets !== 0) fail('cancelled reset changed the board')
+resetHandler(resetStore, () => true)()
+if (resets !== 1) fail('confirmed reset did not restart')
 if (!page.includes('store.setVisible(!document.hidden)')) fail('visibility is not wired to the play clock')
 if (!page.includes("addEventListener('pagehide', onPageHide)")) fail('page suspension does not save a paused clock')
 
-if (!process.exitCode) console.log('play clock ok: starts on the first move, every dialog and hidden tab holds it, restore/resume honest, RESET direct')
+if (!process.exitCode) console.log('play clock ok: first move starts it, dialogs/hidden hold it, honest resume, visible cancellable RESET')
 process.exit() // the store's tick interval would keep node up
