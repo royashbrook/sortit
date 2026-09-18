@@ -214,6 +214,33 @@ Adding a synthetic cookie or unexpected request query makes each engine fail
 the corresponding assertion. The test does not certify unvisited flows or code
 injected by the eventual deployment host.
 
+### mobile safe areas and gesture scope
+
+`tests/mobile-shell.spec.js` measures four representative portrait/landscape
+safe rectangles using Chromium's native `env(safe-area-inset-*)` override.
+It asserts the override reached computed body padding before measuring the
+board, dock, version, scrolling LOOKS sheet and LEVELS return control. Two real
+wins on short viewports check that every choice can scroll into the safe area,
+owns its hit target and leads to the next puzzle. These six cases explicitly
+skip WebKit, which has no CDP equivalent in this harness. They are not physical
+iPhone evidence. Ordinary viewport/rotation coverage still runs in both engines.
+
+On the unchanged `f19fbee` artifact, four Chromium cases fail: short-portrait
+dialogs cross the top/bottom safe bounds, landscape dock buttons cross the side
+bounds, landscape dialogs cross the bottom bound, and the short-landscape win
+panel starts above the viewport. Safe insets now constrain the dock and dialog.
+The win panel is height-limited and scrollable, with scroll padding so its last
+button can clear the home indicator. A first clamp without scroll padding left
+that last button too low; the same test caught it.
+
+Two additional cases fail on the baseline in both engines because double-tap
+zoom suppression applies to the entire document. It now applies only to the
+board. The tests pin computed `touch-action`, unrestricted viewport metadata,
+ordinary About ancestors and working touch moves, not actual native pinch or
+double-tap behavior. `manipulation` already permitted pinch zoom before this
+change. All eight supported cases pass locally after the fixes, with six
+explicit WebKit capability skips. No puzzle, save, art or worker code changes.
+
 ## still required before release
 
 1. Rerun the real old/new worker suite against final rebuilt artifacts after
