@@ -23,5 +23,9 @@ end
 echo native-family-debugger-started\n
 run
 info inferiors
-info proc exe
-bt 32
+if $_thread != 0
+  info proc exe
+  bt 32
+  # A captured stop is diagnostic evidence, never a passing test result.
+  quit 1
+end
