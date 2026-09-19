@@ -15,6 +15,14 @@ export function drawConfettiPiece(g: CanvasRenderingContext2D, skin: string, col
   g.lineJoin = 'round'
 
   switch (skin) {
+    case 'glass':
+      g.beginPath(); g.arc(0, 0, 7, 0, Math.PI * 2); g.fill(); g.stroke()
+      g.strokeStyle = '#FFFFFFDD'
+      g.lineWidth = 2
+      g.beginPath(); g.arc(-1, -1, 4, Math.PI, Math.PI * 1.6); g.stroke()
+      g.fillStyle = '#FFFFFFCC'
+      g.beginPath(); g.arc(3, 3, 1.3, 0, Math.PI * 2); g.fill()
+      break
     case 'bolts':
       if (variant === 1) {
         g.fillStyle = '#BCC8CF'

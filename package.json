@@ -20,7 +20,7 @@
     "lint:copy": "node tools/lint-copy.mjs",
     "e2e": "node tools/e2e-shell.mjs",
     "e2e:first-run": "node tools/e2e-first-run.mjs",
-    "verify": "npm run verify:release && node tools/verify-shell.mjs && node tools/verify-first-run.mjs && node tools/verify-levels.mjs && node tools/verify-stars.mjs && node tools/verify-flight.mjs && node tools/verify-mine-cues.mjs && node tools/verify-play-clock.mjs && node tools/verify-save-transfer.mjs && node tools/verify-save-lifecycle.mjs && node tools/verify-save-safety.mjs && node tools/verify-presentation-lifecycle.mjs && node tools/verify-update.mjs && node tools/verify-nut-geometry.mjs && node tools/verify-dice-art.mjs && node tools/verify-confetti.mjs",
+    "verify": "npm run verify:release && node tools/verify-shell.mjs && node tools/verify-first-run.mjs && node tools/verify-levels.mjs && node tools/verify-stars.mjs && node tools/verify-flight.mjs && node tools/verify-material-motion.mjs && node tools/verify-mine-cues.mjs && node tools/verify-play-clock.mjs && node tools/verify-save-transfer.mjs && node tools/verify-save-lifecycle.mjs && node tools/verify-save-safety.mjs && node tools/verify-presentation-lifecycle.mjs && node tools/verify-update.mjs && node tools/verify-nut-geometry.mjs && node tools/verify-dice-art.mjs && node tools/verify-confetti.mjs",
     "test:browser": "playwright test"
   },
   "dependencies": {

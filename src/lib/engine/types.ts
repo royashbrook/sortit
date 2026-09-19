@@ -52,7 +52,7 @@ export type OptimalResult =
 
 export type MotionVerb = 'drop' | 'screw' | 'breakpop' | 'flip' | 'roll' | 'fly' | 'hover' | 'zig' | 'mine' | 'squish' | 'tumble' | 'bounce' | 'slide' | 'zip' | 'float'
 export type SoundPalette = 'metal' | 'stone' | 'neon' | 'pop' | 'cute' | 'dice' | 'glass' | 'wood'
-export type SkinKey = 'bolts' | 'mine' | 'dash' | 'kawaii' | 'dice' | 'tubes'
+export type SkinKey = 'glass' | 'bolts' | 'mine' | 'dash' | 'kawaii' | 'dice' | 'tubes'
 
 export interface Motion {
   seconds: number

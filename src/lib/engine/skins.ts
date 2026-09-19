@@ -23,6 +23,7 @@ import mine from './skinart/mine.ts'
 import dash from './skinart/dash.ts'
 import kawaii from './skinart/kawaii.ts'
 import dice from './skinart/dice.ts'
+import glass from './skinart/glass.ts'
 import { readSlot, writeSlot } from '../storage.ts'
 import type { Skin } from './types.ts'
 
@@ -31,6 +32,16 @@ const stack = (a: string, b: string): string =>
   `<g transform="translate(14 30) scale(.56)">${a}</g><g transform="translate(14 -2) scale(.56)">${b}</g>`
 
 export const SKINS: Skin[] = [
+  {
+    key: 'glass',
+    title: 'Glass Garden',
+    pieces: glass.pieces,
+    hidden: glass.hidden,
+    motion: { seconds: .42, lift: 1, spin: 0, stagger: .06, land: 'drop' },
+    sound: 'glass',
+    preview: '<rect x="10" y="3" width="44" height="58" rx="14" fill="#CBE7E5" stroke="#7EACA8" stroke-width="2"/>' +
+      stack(glass.pieces[0].svg, glass.pieces[7].svg),
+  },
   {
     key: 'bolts',
     title: 'Nuts & Bolts',
@@ -110,7 +121,12 @@ const KEY = 'sortit:skin'
 // default, so an old preference never strands a player on a blank board
 export function loadSkin(): Skin {
   const saved = readSlot(KEY)
-  return SKINS.find(skin => skin.key === saved) ?? SKINS[0]
+  const chosen = SKINS.find(skin => skin.key === saved)
+  if (chosen) return chosen
+  // Older installs did not persist the default until LOOKS was used. Their
+  // board must not change material just because this release adds a default.
+  const returning = readSlot('sortit:progress') !== null || readSlot('sortit:game') !== null
+  return SKINS.find(skin => skin.key === (returning ? 'bolts' : 'glass'))!
 }
 
 export function saveSkin(skin: Skin): boolean {

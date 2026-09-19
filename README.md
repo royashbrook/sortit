@@ -23,6 +23,9 @@ npm run dev     # Vite prints the local URL
   `npm run verify` re-proves all 600 levels and 3 years of dailies; allow a few minutes.
 - unlimited **undo**, an honest **hint** (it replays the solver from your
   current position), mystery boards, capacity-5 tubes, confetti.
+- seven **looks**: Glass Garden, Nuts & Bolts, Block Mine, Neon Dash, Kawaii Pop,
+  Dice Table and Classic. Each owns its motion, synthesized sound and confetti.
+  Glass is the new-player default; existing saves keep their look.
 - SVG art lives in `src/lib/engine/art/` and `src/lib/engine/skinart/`.
   Sound is synthesised in [sounds.ts](src/lib/ui/sounds.ts), without third-party media requests.
 - PWA features: offline shell (`src/service-worker.ts`), update banner,

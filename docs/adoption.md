@@ -1,5 +1,19 @@
 # release adoption (refs #67)
 
+## current disposition
+
+Architecture adoption shipped and [#67 closed in 1.1.53](https://github.com/royashbrook/sortit/issues/67#issuecomment-5734852773).
+That receipt records the strict build, hosted gates, reproduced origin bytes,
+held-client update/save checks and removal of the host-injected analytics script.
+The sections below preserve the development evidence at their named commits.
+Their words "pending", "not checked" and "still required" describe those earlier
+snapshots, not a second current backlog.
+
+The separate native-browser investigation [#74 was dispositioned](https://github.com/royashbrook/sortit/issues/74#issuecomment-5742714334)
+without claiming a proven app root cause. Diagnostic PR #82 is closed without
+merge; its branch retains the evidence. No timeouts or correctness assertions
+were relaxed to obtain a release.
+
 ## release hold and native update recovery
 
 The first production gate for the merged migration, run 35303983856 at 4f08d2a,

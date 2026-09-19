@@ -23,7 +23,7 @@ const RULES = [
     name: 'false privacy claim',
     // banned outright in our copy: we run a beacon, so these sentences are not true
     test: /\bno tracking\b|\bno analytics\b|\bwe do ?n'?o?t track\b/i,
-    why: 'we run a cookieless beacon, so this is false. use the ethos line from the standard.',
+    why: 'absolute tracking claims need origin verification. use the house ethos line.',
   },
   {
     name: 'em-dash',
@@ -32,12 +32,11 @@ const RULES = [
   },
   {
     name: 'tube in player copy',
-    // the default look is posts and nuts, and every other look has its own
-    // container: in-app words say "stack". the class names and comments in
+    // Looks have different containers: in-app words say "stack". Class names and comments in
     // code keep the word, so this only reads the svelte files' phrases
     test: /\b(a|an|another|every|whole|empty|each|its own) tubes?\b/i,
     files: /\.svelte$/,
-    why: 'the default look has no tubes: say "stack".',
+    why: 'not every look has tubes: say "stack".',
   },
 ]
 

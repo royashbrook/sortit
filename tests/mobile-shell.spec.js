@@ -100,7 +100,7 @@ test.describe('native safe-area environment values', () => {
   // coverage remains in rotation.spec; these are not physical-iPhone receipts.
   test.skip(({ browserName }) => browserName !== 'chromium', 'Chromium-only native env(safe-area-inset-*) override')
 
-  for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) for (const welcomed of [true, false]) {
+  for (const skin of ['glass', 'bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) for (const welcomed of [true, false]) {
     test(`${skin}: ${welcomed ? 'welcomed' : 'first-visit shared'} dense board stays inside its card with landscape safe insets`, async ({ page, context }, testInfo) => {
       await page.addInitScript(({ skin, welcomed }) => {
         localStorage.setItem('sortit:skin', skin)

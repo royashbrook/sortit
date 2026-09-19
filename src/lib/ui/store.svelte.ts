@@ -11,7 +11,7 @@ import { SHELL_THEMES, applyTheme, loadTheme, saveTheme } from './themes.ts'
 import { dailySeed } from '../engine/seed.ts'
 import { sound } from './sounds.ts'
 import { confetti, clearConfetti } from './confetti.ts'
-import { landingTimes } from './flight.ts'
+import { landingTimes, miningTimes } from './flight.ts'
 import { createSessionClock, formatPlayTime } from './play-clock.ts'
 import { normalizeGame, normalizeProgress, type GameItem, type Progress, type SavedGame, type UndoSnapshot } from '../save-schema.ts'
 import { readSavedSlot, readSlotResult, writeSlot, removeSlot, subscribeStorageStatus, SAVE_GENERATION_KEY } from '../storage.ts'
@@ -274,7 +274,9 @@ export function createStore() {
     // each landed item sounds at its own touchdown; with motion off there is
     // no flight to wait for, so the whole phrase lands now
     const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count, moveVerb(movingColor)))
+    const verb = moveVerb(movingColor)
+    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count, verb),
+      !still && verb === 'mine' ? miningTimes(skin.motion, move.count) : [])
     const doneNow = isComplete(colorsOf(tubes[move.to]), capacity)
     if (doneNow && !isWin(numeric(), capacity)) sound.tube()
     if (isWin(numeric(), capacity)) { finishWin(); return }
@@ -289,6 +291,7 @@ export function createStore() {
 
   function play(b: Board, parOf: (board: Board) => number | null = parFor, persist = true) {
     if (disposed || (persist && saveOwnership() === 'retired')) return
+    sound.cancelMove()
     board = { ...b, par: null }
     theme = themeForBoard(b)
     lastMovedUids = []
@@ -375,6 +378,7 @@ export function createStore() {
     reloadSave,
     dispose() {
       if (disposed) return
+      sound.cancelMove()
       saveGame()
       disposed = true
       savingGame = false
@@ -394,6 +398,7 @@ export function createStore() {
       tick()
     },
     openLevels() {
+      sound.cancelMove()
       playClock.hold('away', true)
       tick()
       saveGame()
@@ -410,6 +415,7 @@ export function createStore() {
       if (saveOwnership() === 'retired') return
       const last = history.pop()
       if (!last) return
+      sound.cancelMove()
       lastMovedUids = []
       moveSeq += 1
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
@@ -435,6 +441,7 @@ export function createStore() {
     dismissWelcome() { welcome = false },
     setSkin(next: Skin) {
       if (saveOwnership() === 'retired') return
+      sound.cancelMove()
       lastMovedUids = []
       moveSeq += 1
       skin = next
@@ -453,6 +460,7 @@ export function createStore() {
     openDialog(d: string) { dialog = d; playClock.hold('overlay', true); tick() },
     closeDialog() { dialog = null; playClock.hold('overlay', false); tick() },
     setVisible(visible: boolean) {
+      if (!visible) sound.cancelMove()
       playClock.hold('hidden', !visible)
       tick()
       if (!visible) saveGame()

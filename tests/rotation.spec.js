@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ viewport: { width: 430, height: 932 }, hasTouch: true })
 
-for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
+for (const skin of ['glass', 'bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
   test(`${skin}: dense board survives portrait and short-landscape rotation`, async ({ page }) => {
     await page.addInitScript(skin => {
       localStorage.setItem('sortit:skin', skin)
