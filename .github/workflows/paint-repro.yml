@@ -1,4 +1,4 @@
-name: shared browser native layer comparison
+name: bounded native network stack capture
 
 on:
   pull_request:
@@ -11,10 +11,6 @@ jobs:
   native-signals:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        layer: [minimal, actual, controller]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -24,32 +20,33 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - run: sudo apt-get install -y strace
+      - run: sudo apt-get install -y gdb
       - name: prepare the fixture directory
         run: |
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
-      - name: isolate repeated contexts by native layer
-        env:
-          REPRO_LAYER: ${{ matrix.layer }}
+      - name: capture only the synthetic network process stack
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
-          node tools/native-process-observer.mjs > "$SORTIT_PWA_WORK_ROOT/native-processes.jsonl" &
-          observer=$!
-          trap 'kill "$observer" 2>/dev/null || true' EXIT
+          chmod +x tools/native-network-debugger.sh
           DEBUG=pw:browser \
-          strace -f -qq -ttt -e trace=clone,clone3,exit_group,wait4,waitid -e signal=all \
-            -o "$SORTIT_PWA_WORK_ROOT/native-signals.log" \
-            node tools/native-cache-repro.mjs "${manifests[0]}" 50 "$REPRO_LAYER" shared \
+          NETWORK_PROCESS_CMD_PREFIX="$PWD/tools/native-network-debugger.sh" \
+            node tools/native-cache-repro.mjs "${manifests[0]}" 100 controller shared \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
+      - name: refuse an uninstrumented result
+        if: always()
+        run: |
+          logs=("$SORTIT_PWA_WORK_ROOT"/network-gdb.*.log)
+          test -f "${logs[0]}"
+          grep -q 'network debugger started:' "${logs[@]}"
+          grep -q 'libthread_db' "${logs[@]}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: shared-${{ matrix.layer }}-evidence
+          name: native-network-stack-evidence
           path: |
             ${{ runner.temp }}/native-repro/native-browser.log
-            ${{ runner.temp }}/native-repro/native-processes.jsonl
-            ${{ runner.temp }}/native-repro/native-signals.log
+            ${{ runner.temp }}/native-repro/network-gdb.*.log
           retention-days: 7
