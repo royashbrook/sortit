@@ -18,6 +18,7 @@ import { readSavedSlot, readSlotResult, writeSlot, removeSlot, subscribeStorageS
 import type { Board, Skin, Move } from '../engine/types.ts'
 import type { SaveSlots } from './save-transfer.ts'
 type PlayingBoard = Board & { par: number | null }
+export type HintResult = { status: 'move'; move: Move } | { status: 'dead-end' | 'budget-limit' }
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
@@ -64,6 +65,7 @@ export function createStore() {
   const playClock = createSessionClock()
   let dialog = $state<string | null>(null)
   let hintTubes = $state<number[]>([])
+  let hintResult = $state<HintResult | null>(null)
   let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
   let lastMovedUids = $state<number[]>([])
   // the one-time first-run card. it is flagged as shown the moment it shows,
@@ -81,6 +83,12 @@ export function createStore() {
   const timer = typeof window !== 'undefined' ? setInterval(tick, 500) : undefined
   let parTimer: ReturnType<typeof setTimeout> | undefined
   let hintTimer: ReturnType<typeof setTimeout> | undefined
+  function clearHint() {
+    clearTimeout(hintTimer)
+    hintTimer = undefined
+    hintTubes = []
+    hintResult = null
+  }
   // a tab restored in the background boots hidden; the page reports later changes
   if (typeof document !== 'undefined') playClock.hold('hidden', document.hidden)
 
@@ -259,6 +267,7 @@ export function createStore() {
       else sound.no()
       return
     }
+    clearHint()
     const movingColor = tubes[move.from][tubes[move.from].length - 1].c
     history.push({ tubes: tubes.map(t => t.map(i => ({ ...i }))), moves })
     lastMovedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
@@ -292,6 +301,7 @@ export function createStore() {
   function play(b: Board, parOf: (board: Board) => number | null = parFor, persist = true) {
     if (disposed || (persist && saveOwnership() === 'retired')) return
     sound.cancelMove()
+    clearHint()
     board = { ...b, par: null }
     theme = themeForBoard(b)
     lastMovedUids = []
@@ -359,6 +369,7 @@ export function createStore() {
     get clock() { return clockText },
     get dialog() { return dialog },
     get hintTubes() { return hintTubes },
+    get hintResult() { return hintResult },
     get welcome() { return welcome },
     get moveSeq() { return moveSeq },
     get lastMovedUids() { return lastMovedUids },
@@ -385,7 +396,7 @@ export function createStore() {
       ++playSeq
       clearInterval(timer)
       clearTimeout(parTimer)
-      clearTimeout(hintTimer)
+      clearHint()
       unsubscribeStorage()
       clearConfetti()
     },
@@ -416,6 +427,7 @@ export function createStore() {
       const last = history.pop()
       if (!last) return
       sound.cancelMove()
+      clearHint()
       lastMovedUids = []
       moveSeq += 1
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
@@ -428,15 +440,17 @@ export function createStore() {
       stuck = false
       saveGame()
     },
-    hint() {
-      if (over) return true
+    hint(): HintResult | null {
+      if (disposed) return null
+      clearHint()
+      if (over) return null
       const r = solve(numeric(), capacity, HINT_BUDGET)
-      if (!r.solved || !r.moves.length) return false
+      if (!r.solved) return hintResult = { status: r.aborted ? 'budget-limit' : 'dead-end' }
       const m = r.moves[0]
+      if (!m) return null
       hintTubes = [m.from, m.to] // the board lifts the first, rings the second
-      clearTimeout(hintTimer)
       hintTimer = setTimeout(() => { hintTubes = [] }, 2000)
-      return m
+      return hintResult = { status: 'move', move: m }
     },
     dismissWelcome() { welcome = false },
     setSkin(next: Skin) {

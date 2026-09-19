@@ -259,7 +259,7 @@
     return true
   }
 
-  function doHint() { store.hint() }
+  function doHint() { return store.hint() }
 
   const worldTheme = $derived(themeForWorld(store.world))
   const worldStart = $derived(store.world * WORLD_SIZE)
@@ -351,9 +351,10 @@
       <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
     </nav>
 
-    {#if store.stuck && !store.won}
-      <div class="stuck">
-        <p>no moves left!</p>
+    {#if (store.stuck || store.hintResult?.status === 'dead-end' || store.hintResult?.status === 'budget-limit') && !store.won}
+      <div class="stuck" role="status">
+        <p>{store.hintResult?.status === 'dead-end' ? 'no solution from here. try undo.'
+          : store.hintResult?.status === 'budget-limit' ? 'no hint yet. try a move or undo.' : 'no moves left!'}</p>
         <button class="chip" onclick={() => store.undo()}>UNDO</button>
         <button class="chip" onclick={resetBoard}>START OVER</button>
       </div>
