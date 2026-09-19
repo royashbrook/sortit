@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { levelBoard } from '../src/lib/engine/levels.ts'
 
-const skins = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
+const skins = ['glass', 'bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 async function win(page, skin) {
   await page.addInitScript(skin => {
     localStorage.setItem('sortit:skin', skin)
@@ -40,7 +40,7 @@ for (const skin of skins) {
     // Inspect calls made by the shipped renderer, not just its identifying label.
     await expect.poll(() => page.evaluate(skin => {
       const has = (name, ...args) => window.confettiPaint.some(c => c[0] === name && args.every((v, i) => c[i + 1] === v))
-      return { bolts: has('fill', 'evenodd') && has('strokeRect'),
+      return { glass: has('arc', 0, 0, 7) && has('arc', -1, -1, 4), bolts: has('fill', 'evenodd') && has('strokeRect'),
         mine: has('moveTo', -8, -4) && has('fillRect', -6, -1, 2, 2),
         dash: has('moveTo', -1, -9), kawaii: has('bezierCurveTo'),
         dice: has('roundRect') && has('arc'), tubes: has('fillRect', -4, -8, 8, 16) && has('arc') }[skin]

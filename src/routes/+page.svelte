@@ -81,8 +81,16 @@
     addEventListener('appinstalled', onInstalled)
 
     // two tabs sharing one store: adopt the better progress rather than clobber
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === SAVE_GENERATION_KEY) { store.reloadSave(); sound.reloadSettings(); muted = sound.muted }
+    const onStorage = async (event: StorageEvent) => {
+      if (event.key === SAVE_GENERATION_KEY) {
+        store.reloadSave()
+        sound.reloadSettings()
+        muted = sound.muted
+        if (store.dialog === 'transfer') {
+          rollbackReady = hasRollback()
+          await refreshSaveCode('save updated in another tab.')
+        }
+      }
       else if (event.key === 'sortit:progress') store.mergeExternalProgress()
     }
     addEventListener('storage', onStorage)
@@ -144,23 +152,28 @@
     if (iosInstall) store.openDialog('ios-install')
   }
 
-  async function openTransfer(incoming = '') {
+  async function refreshSaveCode(readyMessage: string) {
     const epoch = ++transferEpoch
-    store.openDialog('transfer')
-    saveImport = incoming
+    saveCode = ''
     qrShown = false
-    rollbackReady = hasRollback()
     transferMsg = 'building your save code...'
     try {
       const code = await encodeSaveSlots(store.saveSnapshot())
       if (disposed || epoch !== transferEpoch) return
       saveCode = code
-      transferMsg = incoming ? 'a save arrived. tap LOAD THIS SAVE to use it.' : 'ready to move.'
+      transferMsg = readyMessage
     } catch (error) {
       if (disposed || epoch !== transferEpoch) return
       saveCode = ''
       transferMsg = error instanceof Error ? error.message : 'your save could not be read.'
     }
+  }
+
+  async function openTransfer(incoming = '') {
+    store.openDialog('transfer')
+    saveImport = incoming
+    rollbackReady = hasRollback()
+    await refreshSaveCode(incoming ? 'a save arrived. tap LOAD THIS SAVE to use it.' : 'ready to move.')
   }
 
   async function copySave() {
@@ -175,12 +188,15 @@
 
   async function showSaveQr() {
     if (!saveCode || !qrCanvas) return
+    const epoch = transferEpoch
     transferMsg = 'building the QR code...'
     try {
       await QRCode.toCanvas(qrCanvas, saveLink(saveCode), { errorCorrectionLevel: 'L', margin: 2, width: 260 })
+      if (disposed || epoch !== transferEpoch) return
       qrShown = true
       transferMsg = 'scan this with the other device.'
     } catch {
+      if (disposed || epoch !== transferEpoch) return
       qrShown = false
       transferMsg = 'this save is too big for a QR code. use COPY SAVE CODE.'
     }
@@ -200,8 +216,8 @@
       sound.reloadSettings()
       muted = sound.muted
       rollbackReady = hasRollback()
-      transferMsg = 'progress moved.'
       clearSaveLink()
+      await refreshSaveCode('progress moved.')
     } catch (error) {
       if (disposed || request.signal.aborted) return
       transferMsg = error instanceof Error ? error.message : 'that save code did not work.'
@@ -219,18 +235,20 @@
     clearSaveLink()
   }
 
-  function useRollback() {
+  async function useRollback() {
+    if (transferBusy) return
     if (!confirm('Put back the save from before the last transfer?')) return
+    transferBusy = true
     try {
       restoreRollback()
       store.reloadSave()
       sound.reloadSettings()
       muted = sound.muted
       rollbackReady = hasRollback()
-      transferMsg = 'old save restored.'
+      await refreshSaveCode('old save restored.')
     } catch (error) {
       transferMsg = error instanceof Error ? error.message : 'the rollback could not be restored.'
-    }
+    } finally { transferBusy = false }
   }
 
   function checkUpdates() { if (updateState.ready) updates?.apply(); else void updates?.check() }
@@ -241,7 +259,7 @@
     return true
   }
 
-  function doHint() { store.hint() }
+  function doHint() { return store.hint() }
 
   const worldTheme = $derived(themeForWorld(store.world))
   const worldStart = $derived(store.world * WORLD_SIZE)
@@ -333,9 +351,10 @@
       <button data-menu-opener onclick={() => store.openDialog('more')}>MORE</button>
     </nav>
 
-    {#if store.stuck && !store.won}
-      <div class="stuck">
-        <p>no moves left!</p>
+    {#if (store.stuck || store.hintResult?.status === 'dead-end' || store.hintResult?.status === 'budget-limit') && !store.won}
+      <div class="stuck" role="status">
+        <p>{store.hintResult?.status === 'dead-end' ? 'no solution from here. try undo.'
+          : store.hintResult?.status === 'budget-limit' ? 'no hint yet. try a move or undo.' : 'no moves left!'}</p>
         <button class="chip" onclick={() => store.undo()}>UNDO</button>
         <button class="chip" onclick={resetBoard}>START OVER</button>
       </div>

@@ -8,6 +8,7 @@
 // here (the Board skips the animated path entirely).
 
 import type { Motion } from '../engine/types.ts'
+import { MINE_SWING, MINE_CONTACT } from './flight.ts'
 
 export type ActorTrip = { from: DOMRect; to: DOMRect; svg: string; color: string }
 
@@ -121,10 +122,10 @@ export function mine(boardEl: HTMLElement, trips: ActorTrip[], motion: Motion, h
       { transform: `rotate(${ready}deg) scale(.96)`, opacity: 0, offset: 0 },
       { transform: `rotate(${ready}deg) scale(1)`, opacity: 1, offset: 0.12 },
       { transform: `rotate(${windup}deg) scale(1)`, opacity: 1, easing: 'ease-out', offset: 0.34 },
-      { transform: `rotate(${impact}deg) scale(1)`, opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: 0.72 },
+      { transform: `rotate(${impact}deg) scale(1)`, opacity: 1, easing: 'cubic-bezier(.7,0,1,.5)', offset: MINE_CONTACT },
       { transform: `rotate(${rest}deg) scale(1)`, opacity: 1, offset: 0.84 },
       { transform: `rotate(${rest}deg) scale(1)`, opacity: 0, offset: 1 },
-    ], { duration: S * 0.38, delay, easing: 'linear', fill: 'both' })
+    ], { duration: S * MINE_SWING, delay, easing: 'linear', fill: 'both' })
     animations.push(a)
     settled.push(a.finished)
   }

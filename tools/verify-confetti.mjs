@@ -32,6 +32,7 @@ for (const { key } of SKINS) {
   for (let variant = 0; variant < 3; variant++) drawConfettiPiece(context, key, '#AA44BB', variant)
   signatures.add(JSON.stringify(calls))
   const has = (name, ...args) => calls.some(c => c[0] === name && args.every((v, i) => c[i + 1] === v))
+  if (key === 'glass') { assert(has('arc', 0, 0, 7), 'glass needs round marbles'); assert(has('arc', -1, -1, 4), 'glass needs a curved highlight') }
   if (key === 'bolts') { assert(has('fill', 'evenodd'), 'nuts need a hole'); assert(has('strokeRect'), 'screws need a shaft') }
   if (key === 'mine') { assert(has('moveTo', -8, -4), 'cubes need projected faces'); assert(has('fillRect', -6, -1, 2, 2), 'cubes need pixel grain') }
   if (key === 'dash') assert(has('moveTo', -1, -9), 'neon needs lightning')
@@ -82,4 +83,4 @@ reduced = true
 confetti(['#AA44BB'], 'mine')
 assert.equal(attached.size, 0, 'reduced motion clears any previous burst')
 assert.equal(frames.size, 0)
-console.log('confetti: six material families, bounded lifecycle and reduced motion pass')
+console.log(`confetti: ${SKINS.length} material families, bounded lifecycle and reduced motion pass`)

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ hasTouch: true })
 
-for (const skin of ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
+for (const skin of ['glass', 'bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
   test(`${skin}: a tap beneath a travelling piece belongs to the underlying stack`, async ({ page }) => {
     await page.addInitScript(skin => {
       localStorage.setItem('sortit:skin', skin)

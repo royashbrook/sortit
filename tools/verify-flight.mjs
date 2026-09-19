@@ -12,8 +12,8 @@ const fail = msg => { failures += 1; console.error('FAIL ' + msg) }
 
 const GEO = { dx: -120, dy: 80, peakRel: -140, rimRel: -60, sourceClearRel: -90 }
 const VERBS = new Set(['drop', 'screw', 'breakpop', 'mine', 'flip', 'roll', 'fly', 'hover', 'zig', 'squish', 'tumble'])
-const MATERIALS = new Set(['metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
-const CONVERSIONS = ['bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
+const MATERIALS = new Set(['glass', 'metal', 'stone', 'neon', 'pop', 'cute', 'dice'])
+const CONVERSIONS = ['glass', 'bolts', 'mine', 'dash', 'kawaii', 'dice', 'tubes']
 const CSS = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8')
 const BOARD = readFileSync(new URL('../src/lib/ui/Board.svelte', import.meta.url), 'utf8')
 

@@ -11,6 +11,15 @@ let ctx: AudioContext | null = null
 let muted = readSlot(KEY) === '1'
 let mounted = false
 const voices = new Map<AudioScheduledSourceNode, () => void>()
+const moveVoices = new Set<AudioScheduledSourceNode>()
+let schedulingMove = false
+
+function cancelMove() {
+  for (const source of moveVoices) {
+    source.stop()
+    voices.get(source)?.()
+  }
+}
 
 function stopVoices() {
   for (const [source, release] of voices) {
@@ -22,11 +31,13 @@ function stopVoices() {
 function ownVoice(source: AudioScheduledSourceNode, nodes: AudioNode[]) {
   const release = () => {
     voices.delete(source)
+    moveVoices.delete(source)
     source.onended = null
     source.disconnect()
     for (const node of nodes) node.disconnect()
   }
   voices.set(source, release)
+  if (schedulingMove) moveVoices.add(source)
   source.onended = release
 }
 
@@ -127,20 +138,7 @@ const MATERIALS: Record<string, (at: number, i: number) => void> = {
     tone({ freq: 300 - i * 18, glide: 210, type: 'triangle', at, len: 0.09, vol: 0.13 })
     noise({ at, len: 0.05, vol: 0.07, freq: 900, q: 0.8 })
   },
-  stone(at, i) {
-    // a mined move, timed to the 'mine' keyframes at 1.3s: three pickaxe
-    // clinks while the block shudders (.05 .15 .25 s), the crunch as it
-    // breaks (.36), the carrier's whoosh in and out, then the set-down thud.
-    const t0 = Math.max(0, at - 1.3 * 0.82)
-    for (let c = 0; c < 3; c++) {
-      noise({ at: t0 + 0.05 + c * 0.1, len: 0.035, vol: 0.1, freq: 3400 + c * 300, q: 5 })
-      tone({ freq: 1900 + c * 120, glide: 1500, type: 'triangle', at: t0 + 0.05 + c * 0.1, len: 0.04, vol: 0.04 })
-    }
-    noise({ at: t0 + 0.36, len: 0.09, vol: 0.12, freq: 600, q: 0.7 })
-    if (i === 0) {
-      tone({ freq: 260, glide: 900, type: 'sine', at: t0 + 0.42, len: 0.16, vol: 0.05 })
-      tone({ freq: 900, glide: 260, type: 'sine', at: at + 0.16, len: 0.16, vol: 0.05 })
-    }
+  stone(at) {
     tone({ freq: 150, glide: 90, type: 'sine', at, len: 0.12, vol: 0.16 })
     noise({ at, len: 0.09, vol: 0.1, freq: 420, q: 0.6 })
   },
@@ -191,11 +189,21 @@ export const sound = {
   pick() { tone({ freq: 420, glide: 660, type: 'triangle', len: 0.09, vol: 0.12 }) },
   no() { tone({ freq: 140, glide: 110, type: 'square', len: 0.12, vol: 0.06 }) },
   // the move's whole audio: whoosh on launch, then the skin's material at each
-  // item's landing time (flight.js computes those, Board passes them through)
-  move(material: string, times: number[]) {
-    noise({ at: 0, len: 0.16, vol: 0.03, freq: 700, q: 0.4 })
-    const phrase = MATERIALS[material] ?? MATERIALS.pop
-    times.forEach((t, i) => phrase(t, i))
+  // item's landing time. The store retires these voices when its flight ends
+  // early, without cutting off an unrelated reveal or completed-tube cue.
+  cancelMove,
+  move(material: string, times: number[], strikes: number[] = []) {
+    cancelMove()
+    schedulingMove = true
+    try {
+      noise({ at: 0, len: 0.16, vol: 0.03, freq: 700, q: 0.4 })
+      for (const at of strikes) {
+        noise({ at, len: .035, vol: .1, freq: 3400, q: 5 })
+        tone({ freq: 1900, glide: 1500, type: 'triangle', at, len: .04, vol: .04 })
+      }
+      const phrase = MATERIALS[material] ?? MATERIALS.pop
+      times.forEach((t, i) => phrase(t, i))
+    } finally { schedulingMove = false }
   },
   reveal() {
     tone({ freq: 700, glide: 900, type: 'triangle', len: 0.08, vol: 0.09 })

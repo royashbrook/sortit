@@ -23,7 +23,8 @@ import mine from './skinart/mine.ts'
 import dash from './skinart/dash.ts'
 import kawaii from './skinart/kawaii.ts'
 import dice from './skinart/dice.ts'
-import { readSlot, writeSlot } from '../storage.ts'
+import glass from './skinart/glass.ts'
+import { readSlotResult, writeSlot } from '../storage.ts'
 import type { Skin } from './types.ts'
 
 // a LOOKS card: two of the skin's own pieces stacked, so the card is the skin
@@ -31,6 +32,16 @@ const stack = (a: string, b: string): string =>
   `<g transform="translate(14 30) scale(.56)">${a}</g><g transform="translate(14 -2) scale(.56)">${b}</g>`
 
 export const SKINS: Skin[] = [
+  {
+    key: 'glass',
+    title: 'Glass Garden',
+    pieces: glass.pieces,
+    hidden: glass.hidden,
+    motion: { seconds: .42, lift: 1, spin: 0, stagger: .06, land: 'drop' },
+    sound: 'glass',
+    preview: '<rect x="10" y="3" width="44" height="58" rx="14" fill="#CBE7E5" stroke="#7EACA8" stroke-width="2"/>' +
+      stack(glass.pieces[0].svg, glass.pieces[7].svg),
+  },
   {
     key: 'bolts',
     title: 'Nuts & Bolts',
@@ -108,9 +119,22 @@ const KEY = 'sortit:skin'
 
 // a saved key that no longer exists (a retired skin) falls back to the
 // default, so an old preference never strands a player on a blank board
-export function loadSkin(): Skin {
-  const saved = readSlot(KEY)
-  return SKINS.find(skin => skin.key === saved) ?? SKINS[0]
+export function loadSkin(rememberDefault = false): Skin {
+  const previousDefault = SKINS.find(skin => skin.key === 'bolts')!
+  const saved = readSlotResult(KEY)
+  if (!saved.ok) return previousDefault
+  const chosen = SKINS.find(skin => skin.key === saved.value)
+  if (chosen) return chosen
+  // Older installs did not persist the default until LOOKS was used. Their
+  // board must not change material just because this release adds a default.
+  const progress = readSlotResult('sortit:progress')
+  const game = readSlotResult('sortit:game')
+  if (!progress.ok || !game.ok) return previousDefault
+  const returning = progress.value !== null || game.value !== null
+  const resolved = returning ? previousDefault : SKINS.find(skin => skin.key === 'glass')!
+  // The owning store pins this before its first save makes a new install look old.
+  if (rememberDefault) saveSkin(resolved)
+  return resolved
 }
 
 export function saveSkin(skin: Skin): boolean {

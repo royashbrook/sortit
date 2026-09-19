@@ -4,6 +4,27 @@ The puzzle is already played and enjoyed. Preserve its deterministic levels,
 solver, move rules, difficulty, scoring and existing saves while improving the
 presentation and the code that carries them (refs #29, #67).
 
+## glass and material close-out (#29)
+
+Glass Garden adds twelve glossy, symbol-marked marbles, a frosted mystery piece,
+clear tubes and a small glass chime. Classic remains the world-art look. Glass
+is the fresh-install default; explicit saved choices are untouched, and an older
+save without a skin key retains the old Nuts & Bolts default. Original SVG paths
+use no downloaded textures, fonts, filters or shared definition ids.
+
+Every look has a distinct synthesized landing palette. Mine's one pickaxe strike
+now sounds at its actual contact rather than replaying the old three-strike
+performance. The nut's seat sounds when it reaches the destination stack, not
+halfway through its trip. A new move, undo, replay, look change, navigation or
+hidden page cancels outgoing move voices without cutting off unrelated cues.
+Reduced motion lands immediately. Landing particles use elapsed-time geometry,
+so their range does not double on a 120 Hz display.
+
+`tools/verify-material-motion.mjs` exercises the real store/audio schedule and
+30/60/120 Hz particle paths. `tests/glass.spec.js` checks default migration,
+picker persistence, dense-board geometry and target ownership in both engines;
+the shared rotation, input, safe-area and celebration checks include glass.
+
 ## hardware skin
 
 The nuts are projected hexagonal prisms with lit facets, small bevels and one
@@ -49,7 +70,7 @@ by the shell backdrop. It makes no requests and runs no animation loop.
 bounds, unobstructed touch targets and skin switching at 360/430px in both shell
 themes and browser engines. The pickaxe's existing contact tests still run.
 
-Each look also owns its win confetti: nuts/screws, voxel cubes, neon sparks,
+Each look also owns its win confetti: glass marbles, nuts/screws, voxel cubes, neon sparks,
 hearts/stars, pipped dice, or classic paper/bubbles. These are small canvas
 drawings using the active art palette, not emoji or downloaded images. Tiny
 stamps are painted once per win; each animation frame only moves the stamps. The
@@ -66,11 +87,17 @@ successful import or rollback, the outgoing store retires its write authority
 so pagehide cannot overwrite the incoming save. A cancelled or failed transfer
 does not retire the store.
 
+An open transfer sheet rebuilds its export from the adopted state after import,
+rollback or another tab's transfer (#91). The old code and QR are withdrawn
+while the replacement is encoded; a late QR completion cannot restore the old
+image. Failed and cancelled transfers leave the current export alone.
+
 `tools/verify-save-lifecycle.mjs` executes the compiled store and the page's real
 handlers, including pagehide during navigation. The wire format and slot names
 are unchanged.
 
-## remaining adoption work (#67)
+## architecture adoption (#67)
 
-The implementation status, evidence and remaining release gates now live in
-[release adoption](adoption.md). This art/lifecycle receipt does not close #67.
+Architecture adoption shipped in 1.1.53 and #67 is closed. The pinned development
+evidence and final disposition live in [release adoption](adoption.md). Browser
+automation does not substitute for physical-phone or child-preference testing.

@@ -38,7 +38,7 @@ test('play, settings, save QR and explicit sharing keep puzzle data local', asyn
   await page.getByRole('button', { name: 'NEXT LEVEL', exact: true }).tap()
 
   await page.getByRole('button', { name: 'LOOKS', exact: true }).tap()
-  for (const name of ['Block Mine', 'Neon Dash', 'Kawaii Pop', 'Dice Table', 'Classic', 'Nuts & Bolts']) {
+  for (const name of ['Glass Garden', 'Block Mine', 'Neon Dash', 'Kawaii Pop', 'Dice Table', 'Classic', 'Nuts & Bolts']) {
     await page.getByRole('button', { name, exact: true }).tap()
   }
   for (const name of ['Dusk', 'Bubblegum', 'Daylight']) await page.getByRole('button', { name, exact: true }).tap()

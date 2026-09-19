@@ -11,13 +11,14 @@ import { SHELL_THEMES, applyTheme, loadTheme, saveTheme } from './themes.ts'
 import { dailySeed } from '../engine/seed.ts'
 import { sound } from './sounds.ts'
 import { confetti, clearConfetti } from './confetti.ts'
-import { landingTimes } from './flight.ts'
+import { landingTimes, miningTimes } from './flight.ts'
 import { createSessionClock, formatPlayTime } from './play-clock.ts'
 import { normalizeGame, normalizeProgress, type GameItem, type Progress, type SavedGame, type UndoSnapshot } from '../save-schema.ts'
 import { readSavedSlot, readSlotResult, writeSlot, removeSlot, subscribeStorageStatus, SAVE_GENERATION_KEY } from '../storage.ts'
 import type { Board, Skin, Move } from '../engine/types.ts'
 import type { SaveSlots } from './save-transfer.ts'
 type PlayingBoard = Board & { par: number | null }
+export type HintResult = { status: 'move'; move: Move } | { status: 'dead-end' | 'budget-limit' }
 
 export { LEVEL_COUNT, WORLD_SIZE, WORLD_COUNT }
 
@@ -36,7 +37,6 @@ export function createStore() {
   let board = $state<PlayingBoard | null>(null)
   let playSeq = 0                   // bumped per play(), so a stale deferred par lands nowhere
   let theme = $state(THEMES[0])
-  let skin = $state(loadSkin())
   let shellTheme = $state(loadTheme())
   const initialProgress = loadProgress()
   const firstRun = !initialProgress.welcomed
@@ -64,11 +64,13 @@ export function createStore() {
   const playClock = createSessionClock()
   let dialog = $state<string | null>(null)
   let hintTubes = $state<number[]>([])
+  let hintResult = $state<HintResult | null>(null)
   let moveSeq = $state(0)           // bumps each move so Board runs its FLIP
   let lastMovedUids = $state<number[]>([])
   // the one-time first-run card. it is flagged as shown the moment it shows,
   // so a reload never brings it back; GOT IT or the first move takes it down
   let welcome = $state(firstRun)
+  let skin = $state(loadSkin(canSave()))
   if (firstRun) saveProgress(initialProgress)
 
   const colorsOf = (t: GameItem[]) => t.map(i => i.c)
@@ -81,6 +83,12 @@ export function createStore() {
   const timer = typeof window !== 'undefined' ? setInterval(tick, 500) : undefined
   let parTimer: ReturnType<typeof setTimeout> | undefined
   let hintTimer: ReturnType<typeof setTimeout> | undefined
+  function clearHint() {
+    clearTimeout(hintTimer)
+    hintTimer = undefined
+    hintTubes = []
+    hintResult = null
+  }
   // a tab restored in the background boots hidden; the page reports later changes
   if (typeof document !== 'undefined') playClock.hold('hidden', document.hidden)
 
@@ -259,6 +267,7 @@ export function createStore() {
       else sound.no()
       return
     }
+    clearHint()
     const movingColor = tubes[move.from][tubes[move.from].length - 1].c
     history.push({ tubes: tubes.map(t => t.map(i => ({ ...i }))), moves })
     lastMovedUids = tubes[move.from].slice(-move.count).map(i => i.uid)
@@ -274,7 +283,9 @@ export function createStore() {
     // each landed item sounds at its own touchdown; with motion off there is
     // no flight to wait for, so the whole phrase lands now
     const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count, moveVerb(movingColor)))
+    const verb = moveVerb(movingColor)
+    sound.move(skin.sound ?? 'pop', still ? [0] : landingTimes(skin.motion, move.count, verb),
+      !still && verb === 'mine' ? miningTimes(skin.motion, move.count) : [])
     const doneNow = isComplete(colorsOf(tubes[move.to]), capacity)
     if (doneNow && !isWin(numeric(), capacity)) sound.tube()
     if (isWin(numeric(), capacity)) { finishWin(); return }
@@ -289,6 +300,8 @@ export function createStore() {
 
   function play(b: Board, parOf: (board: Board) => number | null = parFor, persist = true) {
     if (disposed || (persist && saveOwnership() === 'retired')) return
+    sound.cancelMove()
+    clearHint()
     board = { ...b, par: null }
     theme = themeForBoard(b)
     lastMovedUids = []
@@ -356,6 +369,7 @@ export function createStore() {
     get clock() { return clockText },
     get dialog() { return dialog },
     get hintTubes() { return hintTubes },
+    get hintResult() { return hintResult },
     get welcome() { return welcome },
     get moveSeq() { return moveSeq },
     get lastMovedUids() { return lastMovedUids },
@@ -375,13 +389,14 @@ export function createStore() {
     reloadSave,
     dispose() {
       if (disposed) return
+      sound.cancelMove()
       saveGame()
       disposed = true
       savingGame = false
       ++playSeq
       clearInterval(timer)
       clearTimeout(parTimer)
-      clearTimeout(hintTimer)
+      clearHint()
       unsubscribeStorage()
       clearConfetti()
     },
@@ -394,6 +409,7 @@ export function createStore() {
       tick()
     },
     openLevels() {
+      sound.cancelMove()
       playClock.hold('away', true)
       tick()
       saveGame()
@@ -410,6 +426,8 @@ export function createStore() {
       if (saveOwnership() === 'retired') return
       const last = history.pop()
       if (!last) return
+      sound.cancelMove()
+      clearHint()
       lastMovedUids = []
       moveSeq += 1
       for (const t of last.tubes) for (const it of t) if (seen.has(it.uid)) it.hid = false
@@ -422,19 +440,22 @@ export function createStore() {
       stuck = false
       saveGame()
     },
-    hint() {
-      if (over) return true
+    hint(): HintResult | null {
+      if (disposed) return null
+      clearHint()
+      if (over) return null
       const r = solve(numeric(), capacity, HINT_BUDGET)
-      if (!r.solved || !r.moves.length) return false
+      if (!r.solved) return hintResult = { status: r.aborted ? 'budget-limit' : 'dead-end' }
       const m = r.moves[0]
+      if (!m) return null
       hintTubes = [m.from, m.to] // the board lifts the first, rings the second
-      clearTimeout(hintTimer)
       hintTimer = setTimeout(() => { hintTubes = [] }, 2000)
-      return m
+      return hintResult = { status: 'move', move: m }
     },
     dismissWelcome() { welcome = false },
     setSkin(next: Skin) {
       if (saveOwnership() === 'retired') return
+      sound.cancelMove()
       lastMovedUids = []
       moveSeq += 1
       skin = next
@@ -453,6 +474,7 @@ export function createStore() {
     openDialog(d: string) { dialog = d; playClock.hold('overlay', true); tick() },
     closeDialog() { dialog = null; playClock.hold('overlay', false); tick() },
     setVisible(visible: boolean) {
+      if (!visible) sound.cancelMove()
       playClock.hold('hidden', !visible)
       tick()
       if (!visible) saveGame()

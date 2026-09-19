@@ -78,22 +78,23 @@ function loop(now: number) {
     const age = (now - p.born) / 1000
     if (age > p.life) continue
     const t = age / p.life
-    p.x += p.vx * 0.016
-    p.y += p.vy * 0.016
-    p.vy += p.grav * 0.016
+    // Position from elapsed time, not frame count: a 120 Hz phone must not
+    // throw sparks twice as far as a 60 Hz display in the same lifetime.
+    const x = p.x + p.vx * age
+    const y = p.y + p.vy * age + .5 * p.grav * age * age
     ctx.globalAlpha = 1 - t
     ctx.fillStyle = p.color
     if (p.shape === 'spark') {
       ctx.save()
-      ctx.translate(p.x, p.y)
-      ctx.rotate(Math.atan2(p.vy, p.vx))
+      ctx.translate(x, y)
+      ctx.rotate(Math.atan2(p.vy + p.grav * age, p.vx))
       ctx.fillRect(-p.size * 1.6, -p.size / 3, p.size * 3.2, p.size / 1.5)
       ctx.restore()
     } else if (p.shape === 'chunk') {
-      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
+      ctx.fillRect(x - p.size / 2, y - p.size / 2, p.size, p.size)
     } else {
       ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size * (1 - t * 0.5), 0, Math.PI * 2)
+      ctx.arc(x, y, p.size * (1 - t * 0.5), 0, Math.PI * 2)
       ctx.fill()
     }
     next.push(p)

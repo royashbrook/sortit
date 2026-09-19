@@ -22,6 +22,14 @@ type FlightGeometry = {
 const LAUNCH = 'cubic-bezier(.5,.05,.65,.4)' // accelerate up and out
 const CRUISE = 'cubic-bezier(.35,.5,.45,1)'  // ease over the top of the arc
 
+// The pickaxe actor and its sound share the same single contact, not a second
+// guessed schedule that drifts when the move is shortened.
+export const MINE_SWING = .38
+export const MINE_CONTACT = .72
+export function miningTimes(motion: Motion, count: number): number[] {
+  return Array.from({ length: count }, (_, i) => motion.seconds * MINE_SWING * MINE_CONTACT + i * (motion.stagger ?? 0))
+}
+
 // a landed item must read upright: full turns land as-is, partial turns are a
 // mid-flight wobble that returns to zero.
 const settled = (spin: number) => (spin % 360 === 0 ? spin : 0)
@@ -195,9 +203,9 @@ export function flightOptions(motion: Motion, index: number) {
 // material's note per item without a js timer racing the compositor.
 export function landingTimes(motion: Motion, count: number, verb: string = motion.land) {
   const beats: Record<string, number> = {
-    screw: 0.52,
+    screw: 1,
     breakpop: 0.76,
-    mine: 0.78,
+    mine: 0.88,
     flip: 0.82,
     roll: 0.88,
     fly: 1,

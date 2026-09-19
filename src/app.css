@@ -335,6 +335,24 @@ h1 {
 /* the landing-effects canvas: above the board, below the win sheet */
 .fxlayer { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
 
+/* Coloured marbles in clear tubes. The glass is illustrated, not a blur of
+   the puzzle beneath it, so the colour and etched mark stay readable. */
+#board[data-skin="glass"] {
+  background:
+    radial-gradient(ellipse at 15% 0, rgb(132 207 197 / .2), transparent 60%),
+    var(--surface-sunk);
+}
+[data-skin="glass"] .tube {
+  border: 2px solid color-mix(in srgb, var(--line) 38%, transparent);
+  border-top: 4px solid color-mix(in srgb, var(--line) 45%, var(--surface));
+  border-radius: 5px 5px 1.5rem 1.5rem;
+  background: linear-gradient(90deg, rgb(221 251 252 / .25), rgb(207 241 241 / .09) 22% 72%, rgb(193 234 234 / .22));
+  box-shadow: inset 3px 0 rgb(255 255 255 / .33), inset -2px 0 rgb(153 214 215 / .28), 0 4px 5px rgb(19 63 70 / .12);
+}
+[data-skin="glass"] .tube.sel { box-shadow: inset 3px 0 rgb(255 255 255 / .4), 0 4px 0 var(--accent); }
+[data-skin="glass"] .tube.done { border-color: #46A758; box-shadow: 0 0 0 3px #46A758; }
+[data-skin="glass"] .item { padding: 0; }
+
 /* The bolt is one piece of hardware behind a tightly seated stack. */
 [data-skin="bolts"] .tube {
   border: 0;
@@ -549,7 +567,7 @@ h1 {
 .stuck {
   position: fixed;
   inset: auto 0 0;
-  z-index: 4;
+  z-index: 9; /* recovery actions own the dock area while the notice is showing */
   display: flex;
   gap: .6rem;
   align-items: center;

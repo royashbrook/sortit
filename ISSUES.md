@@ -1,6 +1,7 @@
 # issues
 
-local issue log (no remote yet). commits reference these numbers.
+The [GitHub issues](https://github.com/royashbrook/sortit/issues) are the live
+backlog. This file preserves the original local launch audit, not open work.
 
 ## #1: build "Sort It" to a releasable, locally-testable state
 
@@ -13,7 +14,9 @@ a kids' ball-sort puzzle PWA per the kidgames house standard
 - offline-first service worker, install helper, update banner
 - unlimited undo, hint, no ads / no lives / no timers / nothing to buy
 
-status: open, releasable local state reached 2026-08-18. remaining: deploy + real-device install checks
+status: shipped. [#1](https://github.com/royashbrook/sortit/issues/1) closed
+2026-08-24. Later architecture and release adoption shipped under
+[#67](https://github.com/royashbrook/sortit/issues/67).
 
 ### adversarial review 2026-08-18 (6 reviewers, all findings triaged)
 
@@ -42,9 +45,8 @@ fixed:
   shell; update banner baseline seeded from the cached shell, not the first
   probe; confetti canvas css box matches its backing store
 
-deferred (viewed, judged low):
-- back mid-level discards the attempt (no mid-level persistence yet)
-- hint treats a solver budget abort as "lost", empirically unreachable
-  (600 starts + 400 dailies + adversarial mid-game walks all solve <8k nodes)
-- landscape browser tab on a very short window can still crowd the header
-  (installed app is portrait-locked; menu/picker scroll)
+The original deferrals are superseded: in-progress games persist, and the
+portrait/landscape and safe-area work has executable coverage described in
+[adoption evidence](docs/adoption.md). The solver remains bounded rather than
+claiming an unlimited hint search. Current defects belong on GitHub, not in a
+second unsynchronized checklist here.
