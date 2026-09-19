@@ -1,0 +1,66 @@
+import { test, expect } from '@playwright/test'
+
+test.use({ hasTouch: true })
+
+for (const mode of ['settled', 'rapid', 'reduced']) {
+  test(`a newly uncovered nut keeps its revealed face through selection and cancellation (${mode})`, async ({ page }) => {
+    if (mode === 'reduced') await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.addInitScript(() => {
+      localStorage.setItem('sortit:skin', 'bolts')
+      localStorage.setItem('sortit:progress', JSON.stringify({ current: 68, done: {}, stars: {}, welcomed: true }))
+    })
+    await page.goto('/')
+    const stacks = page.locator('#board .tube')
+    const source = stacks.first()
+    const covered = source.locator('.item').nth(2)
+    await expect(covered).toHaveClass(/\bhid\b/)
+    const uid = await covered.getAttribute('data-uid')
+    const exposed = page.locator(`[data-uid="${uid}"]`)
+    await source.tap()
+    await stacks.last().tap()
+    await expect(exposed).not.toHaveClass(/\bhid\b/)
+    await expect(exposed.locator('[data-nut]')).not.toHaveAttribute('data-nut', 'hid')
+    const revealedKey = await exposed.locator('[data-nut]').getAttribute('data-nut')
+    if (mode === 'settled') await expect(page.locator('.item.flying')).toHaveCount(0)
+    if (mode === 'rapid') await expect(page.locator('.item.flying')).toHaveCount(1)
+    await source.tap()
+    await expect(exposed).toHaveClass(/\blift\b/)
+    await expect.poll(() => exposed.evaluate(n => n.getAnimations().length)).toBe(0)
+    await expect(exposed.locator('[data-nut]')).toHaveAttribute('data-nut', revealedKey)
+    await source.tap()
+    await expect(exposed).not.toHaveClass(/\blift\b/)
+    await expect.poll(() => exposed.evaluate(n => n.getAnimations().length)).toBe(0)
+    await expect(exposed.locator('[data-nut]')).toHaveAttribute('data-nut', revealedKey)
+    const top = await page.evaluate(() => JSON.parse(localStorage.getItem('sortit:game')).tubes[0].at(-1))
+    expect(top.uid).toBe(Number(uid))
+    expect(top.hid).toBe(false)
+  })
+}
+
+for (const skin of ['mine', 'dash', 'kawaii', 'dice', 'tubes']) {
+  test(`${skin}: rapid selection preserves the revealed face and covered pieces stay hidden`, async ({ page }) => {
+    await page.addInitScript(skin => {
+      localStorage.setItem('sortit:skin', skin)
+      localStorage.setItem('sortit:progress', JSON.stringify({ current: 68, done: {}, stars: {}, welcomed: true }))
+    }, skin)
+    await page.goto('/')
+    const stacks = page.locator('#board .tube'), source = stacks.first()
+    const piece = source.locator('.item').nth(2), covered = source.locator('.item').first()
+    await expect(piece).toHaveClass(/\bhid\b/)
+    const hiddenArt = await piece.locator('svg').innerHTML()
+    const coveredArt = await covered.locator('svg').innerHTML()
+    await source.tap()
+    await stacks.last().tap()
+    await expect(piece).not.toHaveClass(/\bhid\b/)
+    const revealedArt = await piece.locator('svg').innerHTML()
+    expect(revealedArt).not.toBe(hiddenArt)
+    await source.tap()
+    await expect(source).toHaveClass(/\bsel\b/)
+    await expect(page.locator('.item.flying')).toHaveCount(0)
+    expect(await piece.locator('svg').innerHTML()).toBe(revealedArt)
+    await source.tap()
+    expect(await piece.locator('svg').innerHTML()).toBe(revealedArt)
+    await expect(covered).toHaveClass(/\bhid\b/)
+    expect(await covered.locator('svg').innerHTML()).toBe(coveredArt)
+  })
+}

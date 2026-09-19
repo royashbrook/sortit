@@ -14,9 +14,9 @@ export function holdNut(node: HTMLElement, initial: Hold) {
   let revision = 0
   const reduced = matchMedia('(prefers-reduced-motion: reduce)')
   const svg = node.querySelector('svg')!
-  const rest = svg.innerHTML
+  let rest = svg.innerHTML
   const shell = svg.querySelector<SVGGElement>('[data-nut]')!
-  const key = shell.dataset.nut!
+  let key = shell.dataset.nut!
   const id = shell.dataset.artId!
 
   function stop() {
@@ -41,6 +41,12 @@ export function holdNut(node: HTMLElement, initial: Hold) {
       // but the next wind-off waits for the incoming carry to finish.
       void arrival.finished.then(() => { if (revision === current) update(state) }, () => {})
       return
+    }
+    // Revealing a mystery piece changes its face without remounting this action.
+    // Capture the current face when taking ownership, never an in-flight pose.
+    if (!ownsPose) {
+      rest = svg.innerHTML
+      key = svg.querySelector<SVGGElement>('[data-nut]')!.dataset.nut!
     }
     const offset = new DOMMatrix(getComputedStyle(node).transform).m42
     const angle = Number(svg.querySelector<SVGGElement>('[data-nut]')?.dataset.turn ?? 0)
