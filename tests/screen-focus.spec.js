@@ -54,3 +54,18 @@ test('first mount and same-screen dialog changes do not take keyboard focus', as
   await expect(page.locator('dialog')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'MORE', exact: true })).toBeFocused()
 })
+
+test('screen focus does not frame the whole app, but keyboard targets keep their outline', async ({ page }) => {
+  await activate(page, page.getByRole('button', { name: 'LEVELS', exact: true }))
+  await expect(page.locator('#levels')).toBeFocused()
+  await expect(page.locator('#levels')).toHaveCSS('outline-style', 'none')
+  await activate(page, page.getByRole('button', { name: 'PLAY', exact: true }))
+  await expect(page.locator('#game')).toBeFocused()
+  await expect(page.locator('#game')).toHaveCSS('outline-style', 'none')
+  const target = page.locator('.tube').first()
+  await activate(page, target)
+  await expect(target).toBeFocused()
+  await expect(target).toHaveClass(/sel/)
+  expect(await target.evaluate(el => el.matches(':focus-visible'))).toBe(true)
+  expect(await target.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none')
+})

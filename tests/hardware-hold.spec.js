@@ -37,8 +37,10 @@ for (const level of [1, 29, 175, 600]) test(`full posts do not imply another slo
   expect(full.exposed).toBeGreaterThan(0)
   expect(full.exposed).toBeLessThan(full.pitch * .55)
   expect(full.axis).toBeLessThan(.5)
-  expect(full.viewBox).toBe('0 0 64 40')
+  expect(full.viewBox).toBe('0 -20 64 61')
   expect(full.scaleX).toBeCloseTo(full.scaleY, 4)
+  // CSS dimensions round independently to 1/64px before SVG aspect fitting.
+  expect(Math.abs(full.scaleX * 64 - full.width)).toBeLessThanOrEqual(1 / 64)
   expect(full.pitch / full.width).toBeCloseTo(40 / 64, 3)
   await page.screenshot({ path: info.outputPath(`hardware-${level}.png`) })
 })

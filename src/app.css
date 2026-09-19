@@ -88,6 +88,10 @@ body {
   margin: 0 auto;
 }
 
+/* These containers receive navigation focus for screen readers, not a giant
+   selection frame. Interactive controls retain their native keyboard outline. */
+.screen[tabindex="-1"] { outline: none; }
+
 /* A short landscape phone needs its width to avoid stacking tall rows under
    the header. Keep the portrait board and the 44px stack targets unchanged. */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -357,7 +361,14 @@ h1 {
 [data-skin="bolts"] .item.flying { z-index: 30; }
 [data-skin="bolts"] .item.lift { animation: none; transform: none; z-index: 30; }
 [data-skin="bolts"] .item { transition: none; }
-[data-skin="bolts"] .item svg { overflow: visible; }
+[data-skin="bolts"] .item svg {
+  /* The crown reaches y=-19.2. Keep it inside the SVG viewport instead of
+     relying on overflow paint, which clips in the mobile WebKit regression. */
+  position: absolute;
+  top: calc(var(--side) * -20 / 64);
+  height: calc(var(--side) * 61 / 64);
+  overflow: visible;
+}
 [data-skin="bolts"] .tube.sel { box-shadow: none; transform: none; }
 
 /* Scenery is decorative and clipped independently: a selected block and

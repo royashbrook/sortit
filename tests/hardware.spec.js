@@ -90,19 +90,19 @@ test('a free nut has a shaded threaded interior, while a mounted nut leaves the 
     // Path membership alone would miss an opaque wall painted over the shaft.
     const svg = original.cloneNode(true)
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-    svg.setAttribute('viewBox', '0 -20 64 60')
-    svg.setAttribute('width', '256')
-    svg.setAttribute('height', '240')
+    const box = original.viewBox.baseVal
+    svg.setAttribute('width', String(box.width * 4))
+    svg.setAttribute('height', String(box.height * 4))
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }))
     try {
       const image = new Image()
       image.src = url
       await image.decode()
       const canvas = document.createElement('canvas')
-      canvas.width = 256; canvas.height = 240
+      canvas.width = box.width * 4; canvas.height = box.height * 4
       const ctx = canvas.getContext('2d')
       ctx.drawImage(image, 0, 0)
-      const pixel = y => [...ctx.getImageData(128, Math.round((y + 20) * 4), 1, 1).data]
+      const pixel = y => [...ctx.getImageData((32 - box.x) * 4, Math.round((y - box.y) * 4), 1, 1).data]
       return { center: pixel(-9.6), upper: pixel(-12), lower: pixel(-7),
         threads: original.querySelector('.nut-interior').querySelectorAll('path[stroke]').length }
     } finally { URL.revokeObjectURL(url) }
