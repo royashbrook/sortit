@@ -1,4 +1,4 @@
-name: bounded native network stack capture
+name: bounded native library identity
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  native-signals:
+  native-library:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -18,47 +18,16 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y gdb
-      - name: prove a helper exit does not hide a later abort
-        run: |
-          ulimit -c 0
-          cc -g -o "$RUNNER_TEMP/debugger-control" tools/native-debugger-control.c
-          set +e
-          gdb -nx --batch --return-child-result --command tools/native-network-debugger.gdb \
-            --args "$RUNNER_TEMP/debugger-control" > "$RUNNER_TEMP/debugger-control.log" 2>&1
-          result=$?
-          set -e
-          test "$result" -ne 0
-          grep -q 'received signal SIGABRT' "$RUNNER_TEMP/debugger-control.log"
-          grep -q 'native-debugger-control.c' "$RUNNER_TEMP/debugger-control.log"
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
-      - name: prepare the fixture directory
+      - run: node tools/native-library-identity.mjs --test
+      - run: npx playwright install --with-deps webkit
+      - name: identify the loaded library without debugger attachment
         run: |
-          echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/native-repro"
-      - run: node tools/verify-pwa.mjs --prepare-only
-      - name: follow the isolated synthetic browser family to an abort
-        id: capture
-        run: |
-          manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
-          test "${#manifests[@]}" -eq 1
           ulimit -c 0
-          DEBUG=pw:browser \
-            gdb -nx --batch --return-child-result --command tools/native-network-debugger.gdb \
-            --args node tools/native-cache-repro.mjs "${manifests[0]}" 100 controller shared \
-            > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
-      - name: refuse an uninstrumented result
-        if: always() && steps.capture.outcome != 'skipped'
-        run: |
-          grep -q 'native-family-debugger-started' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
-          grep -q 'WPENetworkProcess' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
+          node tools/native-library-identity.mjs > "$RUNNER_TEMP/native-library-identity.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: native-network-stack-evidence
-          path: |
-            ${{ runner.temp }}/debugger-control.log
-            ${{ runner.temp }}/native-repro/native-browser.log
+          name: native-library-identity
+          path: ${{ runner.temp }}/native-library-identity.json
           retention-days: 7
