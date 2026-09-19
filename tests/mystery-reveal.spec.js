@@ -37,7 +37,7 @@ for (const mode of ['settled', 'rapid', 'reduced']) {
   })
 }
 
-for (const skin of ['mine', 'dash', 'kawaii', 'dice', 'tubes']) {
+for (const skin of ['glass', 'mine', 'dash', 'kawaii', 'dice', 'tubes']) {
   test(`${skin}: rapid selection preserves the revealed face and covered pieces stay hidden`, async ({ page }) => {
     await page.addInitScript(skin => {
       localStorage.setItem('sortit:skin', skin)

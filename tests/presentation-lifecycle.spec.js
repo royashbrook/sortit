@@ -35,7 +35,7 @@ const stopped = async page => {
   await expect(page.locator('.actor-layer, .item.flying, .fxlayer')).toHaveCount(0)
 }
 
-for (const skin of ['bolts', 'mine']) {
+for (const skin of ['glass', 'bolts', 'mine']) {
   test(`${skin}: leaving the board cancels presentation and remount keeps the puzzle`, async ({ page }) => {
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
