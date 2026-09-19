@@ -18,9 +18,21 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - run: sudo apt-get install -y gdb
+      - name: prove a helper exit does not hide a later abort
+        run: |
+          ulimit -c 0
+          cc -g -o "$RUNNER_TEMP/debugger-control" tools/native-debugger-control.c
+          set +e
+          gdb -nx --batch --return-child-result --command tools/native-network-debugger.gdb \
+            --args "$RUNNER_TEMP/debugger-control" > "$RUNNER_TEMP/debugger-control.log" 2>&1
+          result=$?
+          set -e
+          test "$result" -ne 0
+          grep -q 'received signal SIGABRT' "$RUNNER_TEMP/debugger-control.log"
+          grep -q 'native-debugger-control.c' "$RUNNER_TEMP/debugger-control.log"
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - run: sudo apt-get install -y gdb
       - name: prepare the fixture directory
         run: |
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
@@ -45,5 +57,6 @@ jobs:
         with:
           name: native-network-stack-evidence
           path: |
+            ${{ runner.temp }}/debugger-control.log
             ${{ runner.temp }}/native-repro/native-browser.log
           retention-days: 7
