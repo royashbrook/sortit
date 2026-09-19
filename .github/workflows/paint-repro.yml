@@ -26,27 +26,24 @@ jobs:
           echo "SORTIT_PWA_WORK_ROOT=$RUNNER_TEMP/native-repro" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
-      - name: capture only the synthetic network process stack
+      - name: follow the isolated synthetic browser family to an abort
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
-          chmod +x tools/native-network-debugger.sh
+          ulimit -c 0
           DEBUG=pw:browser \
-          NETWORK_PROCESS_CMD_PREFIX="$PWD/tools/native-network-debugger.sh" \
-            node tools/native-cache-repro.mjs "${manifests[0]}" 100 controller shared \
+            gdb -nx --batch --return-child-result --command tools/native-network-debugger.gdb \
+            --args node tools/native-cache-repro.mjs "${manifests[0]}" 100 controller shared \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - name: refuse an uninstrumented result
         if: always()
         run: |
-          logs=("$SORTIT_PWA_WORK_ROOT"/network-gdb.*.log)
-          test -f "${logs[0]}"
-          grep -q 'network debugger started:' "${logs[@]}"
-          grep -q 'libthread_db' "${logs[@]}"
+          grep -q 'native-family-debugger-started' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
+          grep -q 'WPENetworkProcess' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: native-network-stack-evidence
           path: |
             ${{ runner.temp }}/native-repro/native-browser.log
-            ${{ runner.temp }}/native-repro/network-gdb.*.log
           retention-days: 7
