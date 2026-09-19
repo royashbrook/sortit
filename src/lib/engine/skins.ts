@@ -37,7 +37,9 @@ export const SKINS: Skin[] = [
     pieces: bolts.pieces,
     hidden: bolts.hidden,
     pieceRatio: NUT_PITCH / 64,
-    pieceViewBox: `0 0 64 ${NUT_PITCH}`,
+    // Include the rear crown and bottom stroke at every turn. CSS offsets this
+    // viewport inside the unchanged stack slot without scaling the artwork.
+    pieceViewBox: `0 -20 64 ${NUT_PITCH + 21}`,
     tubeLip: 64,
     // The nut's projected facets turn about the post. Planar rotation would
     // tumble it in screen space instead of screwing it along the shaft.
