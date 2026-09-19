@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - run: sudo apt-get update
       - run: sudo apt-get install -y gdb
       - name: prove a helper exit does not hide a later abort
         run: |
@@ -39,6 +40,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/native-repro"
       - run: node tools/verify-pwa.mjs --prepare-only
       - name: follow the isolated synthetic browser family to an abort
+        id: capture
         run: |
           manifests=("$SORTIT_PWA_WORK_ROOT"/sortit-pwa-*/artifacts.json)
           test "${#manifests[@]}" -eq 1
@@ -48,7 +50,7 @@ jobs:
             --args node tools/native-cache-repro.mjs "${manifests[0]}" 100 controller shared \
             > "$SORTIT_PWA_WORK_ROOT/native-browser.log" 2>&1
       - name: refuse an uninstrumented result
-        if: always()
+        if: always() && steps.capture.outcome != 'skipped'
         run: |
           grep -q 'native-family-debugger-started' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
           grep -q 'WPENetworkProcess' "$SORTIT_PWA_WORK_ROOT/native-browser.log"
