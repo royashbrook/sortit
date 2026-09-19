@@ -37,7 +37,6 @@ export function createStore() {
   let board = $state<PlayingBoard | null>(null)
   let playSeq = 0                   // bumped per play(), so a stale deferred par lands nowhere
   let theme = $state(THEMES[0])
-  let skin = $state(loadSkin())
   let shellTheme = $state(loadTheme())
   const initialProgress = loadProgress()
   const firstRun = !initialProgress.welcomed
@@ -71,6 +70,7 @@ export function createStore() {
   // the one-time first-run card. it is flagged as shown the moment it shows,
   // so a reload never brings it back; GOT IT or the first move takes it down
   let welcome = $state(firstRun)
+  let skin = $state(loadSkin(canSave()))
   if (firstRun) saveProgress(initialProgress)
 
   const colorsOf = (t: GameItem[]) => t.map(i => i.c)

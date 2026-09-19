@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test'
 test('glass is the fresh default', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('#board')).toHaveAttribute('data-skin', 'glass')
+  await page.reload()
+  await expect(page.locator('#board')).toHaveAttribute('data-skin', 'glass')
 })
 
 test('an older unlabelled save keeps bolts until glass is chosen', async ({ page }) => {

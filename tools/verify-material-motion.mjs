@@ -90,6 +90,30 @@ await check('new installs get glass, existing choices and unlabelled saves keep 
   assert.equal(loadSkin().key, 'bolts')
 })
 
+await check('a real fresh store persists its glass default through a second boot', () => {
+  saved.clear()
+  const first = createStore()
+  assert.equal(first.skin.key, 'glass')
+  first.dispose()
+  assert.ok(saved.has('sortit:progress') && saved.has('sortit:game'), 'first boot must create a real save')
+  const next = createStore()
+  try { assert.equal(next.skin.key, 'glass') } finally { next.dispose() }
+})
+
+await check('an unreadable saved preference is not replaced by a guessed default', () => {
+  saved.clear()
+  saved.set('sortit:skin', 'kawaii')
+  const get = localStorage.getItem
+  localStorage.getItem = key => {
+    if (key === 'sortit:skin') throw new Error('unreadable preference')
+    return get(key)
+  }
+  try {
+    assert.equal(loadSkin(true).key, 'bolts')
+    assert.equal(saved.get('sortit:skin'), 'kawaii', 'failed reads must not authorize replacement')
+  } finally { localStorage.getItem = get }
+})
+
 await check('landing particles have the same position at 30, 60 and 120 Hz', async () => {
   const { fx } = await import('../src/lib/ui/fx.ts')
   let frame, calls = [], now = 0, removed = false

@@ -24,7 +24,7 @@ import dash from './skinart/dash.ts'
 import kawaii from './skinart/kawaii.ts'
 import dice from './skinart/dice.ts'
 import glass from './skinart/glass.ts'
-import { readSlot, writeSlot } from '../storage.ts'
+import { readSlotResult, writeSlot } from '../storage.ts'
 import type { Skin } from './types.ts'
 
 // a LOOKS card: two of the skin's own pieces stacked, so the card is the skin
@@ -119,14 +119,22 @@ const KEY = 'sortit:skin'
 
 // a saved key that no longer exists (a retired skin) falls back to the
 // default, so an old preference never strands a player on a blank board
-export function loadSkin(): Skin {
-  const saved = readSlot(KEY)
-  const chosen = SKINS.find(skin => skin.key === saved)
+export function loadSkin(rememberDefault = false): Skin {
+  const previousDefault = SKINS.find(skin => skin.key === 'bolts')!
+  const saved = readSlotResult(KEY)
+  if (!saved.ok) return previousDefault
+  const chosen = SKINS.find(skin => skin.key === saved.value)
   if (chosen) return chosen
   // Older installs did not persist the default until LOOKS was used. Their
   // board must not change material just because this release adds a default.
-  const returning = readSlot('sortit:progress') !== null || readSlot('sortit:game') !== null
-  return SKINS.find(skin => skin.key === (returning ? 'bolts' : 'glass'))!
+  const progress = readSlotResult('sortit:progress')
+  const game = readSlotResult('sortit:game')
+  if (!progress.ok || !game.ok) return previousDefault
+  const returning = progress.value !== null || game.value !== null
+  const resolved = returning ? previousDefault : SKINS.find(skin => skin.key === 'glass')!
+  // The owning store pins this before its first save makes a new install look old.
+  if (rememberDefault) saveSkin(resolved)
+  return resolved
 }
 
 export function saveSkin(skin: Skin): boolean {
