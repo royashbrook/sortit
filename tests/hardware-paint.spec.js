@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 3 })
+test.use({ isMobile: true, hasTouch: true })
 
 // Sample the composed page, not a serialized SVG with a repaired viewBox.
 async function crowns(page) {
@@ -31,6 +31,8 @@ async function crowns(page) {
   }, { encoded: screenshot.toString('base64'), points })
 }
 
+for (const deviceScaleFactor of [1, 3]) test.describe(`DPR ${deviceScaleFactor}`, () => {
+test.use({ deviceScaleFactor })
 for (const width of [390, 430]) test(`nut crowns paint on the mobile board at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 932 })
   await page.addInitScript(() => {
@@ -55,4 +57,5 @@ for (const width of [390, 430]) test(`nut crowns paint on the mobile board at ${
   await expect.poll(() => page.locator('.tube').first().locator('.item').last().evaluate(el => el.getAnimations().length)).toBe(0)
   const held = await crowns(page)
   expect(held.filter(point => point.error > 3), 'loosened crowns remain painted').toEqual([])
+})
 })
