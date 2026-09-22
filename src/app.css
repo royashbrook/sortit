@@ -57,6 +57,10 @@ html, body {
   -webkit-text-size-adjust: 100%;
   user-select: none;
   -webkit-user-select: none;
+  /* installed app on a phone: fast double taps must never zoom the shell (not only the
+     board), and a long press must not raise the copy menu. text fields opt back in below. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 
 /* dvh, not vh: mobile safari's vh includes the collapsing url bar.
