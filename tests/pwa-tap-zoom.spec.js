@@ -5,6 +5,10 @@ import { test, expect } from '@playwright/test'
 // stops them, on the whole shell rather than only the board, and prove text fields still opt in.
 test('the shell blocks tap zoom, selection and the callout menu; text fields stay selectable', async ({ page }) => {
   await page.goto('/')
+  // goto resolves at load, which the app's dynamic-import bootstrap does not delay, so the layout
+  // may not have mounted yet (it had not, on the webkit gate). the gesture listener is attached in
+  // the same mount flush that stamps the theme, so wait for that stamp before probing it.
+  await expect(page.locator('html')).toHaveAttribute('data-theme', /./)
   const shell = await page.evaluate(() => {
     const s = getComputedStyle(document.body)
     return {
