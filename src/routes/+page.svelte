@@ -481,7 +481,7 @@
         <a href="https://github.com/sponsors/royashbrook" target="_blank" rel="noreferrer" class="mark-sponsor">sponsor me</a></p>
       <p class="small center">version {version}</p>
       <p class="small center">build {__RELEASE__.fingerprint.slice(0, 12)} · source {__RELEASE__.source.slice(0, 12)}</p>
-      <p class="small center"><a href="./third-party-notices.txt" rel="license">licences</a></p>
+      <p class="small center"><a class="licence-link" href="./third-party-notices.txt" rel="license">licences</a></p>
       <button class="big secondary check-updates" class:ready={updateState.ready} disabled={updateState.status === 'applying'} onclick={checkUpdates}>
         {#if updateState.status === 'checking'}checking...{:else if updateState.status === 'unsaved'}save unavailable, use save transfer{:else if updateState.ready}update ready, tap to reload{:else if updateState.status === 'current'}up to date{:else if updateState.status === 'downloading'}downloading update...{:else if updateState.status === 'failed'}download failed, tap to retry{:else if updateState.status === 'offline'}offline, tap to retry{:else}check for updates{/if}
       </button>
