@@ -18,8 +18,11 @@ const KEY = 'sortit:theme'
 export const THEME_TOKENS = [
   '--surface', '--surface-raised', '--surface-sunk', '--surface-complete',
   '--ink', '--ink-dim', '--ink-on-accent',
-  '--accent', '--accent-dim', '--line',
-  '--font-mono', '--shadow-pressed', '--mark-heart',
+  '--accent', '--accent-dim', '--line', '--warn',
+  '--font-ui', '--font-display', '--font-mono',
+  '--radius', '--radius-pill',
+  '--shadow', '--shadow-pressed', '--shadow-low', '--shadow-lift', '--shadow-ring', '--shadow-sheet',
+  '--mark-heart',
 ] as const
 
 export type ShellTheme = {
@@ -29,11 +32,22 @@ export type ShellTheme = {
   tokens: Record<typeof THEME_TOKENS[number], string>
 }
 
-// the tokens no theme repaints: the type, the pressed shadow's geometry, and
-// the maker mark's heart (the signature on the work, the same in every theme)
+// the tokens no theme repaints: the type, the shapes (radius and shadow geometry,
+// which read the theme's own --line and --accent), and the maker mark's heart (the
+// signature on the work, the same in every theme). app.css :root and its
+// [data-theme] blocks mirror every theme here, and verify-shell.mjs holds them equal.
 const FIXED = {
+  '--font-ui': 'ui-rounded, "Arial Rounded MT Bold", "Nunito", system-ui, sans-serif',
+  '--font-display': 'var(--font-ui)',
   '--font-mono': 'ui-monospace, monospace',
+  '--radius': '1rem',
+  '--radius-pill': '999px',
+  '--shadow': '0 .3rem 0 var(--line)',
   '--shadow-pressed': '0 .05rem 0 var(--line)',
+  '--shadow-low': '0 .25rem 0 var(--line)',
+  '--shadow-lift': '0 .35rem 0 var(--line)',
+  '--shadow-ring': '0 0 0 .3rem var(--accent)',
+  '--shadow-sheet': '0 -1rem 3rem color-mix(in srgb, var(--line) 18%, transparent)',
   '--mark-heart': '#e0746a',
 }
 
@@ -53,6 +67,7 @@ export const SHELL_THEMES: ShellTheme[] = [
       '--accent': '#FFB03A',
       '--accent-dim': '#E89B27',
       '--line': '#3D3230',
+      '--warn': '#C0392B',
       ...FIXED,
     },
   },
@@ -71,6 +86,7 @@ export const SHELL_THEMES: ShellTheme[] = [
       '--accent': '#FFB03A',
       '--accent-dim': '#D8912A',
       '--line': '#F2ECE2',
+      '--warn': '#E08A8A',
       ...FIXED,
     },
   },
@@ -89,6 +105,7 @@ export const SHELL_THEMES: ShellTheme[] = [
       '--accent': '#FF74A8',
       '--accent-dim': '#E85C90',
       '--line': '#4A2740',
+      '--warn': '#C0392B',
       ...FIXED,
     },
   },
