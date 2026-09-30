@@ -256,7 +256,7 @@ h1 {
 /* ------------------------------------------------------------------- board */
 
 #board {
-  touch-action: manipulation; /* rapid pours must not zoom; ordinary content still can */
+  touch-action: manipulation; /* rapid pours must not zoom: kept explicit here even though the shell (html, body) now says the same */
   display: flex;
   flex: 1;
   flex-direction: column;

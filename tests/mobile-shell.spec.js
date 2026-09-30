@@ -12,10 +12,13 @@ async function open(page, level = 1) {
   await expect(page.locator('.tube').first()).toBeVisible()
 }
 
-test('only the board suppresses double-tap zoom, not ordinary content', async ({ page }) => {
+// #94 reversed the older intent here: the installed app zoomed on fast taps outside the board,
+// so the whole shell now suppresses double-tap zoom, the board included and explicitly. taps
+// still land everywhere, and the viewport meta still leaves pinch-to-zoom to the browser.
+test('the whole shell suppresses double-tap zoom, board and ordinary content alike', async ({ page }) => {
   await open(page)
-  await expect(page.locator('html')).toHaveCSS('touch-action', 'auto')
-  await expect(page.locator('body')).toHaveCSS('touch-action', 'auto')
+  await expect(page.locator('html')).toHaveCSS('touch-action', 'manipulation')
+  await expect(page.locator('body')).toHaveCSS('touch-action', 'manipulation')
   await expect(page.locator('#board')).toHaveCSS('touch-action', 'manipulation')
   expect(await page.locator('meta[name="viewport"]').getAttribute('content')).not.toMatch(/user-scalable\s*=\s*(no|0)|maximum-scale\s*=/)
   await page.locator('.tube').nth(0).tap()
@@ -23,12 +26,15 @@ test('only the board suppresses double-tap zoom, not ordinary content', async ({
   await expect(page.locator('.tube').nth(2).locator('.item')).toHaveCount(1)
   await page.getByRole('button', { name: 'MORE', exact: true }).tap()
   await page.getByRole('button', { name: 'ABOUT', exact: true }).tap()
+  // touch-action does not inherit, but an ancestor's manipulation still governs the descendant:
+  // ordinary content is covered because its chain ends in the shell's rule, not by its own.
   const actions = await page.locator('.about-body').evaluate(el => {
     const values = []
     for (let node = el; node; node = node.parentElement) values.push(getComputedStyle(node).touchAction)
     return values
   })
-  expect(actions.every(value => value === 'auto'), JSON.stringify(actions)).toBe(true)
+  expect(actions.slice(-2), JSON.stringify(actions)).toEqual(['manipulation', 'manipulation'])
+  expect(actions.every(value => value === 'auto' || value === 'manipulation'), JSON.stringify(actions)).toBe(true)
 })
 
 const profiles = [
