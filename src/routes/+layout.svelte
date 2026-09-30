@@ -8,6 +8,13 @@
   // paint the saved shell theme before anything else reads the tokens
   onMount(() => applyTheme(loadTheme()))
 
+  // iOS ignores user-scalable=no, so block the pinch/double-tap zoom gesture directly
+  onMount(() => {
+    const block = (event: Event) => event.preventDefault()
+    addEventListener('gesturestart', block)
+    return () => removeEventListener('gesturestart', block)
+  })
+
 </script>
 
 <svelte:head><title>Sort It</title></svelte:head>

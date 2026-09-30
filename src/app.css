@@ -57,6 +57,10 @@ html, body {
   -webkit-text-size-adjust: 100%;
   user-select: none;
   -webkit-user-select: none;
+  /* installed app on a phone: fast double taps must never zoom the shell (not only the
+     board), and a long press must not raise the copy menu. text fields opt back in below. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 
 /* dvh, not vh: mobile safari's vh includes the collapsing url bar.
@@ -252,7 +256,7 @@ h1 {
 /* ------------------------------------------------------------------- board */
 
 #board {
-  touch-action: manipulation; /* rapid pours must not zoom; ordinary content still can */
+  touch-action: manipulation; /* rapid pours must not zoom: kept explicit here even though the shell (html, body) now says the same */
   display: flex;
   flex: 1;
   flex-direction: column;
