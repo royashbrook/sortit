@@ -87,6 +87,18 @@ for (const theme of ['daylight', 'dusk', 'bubblegum']) {
     }
   })
 
+  test(`${theme}: every about link clears a 44px tap target`, async ({ page }) => {
+    await open(page, theme)
+    await page.getByRole('button', { name: 'MORE', exact: true }).click()
+    await page.getByRole('button', { name: 'ABOUT', exact: true }).click()
+    const links = await page.locator('dialog a[href]').evaluateAll(els => els.map(el => {
+      const r = el.getBoundingClientRect()
+      return { text: el.textContent.trim(), min: Math.min(r.width, r.height) }
+    }))
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) expect(link.min, link.text).toBeGreaterThanOrEqual(44)
+  })
+
   test(`${theme}: selected and completed controls keep legible text`, async ({ page }) => {
     await open(page, theme, { current: 2, done: { 1: 4 }, stars: { 1: 3 } })
     await page.getByRole('button', { name: 'MORE', exact: true }).click()
