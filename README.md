@@ -4,8 +4,6 @@ a cosy sorting puzzle for kids. tap a tube, pick up what's on top, drop it on
 a matching friend. **no ads, no lives, no timers, nothing to buy, no accounts,
 no cookies, nothing sold or shared.** works offline.
 
-a [kidgames](https://github.com/royashbrook/kidgames) house game.
-
 ## play locally
 
 ```sh
